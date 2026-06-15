@@ -3,6 +3,8 @@ import { api } from '../api/client';
 import type { IssueListResult, IssueListItem, EventDetail, Filters } from '../types';
 import SeverityBadge from '../components/SeverityBadge';
 import ScoreBar from '../components/ScoreBar';
+import ExportCSV from '../components/ExportCSV';
+import MethodNote from '../components/MethodNote';
 
 export default function Quality() {
   const [result, setResult] = useState<IssueListResult | null>(null);
@@ -45,7 +47,24 @@ export default function Quality() {
       <h2 className="text-xl font-bold text-gray-900">Qualité des données</h2>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 bg-white p-3 rounded-lg border border-gray-200">
+      <div className="flex flex-wrap gap-3 bg-white p-3 rounded-lg border border-gray-200 items-center">
+        {result && result.data.length > 0 && (
+          <ExportCSV
+            data={result.data.map((d) => ({ ...d, issues: d.issues.map((i) => i.message).join(' | ') })) as unknown as Record<string, unknown>[]}
+            columns={[
+              { key: 'org_unit_name', header: 'Structure' },
+              { key: 'district', header: 'District' },
+              { key: 'region', header: 'Region' },
+              { key: 'worst_severity', header: 'Severite' },
+              { key: 'score', header: 'Score' },
+              { key: 'n_error', header: 'Erreurs' },
+              { key: 'n_warning', header: 'Avertissements' },
+              { key: 'n_info', header: 'Infos' },
+              { key: 'issues', header: 'Problemes' },
+            ]}
+            filename="qualite_issues"
+          />
+        )}
         <select
           className="border border-gray-300 rounded px-2 py-1.5 text-sm"
           value={severity}
@@ -217,6 +236,16 @@ export default function Quality() {
           </div>
         )}
       </div>
+
+      <MethodNote title="Methodologie - Regles qualite">
+        <p><strong>R1 - Champs obligatoires</strong> : date absente (erreur), statut operationnel ou nom du responsable manquant (avertissement).</p>
+        <p><strong>R2 - Coherence total/fonctionnel</strong> : pour les 36 couples d'equipements, fonctionnel &gt; total (erreur) ou fonctionnel renseigne mais total manquant (avertissement).</p>
+        <p><strong>R3 - Service sans support</strong> : service declare fonctionnel mais equipement/infrastructure de support absent (labo sans microscope, maternite sans table d'accouchement, chirurgie sans table operatoire).</p>
+        <p><strong>R4 - Coherence commodites</strong> : energie declaree sans source cochee (avertissement), eau aux points critiques sans source d'eau (info).</p>
+        <p><strong>R5 - Valeurs aberrantes</strong> : valeur &gt; mediane + 5xMAD et &gt; 50 en absolu (info).</p>
+        <p><strong>R6 - Doublons</strong> : plusieurs evenements actifs sur la meme org unit (avertissement).</p>
+        <p><strong>R7 - Completude</strong> : structure « coquille vide » sans aucun equipement ni RH renseigne (info).</p>
+      </MethodNote>
     </div>
   );
 }

@@ -29,6 +29,9 @@ func SetupRouter(cfg *config.Config, st *store.Store, client *dhis2.Client) *gin
 		read.GET("/usage/equipements", h.GetUsageEquipements)
 		read.GET("/usage/rh", h.GetUsageRH)
 		read.GET("/usage/commodites", h.GetUsageCommodites)
+		read.GET("/usage/plateau", h.GetPlateauTechnique)
+		read.GET("/usage/services/matrix", h.GetServiceMatrix)
+		read.GET("/usage/rh/summary", h.GetRHSummary)
 		read.GET("/meta/filters", h.GetFilters)
 	}
 

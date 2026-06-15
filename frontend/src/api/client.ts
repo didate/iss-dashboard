@@ -39,6 +39,9 @@ import type {
   UsageEquipement,
   UsageRH,
   UsageCommodite,
+  PlateauItem,
+  ServiceMatrixRow,
+  RHSummaryResult,
   Filters,
   SyncStatus,
 } from '../types';
@@ -75,6 +78,15 @@ export const api = {
 
   getUsageCommodites: (district?: string) =>
     request<UsageCommodite[]>(`/api/usage/commodites${qs({ district })}`),
+
+  getPlateauTechnique: (district?: string) =>
+    request<PlateauItem[]>(`/api/usage/plateau${qs({ district })}`),
+
+  getServiceMatrix: () =>
+    request<ServiceMatrixRow[]>('/api/usage/services/matrix'),
+
+  getRHSummary: (district?: string) =>
+    request<RHSummaryResult>(`/api/usage/rh/summary${qs({ district })}`),
 
   getFilters: () => request<Filters>('/api/meta/filters'),
 

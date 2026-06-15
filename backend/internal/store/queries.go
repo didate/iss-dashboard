@@ -365,6 +365,143 @@ func (s *Store) GetUsageCommodites(district string) ([]models.UsageCommodite, er
 	return out, rows.Err()
 }
 
+// --- Plateau technique ---
+
+type PlateauItem struct {
+	ServiceCode  string  `json:"service_code"`
+	ServiceLabel string  `json:"service_label"`
+	NOui         int     `json:"n_oui"`
+	NTotal       int     `json:"n_total"`
+	Pct          float64 `json:"pct"`
+}
+
+func (s *Store) GetPlateauTechnique(district string) ([]PlateauItem, error) {
+	plateauCodes := []string{
+		"ISS_SVC_LABO_DE",
+		"ISS_SVC_MATERNITE_DE",
+		"ISS_SVC_CHIRURGIE_DE",
+		"ISS_SVC_IMAGERIE_DE",
+		"ISS_SVC_PHARMACIE_DE",
+		"ISS_SVC_URGENCES_DE",
+		"ISS_SVC_PEDIATRIE_DE",
+		"ISS_SVC_MED_GEN_DE",
+		"ISS_SVC_HEMODIALYSE_DE",
+		"ISS_SVC_NEONAT_DE",
+		"ISS_SVC_DENTAIRE_DE",
+		"ISS_SVC_ANESTH_REA_DE",
+	}
+	d := "all"
+	if district != "" {
+		d = district
+	}
+	var out []PlateauItem
+	for _, code := range plateauCodes {
+		row := s.db.QueryRow(`SELECT service_code, service_label, n_oui, n_total, pct_fonctionnel FROM usage_service WHERE service_code=? AND district=?`, code, d)
+		var p PlateauItem
+		if err := row.Scan(&p.ServiceCode, &p.ServiceLabel, &p.NOui, &p.NTotal, &p.Pct); err == nil {
+			out = append(out, p)
+		}
+	}
+	return out, nil
+}
+
+// --- Service Matrix ---
+
+type ServiceMatrixRow struct {
+	ServiceCode  string             `json:"service_code"`
+	ServiceLabel string             `json:"service_label"`
+	Districts    map[string]float64 `json:"districts"`
+	Overall      float64            `json:"overall"`
+}
+
+func (s *Store) GetServiceMatrix() ([]ServiceMatrixRow, error) {
+	rows, err := s.db.Query(`SELECT service_code, service_label, district, pct_fonctionnel FROM usage_service ORDER BY service_code, district`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	matrixMap := make(map[string]*ServiceMatrixRow)
+	var order []string
+
+	for rows.Next() {
+		var code, label, district string
+		var pct float64
+		if err := rows.Scan(&code, &label, &district, &pct); err != nil {
+			return nil, err
+		}
+		if matrixMap[code] == nil {
+			matrixMap[code] = &ServiceMatrixRow{
+				ServiceCode:  code,
+				ServiceLabel: label,
+				Districts:    make(map[string]float64),
+			}
+			order = append(order, code)
+		}
+		if district == "all" {
+			matrixMap[code].Overall = pct
+		} else {
+			matrixMap[code].Districts[district] = pct
+		}
+	}
+
+	var out []ServiceMatrixRow
+	for _, code := range order {
+		out = append(out, *matrixMap[code])
+	}
+	return out, rows.Err()
+}
+
+// --- RH Summary ---
+
+type RHSummaryResult struct {
+	TotalEffectif  int     `json:"total_effectif"`
+	TotalFonc      int     `json:"total_fonc"`
+	TotalContr     int     `json:"total_contr"`
+	TotalBenev     int     `json:"total_benev"`
+	NStructures    int     `json:"n_structures"`
+	RatioMedPerStr float64 `json:"ratio_med_per_structure"`
+	NStrSansMed    int     `json:"n_structures_sans_medecin"`
+	PctStrSansMed  float64 `json:"pct_structures_sans_medecin"`
+}
+
+func (s *Store) GetRHSummary(district string) (*RHSummaryResult, error) {
+	r := &RHSummaryResult{}
+	d := "all"
+	if district != "" {
+		d = district
+	}
+
+	row := s.db.QueryRow(`SELECT COALESCE(SUM(effectif_fonc),0), COALESCE(SUM(effectif_contr),0), COALESCE(SUM(effectif_benev),0), COALESCE(SUM(effectif_total),0) FROM usage_rh WHERE district=?`, d)
+	row.Scan(&r.TotalFonc, &r.TotalContr, &r.TotalBenev, &r.TotalEffectif)
+
+	s.db.QueryRow(`SELECT COUNT(*) FROM event`).Scan(&r.NStructures)
+
+	// Count medecins (generaliste + specialists)
+	var totalMed int
+	s.db.QueryRow(`SELECT COALESCE(SUM(effectif_total),0) FROM usage_rh WHERE district=? AND (profil_code LIKE '%MED_GEN%' OR profil_code LIKE '%MED_CHIR%' OR profil_code LIKE '%MED_GYNE%' OR profil_code LIKE '%MED_PED%' OR profil_code LIKE '%MED_ANESTH%' OR profil_code LIKE '%MED_AUTRE%' OR profil_code LIKE '%MED_SP_PUB%' OR profil_code LIKE '%MEDECIN_URGENTISTE%')`, d).Scan(&totalMed)
+
+	if r.NStructures > 0 {
+		r.RatioMedPerStr = float64(totalMed) / float64(r.NStructures)
+	}
+
+	// Structures without any medecin: events where all med DEs are 0 or empty
+	s.db.QueryRow(`
+		SELECT COUNT(DISTINCT e.event_uid) FROM event e
+		WHERE e.event_uid NOT IN (
+			SELECT ev.event_uid FROM event_value ev
+			WHERE (ev.de_code LIKE '%MED_GEN%' OR ev.de_code LIKE '%MED_CHIR%' OR ev.de_code LIKE '%MED_GYNE%' OR ev.de_code LIKE '%MED_PED%' OR ev.de_code LIKE '%MED_ANESTH%' OR ev.de_code LIKE '%MED_AUTRE%' OR ev.de_code LIKE '%MED_SP_PUB%' OR ev.de_code LIKE '%MEDECIN_URGENTISTE%')
+			AND CAST(ev.value AS REAL) > 0
+		)
+	`).Scan(&r.NStrSansMed)
+
+	if r.NStructures > 0 {
+		r.PctStrSansMed = float64(r.NStrSansMed) / float64(r.NStructures) * 100
+	}
+
+	return r, nil
+}
+
 // --- Filters ---
 
 type Filters struct {

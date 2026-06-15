@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Activity, AlertTriangle, AlertCircle, Info, Clock } from 'lucide-react';
+import MethodNote from '../components/MethodNote';
 import { api } from '../api/client';
 import type { Summary, QualitySummaryRow } from '../types';
 import KpiCard from '../components/KpiCard';
@@ -90,6 +91,14 @@ export default function Dashboard() {
         <ScoreByDistrict data={districtScores} />
         <IssuesByRule data={regionScores} />
       </div>
+
+      <MethodNote title="Methodologie - Score qualite">
+        <p><strong>Score qualite</strong> = 100 - (15 x erreurs) - (5 x avertissements) - (1 x infos), plancher a 0.</p>
+        <p><strong>Erreurs</strong> (-15 pts) : date absente, fonctionnel &gt; total pour un equipement.</p>
+        <p><strong>Avertissements</strong> (-5 pts) : champ obligatoire manquant, service sans support, energie sans source, doublons.</p>
+        <p><strong>Infos</strong> (-1 pt) : valeur aberrante, eau sans source, structure coquille vide.</p>
+        <p>Le score moyen est la moyenne arithmetique des scores de toutes les structures de la dimension (district, region, etc.).</p>
+      </MethodNote>
     </div>
   );
 }

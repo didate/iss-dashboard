@@ -63,6 +63,35 @@ func (h *ReadHandlers) GetUsageCommodites(c *gin.Context) {
 	c.JSON(http.StatusOK, rows)
 }
 
+func (h *ReadHandlers) GetPlateauTechnique(c *gin.Context) {
+	district := c.Query("district")
+	rows, err := h.Store.GetPlateauTechnique(district)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, rows)
+}
+
+func (h *ReadHandlers) GetServiceMatrix(c *gin.Context) {
+	rows, err := h.Store.GetServiceMatrix()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, rows)
+}
+
+func (h *ReadHandlers) GetRHSummary(c *gin.Context) {
+	district := c.Query("district")
+	result, err := h.Store.GetRHSummary(district)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
 func (h *ReadHandlers) GetFilters(c *gin.Context) {
 	filters, err := h.Store.GetFilters()
 	if err != nil {

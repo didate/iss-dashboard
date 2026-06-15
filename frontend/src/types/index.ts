@@ -136,6 +136,32 @@ export interface UsageCommodite {
   pct: number;
 }
 
+export interface PlateauItem {
+  service_code: string;
+  service_label: string;
+  n_oui: number;
+  n_total: number;
+  pct: number;
+}
+
+export interface ServiceMatrixRow {
+  service_code: string;
+  service_label: string;
+  districts: Record<string, number>;
+  overall: number;
+}
+
+export interface RHSummaryResult {
+  total_effectif: number;
+  total_fonc: number;
+  total_contr: number;
+  total_benev: number;
+  n_structures: number;
+  ratio_med_per_structure: number;
+  n_structures_sans_medecin: number;
+  pct_structures_sans_medecin: number;
+}
+
 export interface Filters {
   districts: string[];
   regions: string[];
