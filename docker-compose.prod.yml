@@ -12,6 +12,7 @@ services:
       - "traefik.http.routers.iss-api.rule=Host(`apps.sante.gov.gn`) && PathPrefix(`/iss/api`)"
       - "traefik.http.routers.iss-api.entrypoints=didate_secure"
       - "traefik.http.routers.iss-api.tls.certresolver=didate"
+      - "traefik.http.routers.iss-api.priority=100"
       - "traefik.http.services.iss-api.loadbalancer.server.port=8080"
     networks:
       - traefik-netw
