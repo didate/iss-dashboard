@@ -217,21 +217,140 @@ function CommoditesTab({ district }: { district: string }) {
   }, [district]);
 
   const labels: Record<string, string> = {
-    energie: 'Source d\'énergie',
+    energie: 'Dispose d\'une source d\'énergie',
     eau_pts_critiques: 'Eau aux points critiques',
-    solaire: 'Énergie solaire',
+    energie_solaire: 'Solaire',
+    energie_reseau: 'Réseau électrique',
+    energie_generateur: 'Générateur',
+    source_eau_réseau: 'Réseau public',
+    'source_eau_puit': 'Puits / puits amélioré',
+    source_eau_FMH: 'Forage motricité humaine',
+    source_eau_FEM: 'Forage motricité électrique/solaire',
+    source_eau_aucune: 'Aucune source d\'eau',
+    source_eau_total: 'Total structures (eau)',
   };
 
+  // Separate data into categories
+  const mainIndicators = data.filter((c) =>
+    ['energie', 'eau_pts_critiques'].includes(c.indicator)
+  );
+  const energyTypes = data.filter((c) =>
+    ['energie_solaire', 'energie_reseau', 'energie_generateur'].includes(c.indicator)
+  );
+  const waterTypes = data.filter((c) =>
+    c.indicator.startsWith('source_eau_') && c.indicator !== 'source_eau_total'
+  );
+  const waterTotal = data.find((c) => c.indicator === 'source_eau_total');
+
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-4">
-        {data.map((c) => (
-          <div key={c.indicator} className="bg-gray-50 rounded-lg p-4 text-center">
-            <p className="text-sm text-gray-500">{labels[c.indicator] || c.indicator}</p>
-            <p className="text-3xl font-bold text-gray-900 mt-2">{c.pct.toFixed(1)}%</p>
-            <p className="text-xs text-gray-400 mt-1">{c.n_oui} / {c.n_total} structures</p>
+    <div className="space-y-6">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 gap-4">
+        {mainIndicators.map((c) => {
+          const color = c.pct >= 50 ? 'text-green-600' : c.pct >= 25 ? 'text-yellow-600' : 'text-red-600';
+          return (
+            <div key={c.indicator} className="bg-gray-50 rounded-lg p-5 text-center">
+              <p className="text-sm font-medium text-gray-500">{labels[c.indicator] || c.indicator}</p>
+              <p className={`text-3xl font-bold mt-2 ${color}`}>{c.pct.toFixed(1)}%</p>
+              <p className="text-xs text-gray-400 mt-1">{c.n_oui} / {c.n_total} structures</p>
+              <div className="mt-3 w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="h-2 rounded-full"
+                  style={{
+                    width: `${Math.min(c.pct, 100)}%`,
+                    backgroundColor: c.indicator === 'energie' ? '#f59e0b' : '#3b82f6',
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {/* Sources d'énergie */}
+        <div>
+          <h4 className="text-sm font-semibold text-gray-700 mb-3">Sources d'énergie (par type)</h4>
+          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-gray-50">
+                  <th className="text-left px-3 py-2 font-medium text-gray-500">Type</th>
+                  <th className="text-right px-3 py-2 font-medium text-gray-500">Structures</th>
+                  <th className="text-right px-3 py-2 font-medium text-gray-500">Total</th>
+                  <th className="text-right px-3 py-2 font-medium text-gray-500">%</th>
+                  <th className="px-3 py-2 w-32"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {energyTypes.map((c) => (
+                  <tr key={c.indicator} className="border-b border-gray-100">
+                    <td className="px-3 py-2 font-medium text-gray-800">{labels[c.indicator] || c.indicator}</td>
+                    <td className="px-3 py-2 text-right text-gray-700">{c.n_oui}</td>
+                    <td className="px-3 py-2 text-right text-gray-500">{c.n_total}</td>
+                    <td className="px-3 py-2 text-right font-medium text-gray-900">{c.pct.toFixed(1)}%</td>
+                    <td className="px-3 py-2">
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="h-2 rounded-full bg-amber-500" style={{ width: `${Math.min(c.pct, 100)}%` }} />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {energyTypes.length === 0 && (
+                  <tr><td colSpan={5} className="px-3 py-4 text-center text-gray-400">Aucune donnée</td></tr>
+                )}
+              </tbody>
+            </table>
           </div>
-        ))}
+        </div>
+
+        {/* Sources d'eau */}
+        <div>
+          <h4 className="text-sm font-semibold text-gray-700 mb-3">
+            Source d'eau principale
+            {waterTotal && <span className="font-normal text-gray-400 ml-2">({waterTotal.n_total} structures)</span>}
+          </h4>
+          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-gray-50">
+                  <th className="text-left px-3 py-2 font-medium text-gray-500">Type</th>
+                  <th className="text-right px-3 py-2 font-medium text-gray-500">Structures</th>
+                  <th className="text-right px-3 py-2 font-medium text-gray-500">%</th>
+                  <th className="px-3 py-2 w-32"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {waterTypes.map((c) => {
+                  const pctOfTotal = waterTotal && waterTotal.n_total > 0
+                    ? (c.n_oui / waterTotal.n_total) * 100
+                    : 0;
+                  const isAucune = c.indicator === 'source_eau_aucune';
+                  return (
+                    <tr key={c.indicator} className="border-b border-gray-100">
+                      <td className={`px-3 py-2 font-medium ${isAucune ? 'text-red-600' : 'text-gray-800'}`}>
+                        {labels[c.indicator] || c.indicator.replace('source_eau_', '')}
+                      </td>
+                      <td className="px-3 py-2 text-right text-gray-700">{c.n_oui}</td>
+                      <td className="px-3 py-2 text-right font-medium text-gray-900">{pctOfTotal.toFixed(1)}%</td>
+                      <td className="px-3 py-2">
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full ${isAucune ? 'bg-red-500' : 'bg-blue-500'}`}
+                            style={{ width: `${Math.min(pctOfTotal, 100)}%` }}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {waterTypes.length === 0 && (
+                  <tr><td colSpan={4} className="px-3 py-4 text-center text-gray-400">Aucune donnée</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );
