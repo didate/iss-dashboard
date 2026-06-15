@@ -5,36 +5,34 @@ services:
       - iss-data:/data
     env_file: .env
     restart: unless-stopped
+    expose:
+      - "8080"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.iss-api.rule=Host(`apps.sante.gov.gn`) && PathPrefix(`/iss/api`)"
       - "traefik.http.routers.iss-api.entrypoints=didate_secure"
       - "traefik.http.routers.iss-api.tls.certresolver=didate"
-      - "traefik.http.middlewares.iss-api-strip.stripprefix.prefixes=/iss"
-      - "traefik.http.routers.iss-api.middlewares=iss-api-strip"
-      - "traefik.http.routers.iss-api.priority=100"
       - "traefik.http.services.iss-api.loadbalancer.server.port=8080"
     networks:
-      - traefik-net
+      - traefik-netw
 
   frontend:
     image: ghcr.io/didate/iss-dashboard/frontend:latest
     restart: unless-stopped
+    expose:
+      - "80"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.iss-front.rule=Host(`apps.sante.gov.gn`) && PathPrefix(`/iss`)"
       - "traefik.http.routers.iss-front.entrypoints=didate_secure"
       - "traefik.http.routers.iss-front.tls.certresolver=didate"
-      - "traefik.http.middlewares.iss-front-strip.stripprefix.prefixes=/iss"
-      - "traefik.http.routers.iss-front.middlewares=iss-front-strip"
-      - "traefik.http.routers.iss-front.priority=10"
       - "traefik.http.services.iss-front.loadbalancer.server.port=80"
     networks:
-      - traefik-net
+      - traefik-netw
 
 volumes:
   iss-data:
 
 networks:
-  traefik-net:
+  traefik-netw:
     external: true

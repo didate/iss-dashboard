@@ -13,7 +13,7 @@ func SetupRouter(cfg *config.Config, st *store.Store, client *dhis2.Client) *gin
 	r := gin.New()
 	r.Use(gin.Logger(), gin.Recovery(), CORS())
 
-	api := r.Group("/api")
+	api := r.Group("/iss/api")
 
 	// Public/protected read endpoints
 	read := api.Group("")
