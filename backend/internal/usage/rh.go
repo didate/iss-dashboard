@@ -7,6 +7,16 @@ import (
 	"iss-dashboard-backend/internal/quality"
 )
 
+// normalizeRHRoot merges irregular root codes that refer to the same profile.
+func normalizeRHRoot(root string) string {
+	// ISS_AUTRE_PROF_BENEV → root ISS_AUTRE_PROF, but ISS_AUTRE_PROFESSION_CONTR → root ISS_AUTRE_PROFESSION
+	// Merge both into ISS_AUTRE_PROFESSION
+	if strings.HasPrefix(root, "ISS_AUTRE_PROF") {
+		return "ISS_AUTRE_PROFESSION"
+	}
+	return root
+}
+
 // ComputeRH aggregates human resources by profile and employment status.
 func ComputeRH(events []*models.Event, ctx *quality.QualityContext) []models.UsageRH {
 	// Discover RH profiles: group DEs by their root (strip _FN_DE, _CT_DE, _BN_DE, _FONC, _CONTR, _BENEV)
@@ -54,6 +64,9 @@ func ComputeRH(events []*models.Event, ctx *quality.QualityContext) []models.Usa
 			root = code
 			statut = "other"
 		}
+
+		// Normalize known irregular roots
+		root = normalizeRHRoot(root)
 
 		rhDEs = append(rhDEs, rhDE{uid: de.UID, root: root, statut: statut, label: de.Name})
 
@@ -109,6 +122,16 @@ func ComputeRH(events []*models.Event, ctx *quality.QualityContext) []models.Usa
 	}
 
 	var result []models.UsageRH
+	// Strip "ISS_RH " prefix from labels for cleaner display
+	for root, label := range rootLabels {
+		for _, prefix := range []string{"ISS_RH_SPE ", "ISS_RH "} {
+			if strings.HasPrefix(label, prefix) {
+				rootLabels[root] = strings.TrimPrefix(label, prefix)
+				break
+			}
+		}
+	}
+
 	for key, c := range accum {
 		parts := splitFirst(key, '|')
 		root, district := parts[0], parts[1]

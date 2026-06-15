@@ -392,9 +392,9 @@ function RHTab({ district }: { district: string }) {
             <p className="text-2xl font-bold text-gray-900 mt-1">{summary.ratio_med_per_structure.toFixed(2)}</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-4 text-center">
-            <p className="text-sm text-gray-500">Structures sans medecin</p>
-            <p className="text-2xl font-bold text-red-600 mt-1">{summary.n_structures_sans_medecin}</p>
-            <p className="text-xs text-gray-400">{summary.pct_structures_sans_medecin.toFixed(1)}%</p>
+            <p className="text-sm text-gray-500">Structures avec medecin</p>
+            <p className="text-2xl font-bold text-blue-600 mt-1">{summary.n_structures - summary.n_structures_sans_medecin}</p>
+            <p className="text-xs text-gray-400">{(100 - summary.pct_structures_sans_medecin).toFixed(1)}% des structures</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-4 text-center">
             <p className="text-sm text-gray-500">Structures analysees</p>
@@ -410,7 +410,7 @@ function RHTab({ district }: { district: string }) {
             <h4 className="text-sm font-medium text-gray-500 mb-3">Repartition par statut</h4>
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
-                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={90} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={90}>
                   {pieData.map((entry, i) => (
                     <Cell key={i} fill={entry.fill} />
                   ))}
