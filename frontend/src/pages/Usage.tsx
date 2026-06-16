@@ -29,7 +29,7 @@ const tabs = [
 ];
 
 export default function Usage() {
-  const [tab, setTab] = useState('recensement');
+  const [tab, setTab] = useState('rapportage');
   const [district, setDistrict] = useState('');
   const [filters, setFilters] = useState<Filters | null>(null);
 
