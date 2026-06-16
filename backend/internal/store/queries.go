@@ -620,6 +620,260 @@ func (s *Store) GetFilters() (*Filters, error) {
 	return f, nil
 }
 
+// --- Map Data ---
+
+func (s *Store) GetMapData() (*models.MapDistrictCollection, error) {
+	// 1. Load district org units (level 3) with geometry
+	type districtGeo struct {
+		uid      string
+		name     string
+		geometry string
+	}
+	rows, err := s.db.Query(`SELECT uid, name, COALESCE(geometry,'') FROM org_unit WHERE level=3 AND geometry != ''`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var districts []districtGeo
+	for rows.Next() {
+		var d districtGeo
+		if err := rows.Scan(&d.uid, &d.name, &d.geometry); err != nil {
+			return nil, err
+		}
+		districts = append(districts, d)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// 2. Load reporting_rate by district
+	type reportingData struct {
+		expected, reported int
+		pct                float64
+	}
+	reporting := map[string]*reportingData{}
+	rRows, err := s.db.Query(`SELECT key, n_expected, n_reported, pct FROM reporting_rate WHERE dimension='district'`)
+	if err == nil {
+		defer rRows.Close()
+		for rRows.Next() {
+			var key string
+			var d reportingData
+			if rRows.Scan(&key, &d.expected, &d.reported, &d.pct) == nil {
+				reporting[key] = &d
+			}
+		}
+	}
+
+	// 3. Load quality_summary by district
+	type qualityData struct {
+		avgScore    float64
+		nStructures int
+	}
+	quality := map[string]*qualityData{}
+	qRows, err := s.db.Query(`SELECT key, avg_score, n_structures FROM quality_summary WHERE dimension='district'`)
+	if err == nil {
+		defer qRows.Close()
+		for qRows.Next() {
+			var key string
+			var d qualityData
+			if qRows.Scan(&key, &d.avgScore, &d.nStructures) == nil {
+				quality[key] = &d
+			}
+		}
+	}
+
+	// 4. Load usage_service by district (exclude 'all')
+	type svcData struct {
+		label      string
+		pct        float64
+		nOui, nTot int
+	}
+	services := map[string]map[string]*svcData{} // district -> service_code -> data
+	sRows, err := s.db.Query(`SELECT service_code, service_label, district, n_oui, n_total, pct_fonctionnel FROM usage_service WHERE district != 'all'`)
+	if err == nil {
+		defer sRows.Close()
+		for sRows.Next() {
+			var code, label, dist string
+			var d svcData
+			if sRows.Scan(&code, &label, &dist, &d.nOui, &d.nTot, &d.pct) == nil {
+				d.label = label
+				if services[dist] == nil {
+					services[dist] = map[string]*svcData{}
+				}
+				services[dist][code] = &d
+			}
+		}
+	}
+
+	// 5. Load usage_equipement by district (exclude 'all')
+	type eqData struct {
+		label    string
+		category string
+		sumTot   int
+		sumFonc  int
+	}
+	equipements := map[string]map[string]*eqData{} // district -> equip_root -> data
+	eRows, err := s.db.Query(`SELECT equip_root, label, district, sum_total, sum_fonct, category FROM usage_equipement WHERE district != 'all'`)
+	if err == nil {
+		defer eRows.Close()
+		for eRows.Next() {
+			var root, label, dist, cat string
+			var sumTot, sumFonc int
+			if eRows.Scan(&root, &label, &dist, &sumTot, &sumFonc, &cat) == nil {
+				if equipements[dist] == nil {
+					equipements[dist] = map[string]*eqData{}
+				}
+				equipements[dist][root] = &eqData{label: label, category: cat, sumTot: sumTot, sumFonc: sumFonc}
+			}
+		}
+	}
+
+	// 6. Load usage_commodite for WASH (source_eau_*) by district
+	type washCounter struct {
+		fmh, fme, reseau, total int
+	}
+	wash := map[string]*washCounter{} // district -> counts
+	cRows, err := s.db.Query(`SELECT indicator, district, n_oui, n_total FROM usage_commodite WHERE district != 'all' AND indicator LIKE 'source_eau_%'`)
+	if err == nil {
+		defer cRows.Close()
+		for cRows.Next() {
+			var ind, dist string
+			var nOui, nTotal int
+			if cRows.Scan(&ind, &dist, &nOui, &nTotal) == nil {
+				if wash[dist] == nil {
+					wash[dist] = &washCounter{}
+				}
+				w := wash[dist]
+				switch ind {
+				case "source_eau_FMH":
+					w.fmh = nOui
+				case "source_eau_FME", "source_eau_FEM":
+					w.fme = nOui
+				case "source_eau_réseau":
+					w.reseau = nOui
+				case "source_eau_total":
+					w.total = nTotal
+				}
+			}
+		}
+	}
+
+	// 7. Load RH medecin totals by district
+	type rhData struct {
+		medTotal    int
+		nStructures int
+	}
+	rh := map[string]*rhData{}
+	mRows, err := s.db.Query(`SELECT district, COALESCE(SUM(effectif_total),0) FROM usage_rh WHERE district != 'all' AND (profil_code LIKE '%MED_GEN%' OR profil_code LIKE '%MED_CHIR%' OR profil_code LIKE '%MED_GYNE%' OR profil_code LIKE '%MED_PED%' OR profil_code LIKE '%MED_ANESTH%' OR profil_code LIKE '%MED_AUTRE%' OR profil_code LIKE '%MED_SP_PUB%' OR profil_code LIKE '%MEDECIN_URGENTISTE%') GROUP BY district`)
+	if err == nil {
+		defer mRows.Close()
+		for mRows.Next() {
+			var dist string
+			var total int
+			if mRows.Scan(&dist, &total) == nil {
+				rh[dist] = &rhData{medTotal: total}
+			}
+		}
+	}
+	// Get structure counts per district
+	nRows, err := s.db.Query(`SELECT district, COUNT(*) FROM event GROUP BY district`)
+	if err == nil {
+		defer nRows.Close()
+		for nRows.Next() {
+			var dist string
+			var n int
+			if nRows.Scan(&dist, &n) == nil {
+				if rh[dist] == nil {
+					rh[dist] = &rhData{}
+				}
+				rh[dist].nStructures = n
+			}
+		}
+	}
+
+	// 8. Assemble GeoJSON features
+	features := make([]models.MapDistrictFeature, 0, len(districts))
+	for _, d := range districts {
+		props := models.MapDistrictProperties{
+			DistrictUID:  d.uid,
+			DistrictName: d.name,
+			Services:     map[string]models.ServiceMapData{},
+			Equipements:  map[string]models.EquipMapData{},
+		}
+
+		// Reporting
+		if r, ok := reporting[d.name]; ok {
+			pct := r.pct
+			props.RapportagePct = &pct
+			props.RapportageExpected = r.expected
+			props.RapportageReported = r.reported
+		}
+
+		// Quality
+		if q, ok := quality[d.name]; ok {
+			score := q.avgScore
+			props.QualiteAvgScore = &score
+			props.QualiteNStruct = q.nStructures
+		}
+
+		// Services
+		if svcMap, ok := services[d.name]; ok {
+			for code, s := range svcMap {
+				props.Services[code] = models.ServiceMapData{
+					ServiceLabel:   s.label,
+					PctFonctionnel: s.pct,
+					NOui:           s.nOui,
+					NTotal:         s.nTot,
+				}
+			}
+		}
+
+		// Equipements
+		if eqMap, ok := equipements[d.name]; ok {
+			for root, e := range eqMap {
+				props.Equipements[root] = models.EquipMapData{
+					Label:    e.label,
+					Category: e.category,
+					SumTotal: e.sumTot,
+					SumFonct: e.sumFonc,
+				}
+			}
+		}
+
+		// WASH
+		if w, ok := wash[d.name]; ok {
+			n := w.fmh + w.fme + w.reseau
+			props.WashForageOuReseauN = n
+			props.WashTotal = w.total
+			if w.total > 0 {
+				pct := float64(n) / float64(w.total) * 100
+				props.WashForageOuReseauPct = &pct
+			}
+		}
+
+		// RH
+		if r, ok := rh[d.name]; ok {
+			props.RhMedecinsTotal = r.medTotal
+			props.RhNStructures = r.nStructures
+			if r.nStructures > 0 {
+				ratio := float64(r.medTotal) / float64(r.nStructures)
+				props.RhMedecinsParStruct = &ratio
+			}
+		}
+
+		features = append(features, models.MapDistrictFeature{
+			Type:       "Feature",
+			Geometry:   []byte(d.geometry),
+			Properties: props,
+		})
+	}
+
+	return &models.MapDistrictCollection{
+		Type:     "FeatureCollection",
+		Features: features,
+	}, nil
+}
+
 func (s *Store) distinctCol(query string) []string {
 	rows, err := s.db.Query(query)
 	if err != nil {

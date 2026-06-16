@@ -198,3 +198,48 @@ export interface SyncStatus {
   last: SyncRun | null;
   history: SyncRun[];
 }
+
+// --- Map / Carte types ---
+
+export interface ServiceMapData {
+  service_label: string;
+  pct_fonctionnel: number;
+  n_oui: number;
+  n_total: number;
+}
+
+export interface EquipMapData {
+  label: string;
+  category: string;
+  sum_total: number;
+  sum_fonct: number;
+}
+
+export interface MapDistrictProperties {
+  district_uid: string;
+  district_name: string;
+  rapportage_pct: number | null;
+  rapportage_expected: number;
+  rapportage_reported: number;
+  qualite_avg_score: number | null;
+  qualite_n_structures: number;
+  services: Record<string, ServiceMapData>;
+  equipements: Record<string, EquipMapData>;
+  wash_forage_ou_reseau_pct: number | null;
+  wash_forage_ou_reseau_n: number;
+  wash_total: number;
+  rh_medecins_total: number;
+  rh_n_structures: number;
+  rh_medecins_par_structure: number | null;
+}
+
+export interface MapDistrictFeature {
+  type: 'Feature';
+  geometry: GeoJSON.Geometry;
+  properties: MapDistrictProperties;
+}
+
+export interface MapDistrictCollection {
+  type: 'FeatureCollection';
+  features: MapDistrictFeature[];
+}

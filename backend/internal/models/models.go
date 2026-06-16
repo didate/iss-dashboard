@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // SyncRun tracks a synchronization execution.
 type SyncRun struct {
@@ -82,6 +85,7 @@ type OrgUnit struct {
 	ParentUID  string `json:"parentUid,omitempty"`
 	ParentName string `json:"parentName,omitempty"`
 	ClosedDate string `json:"closedDate,omitempty"`
+	Geometry   string `json:"geometry,omitempty"`
 }
 
 // EquipPair represents a TOTAL/FONC equipment pair.
@@ -235,13 +239,65 @@ type DHIS2OptionSetsResponse struct {
 
 type DHIS2OrgUnitsResponse struct {
 	OrganisationUnits []struct {
-		ID         string `json:"id"`
-		Name       string `json:"name"`
-		Level      int    `json:"level"`
-		ClosedDate string `json:"closedDate"`
+		ID         string          `json:"id"`
+		Name       string          `json:"name"`
+		Level      int             `json:"level"`
+		ClosedDate string          `json:"closedDate"`
+		Geometry   json.RawMessage `json:"geometry"`
 		Parent     *struct {
 			ID   string `json:"id"`
 			Name string `json:"name"`
 		} `json:"parent"`
 	} `json:"organisationUnits"`
+}
+
+// --- Map / Carte types ---
+
+type ServiceMapData struct {
+	ServiceLabel   string  `json:"service_label"`
+	PctFonctionnel float64 `json:"pct_fonctionnel"`
+	NOui           int     `json:"n_oui"`
+	NTotal         int     `json:"n_total"`
+}
+
+type EquipMapData struct {
+	Label    string `json:"label"`
+	Category string `json:"category"`
+	SumTotal int    `json:"sum_total"`
+	SumFonct int    `json:"sum_fonct"`
+}
+
+type MapDistrictProperties struct {
+	DistrictUID  string `json:"district_uid"`
+	DistrictName string `json:"district_name"`
+	// Couche 1 : Rapportage
+	RapportagePct      *float64 `json:"rapportage_pct"`
+	RapportageExpected int      `json:"rapportage_expected"`
+	RapportageReported int      `json:"rapportage_reported"`
+	// Couche 2 : Qualité
+	QualiteAvgScore *float64 `json:"qualite_avg_score"`
+	QualiteNStruct  int      `json:"qualite_n_structures"`
+	// Couche 3 : Services
+	Services map[string]ServiceMapData `json:"services"`
+	// Couche 4 : Équipements (nombres bruts)
+	Equipements map[string]EquipMapData `json:"equipements"`
+	// Couche 5 : WASH forage/réseau
+	WashForageOuReseauPct *float64 `json:"wash_forage_ou_reseau_pct"`
+	WashForageOuReseauN   int      `json:"wash_forage_ou_reseau_n"`
+	WashTotal             int      `json:"wash_total"`
+	// Couche 6 : Densité RH
+	RhMedecinsTotal     int      `json:"rh_medecins_total"`
+	RhNStructures       int      `json:"rh_n_structures"`
+	RhMedecinsParStruct *float64 `json:"rh_medecins_par_structure"`
+}
+
+type MapDistrictFeature struct {
+	Type       string                 `json:"type"`
+	Geometry   json.RawMessage        `json:"geometry"`
+	Properties MapDistrictProperties  `json:"properties"`
+}
+
+type MapDistrictCollection struct {
+	Type     string               `json:"type"`
+	Features []MapDistrictFeature `json:"features"`
 }

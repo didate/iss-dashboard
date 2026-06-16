@@ -1,11 +1,12 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, ShieldAlert, BarChart3, Settings, LogOut, User } from 'lucide-react';
+import { LayoutDashboard, ShieldAlert, BarChart3, Map, Settings, LogOut, User } from 'lucide-react';
 import type { AuthUser } from '../api/auth';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Vue d\'ensemble' },
   { to: '/quality', icon: ShieldAlert, label: 'Qualite' },
   { to: '/usage', icon: BarChart3, label: 'Utilisation' },
+  { to: '/carte', icon: Map, label: 'Carte' },
   { to: '/admin', icon: Settings, label: 'Admin' },
 ];
 

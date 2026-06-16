@@ -36,7 +36,8 @@ CREATE TABLE IF NOT EXISTS org_unit (
     level           INTEGER DEFAULT 0,
     parent_uid      TEXT DEFAULT '',
     parent_name     TEXT DEFAULT '',
-    closed_date     TEXT DEFAULT ''
+    closed_date     TEXT DEFAULT '',
+    geometry        TEXT DEFAULT ''
 );
 
 

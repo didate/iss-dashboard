@@ -16,6 +16,7 @@ import type {
   Filters,
   SyncStatus,
   ReportingRate,
+  MapDistrictCollection,
 } from '../types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
@@ -116,6 +117,8 @@ export const api = {
 
   getFilters: () => request<Filters>('/api/meta/filters'),
 
+  getMapData: () => request<MapDistrictCollection>('/api/map/districts'),
+
   // Admin
   triggerSync: () =>
     request<{ status: string; message: string }>('/api/admin/sync', { method: 'POST' }),
@@ -127,7 +130,7 @@ export const api = {
     request<{ id: number; username: string; name: string; role: string }[]>('/api/admin/users'),
 
   createUser: (data: { username: string; password: string; name: string; role: string }) =>
-    request<{ id: number; username: string; name: string; role: string }>('/api/admin/users', {
+    request<{ id: number; username: string; name: string; role: string }>('/iss/api/admin/users', {
       method: 'POST',
       body: JSON.stringify(data),
     }),

@@ -44,6 +44,7 @@ func SetupRouter(cfg *config.Config, st *store.Store, client *dhis2.Client) *gin
 		read.GET("/usage/services/matrix", h.GetServiceMatrix)
 		read.GET("/usage/rh/summary", h.GetRHSummary)
 		read.GET("/meta/filters", h.GetFilters)
+		read.GET("/map/districts", h.GetMapData)
 	}
 
 	// Authenticated endpoints (JWT required)
