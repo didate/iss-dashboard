@@ -264,6 +264,7 @@ type SyncData struct {
 	UsageEquipements []models.UsageEquipement
 	UsageRH          []models.UsageRH
 	UsageCommodites  []models.UsageCommodite
+	ReportingRates   []models.ReportingRate
 }
 
 // PersistSyncData atomically replaces all derived data within a single transaction.
@@ -275,7 +276,7 @@ func (s *Store) PersistSyncData(syncRunID int64, data *SyncData) error {
 	defer tx.Rollback()
 
 	// Clear derived tables (order matters for FK)
-	for _, table := range []string{"event_value", "quality_issue", "event_quality", "quality_summary", "usage_recensement", "usage_service", "usage_equipement", "usage_rh", "usage_commodite", "event"} {
+	for _, table := range []string{"event_value", "quality_issue", "event_quality", "quality_summary", "usage_recensement", "usage_service", "usage_equipement", "usage_rh", "usage_commodite", "reporting_rate", "event"} {
 		if _, err := tx.Exec("DELETE FROM " + table); err != nil {
 			return fmt.Errorf("clear %s: %w", table, err)
 		}
@@ -407,6 +408,18 @@ func (s *Store) PersistSyncData(syncRunID int64, data *SyncData) error {
 	for _, uc := range data.UsageCommodites {
 		if _, err := ucStmt.Exec(uc.Indicator, uc.District, uc.NOui, uc.NTotal, uc.Pct); err != nil {
 			log.Printf("WARN: insert usage_commodite: %v", err)
+		}
+	}
+
+	// Reporting rates
+	rrStmt, err := tx.Prepare(`INSERT INTO reporting_rate (dimension, key, label, n_expected, n_reported, pct) VALUES (?,?,?,?,?,?)`)
+	if err != nil {
+		return err
+	}
+	defer rrStmt.Close()
+	for _, rr := range data.ReportingRates {
+		if _, err := rrStmt.Exec(rr.Dimension, rr.Key, rr.Label, rr.NExpected, rr.NReported, rr.Pct); err != nil {
+			log.Printf("WARN: insert reporting_rate: %v", err)
 		}
 	}
 

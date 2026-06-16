@@ -148,4 +148,23 @@ CREATE TABLE IF NOT EXISTS usage_commodite (
     pct             REAL DEFAULT 0,
     PRIMARY KEY (indicator, district)
 );
+
+CREATE TABLE IF NOT EXISTS reporting_rate (
+    dimension       TEXT NOT NULL,
+    key             TEXT NOT NULL,
+    label           TEXT DEFAULT '',
+    n_expected      INTEGER DEFAULT 0,
+    n_reported      INTEGER DEFAULT 0,
+    pct             REAL DEFAULT 0,
+    PRIMARY KEY (dimension, key)
+);
+
+CREATE TABLE IF NOT EXISTS user (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    username        TEXT NOT NULL UNIQUE,
+    password_hash   TEXT NOT NULL,
+    name            TEXT DEFAULT '',
+    role            TEXT NOT NULL DEFAULT 'viewer',
+    created_at      TEXT NOT NULL
+);
 `

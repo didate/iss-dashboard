@@ -175,6 +175,26 @@ type UsageCommodite struct {
 	Pct       float64 `json:"pct"`
 }
 
+// ReportingRate is a reporting completeness row.
+type ReportingRate struct {
+	Dimension  string  `json:"dimension"`
+	Key        string  `json:"key"`
+	Label      string  `json:"label"`
+	NExpected  int     `json:"n_expected"`
+	NReported  int     `json:"n_reported"`
+	Pct        float64 `json:"pct"`
+}
+
+// User represents an application user.
+type User struct {
+	ID           int64  `json:"id"`
+	Username     string `json:"username"`
+	PasswordHash string `json:"-"`
+	Name         string `json:"name"`
+	Role         string `json:"role"` // admin, viewer
+	CreatedAt    string `json:"created_at"`
+}
+
 // DHIS2 API response structures
 
 type DHIS2EventsResponse struct {

@@ -63,6 +63,16 @@ func (h *ReadHandlers) GetUsageCommodites(c *gin.Context) {
 	c.JSON(http.StatusOK, rows)
 }
 
+func (h *ReadHandlers) GetReportingRate(c *gin.Context) {
+	by := c.DefaultQuery("by", "global")
+	rows, err := h.Store.GetReportingRate(by)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, rows)
+}
+
 func (h *ReadHandlers) GetPlateauTechnique(c *gin.Context) {
 	district := c.Query("district")
 	rows, err := h.Store.GetPlateauTechnique(district)

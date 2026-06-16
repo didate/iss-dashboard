@@ -174,6 +174,31 @@ func (c *Client) FetchOrgUnits() ([]models.OrgUnit, error) {
 	return out, nil
 }
 
+// FetchProgramOrgUnits returns the UIDs of org units assigned to the program.
+func (c *Client) FetchProgramOrgUnits() ([]string, error) {
+	url := fmt.Sprintf("%s/api/programs/%s.json?fields=organisationUnits[id]", c.baseURL, c.programID)
+	body, err := c.doGet(url)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp struct {
+		OrganisationUnits []struct {
+			ID string `json:"id"`
+		} `json:"organisationUnits"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, err
+	}
+
+	uids := make([]string, len(resp.OrganisationUnits))
+	for i, ou := range resp.OrganisationUnits {
+		uids[i] = ou.ID
+	}
+	log.Printf("[DHIS2] Program has %d assigned org units", len(uids))
+	return uids, nil
+}
+
 // deriveSectionPrefix extracts the section prefix from code or name.
 func deriveSectionPrefix(code, name string) string {
 	prefixes := []string{"ISS_SVC", "ISS_GEN", "ISS_EQ", "ISS_INFRA", "ISS_RH_SPE", "ISS_RH", "ISS_LAB", "ISS_COMMO"}

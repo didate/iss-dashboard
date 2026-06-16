@@ -136,6 +136,15 @@ export interface UsageCommodite {
   pct: number;
 }
 
+export interface ReportingRate {
+  dimension: string;
+  key: string;
+  label: string;
+  n_expected: number;
+  n_reported: number;
+  pct: number;
+}
+
 export interface PlateauItem {
   service_code: string;
   service_label: string;

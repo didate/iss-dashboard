@@ -77,6 +77,12 @@ func RunSync(st *store.Store, client *dhis2.Client) (*models.SyncRun, error) {
 		return finishErr(fmt.Sprintf("upsert org units: %v", err))
 	}
 
+	programOrgUnits, err := client.FetchProgramOrgUnits()
+	if err != nil {
+		log.Printf("[SYNC] WARN: fetch program org units: %v (reporting rate will be incomplete)", err)
+	}
+	log.Printf("[SYNC] Program has %d assigned org units", len(programOrgUnits))
+
 	// Step 2: Pull events
 	log.Println("[SYNC] Pulling events...")
 	events, err := client.FetchAllEvents()
@@ -134,6 +140,7 @@ func RunSync(st *store.Store, client *dhis2.Client) (*models.SyncRun, error) {
 	usageEquipements := usage.ComputeEquipements(eventPtrs, ctx)
 	usageRH := usage.ComputeRH(eventPtrs, ctx)
 	usageCommodites := usage.ComputeCommodites(eventPtrs, ctx)
+	reportingRates := usage.ComputeReportingRate(eventPtrs, programOrgUnits, orgUnits)
 
 	// Step 7: Persist atomically
 	log.Println("[SYNC] Persisting data...")
@@ -147,6 +154,7 @@ func RunSync(st *store.Store, client *dhis2.Client) (*models.SyncRun, error) {
 		UsageEquipements: usageEquipements,
 		UsageRH:          usageRH,
 		UsageCommodites:  usageCommodites,
+		ReportingRates:   reportingRates,
 	}
 
 	if err := st.PersistSyncData(syncRunID, data); err != nil {

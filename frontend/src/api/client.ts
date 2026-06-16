@@ -1,34 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
-
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API ${res.status}: ${text}`);
-  }
-  return res.json();
-}
-
-function adminHeaders(token: string): Record<string, string> {
-  return { 'X-Admin-Token': token };
-}
-
-function qs(params: Record<string, string | number | undefined>): string {
-  const parts: string[] = [];
-  for (const [k, v] of Object.entries(params)) {
-    if (v !== undefined && v !== '') {
-      parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
-    }
-  }
-  return parts.length ? `?${parts.join('&')}` : '';
-}
-
+import { getToken } from './auth';
 import type {
   Summary,
   QualitySummaryRow,
@@ -44,9 +14,58 @@ import type {
   RHSummaryResult,
   Filters,
   SyncStatus,
+  ReportingRate,
 } from '../types';
 
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = getToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...options?.headers as Record<string, string>,
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${BASE_URL}${path}`, {
+    ...options,
+    headers,
+  });
+
+  if (res.status === 401) {
+    // Token expired or invalid
+    const { clearAuth } = await import('./auth');
+    clearAuth();
+  }
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API ${res.status}: ${text}`);
+  }
+  return res.json();
+}
+
+function qs(params: Record<string, string | number | undefined>): string {
+  const parts: string[] = [];
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== '') {
+      parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
+    }
+  }
+  return parts.length ? `?${parts.join('&')}` : '';
+}
+
 export const api = {
+  // Auth
+  login: (username: string, password: string) =>
+    request<{ token: string; user: { id: number; username: string; name: string; role: string } }>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    }),
+
+  // Read endpoints
   getSummary: () => request<Summary>('/api/summary'),
 
   getQualitySummary: (by: string) =>
@@ -63,6 +82,9 @@ export const api = {
 
   getEventDetail: (uid: string) =>
     request<EventDetail>(`/api/quality/event/${uid}`),
+
+  getReportingRate: (by: string) =>
+    request<ReportingRate[]>(`/api/usage/reporting${qs({ by })}`),
 
   getUsageRecensement: (by: string) =>
     request<UsageRecensement[]>(`/api/usage/recensement${qs({ by })}`),
@@ -90,14 +112,22 @@ export const api = {
 
   getFilters: () => request<Filters>('/api/meta/filters'),
 
-  triggerSync: (token: string) =>
-    request<{ status: string; message: string }>('/api/admin/sync', {
+  // Admin
+  triggerSync: () =>
+    request<{ status: string; message: string }>('/api/admin/sync', { method: 'POST' }),
+
+  getSyncStatus: () =>
+    request<SyncStatus>('/api/admin/sync/status'),
+
+  getUsers: () =>
+    request<{ id: number; username: string; name: string; role: string }[]>('/api/admin/users'),
+
+  createUser: (data: { username: string; password: string; name: string; role: string }) =>
+    request<{ id: number; username: string; name: string; role: string }>('/api/admin/users', {
       method: 'POST',
-      headers: adminHeaders(token),
+      body: JSON.stringify(data),
     }),
 
-  getSyncStatus: (token: string) =>
-    request<SyncStatus>('/api/admin/sync/status', {
-      headers: adminHeaders(token),
-    }),
+  deleteUser: (id: number) =>
+    request<{ message: string }>(`/api/admin/users/${id}`, { method: 'DELETE' }),
 };

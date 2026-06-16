@@ -25,6 +25,9 @@ func main() {
 
 	client := dhis2.NewClient(cfg.DHIS2BaseURL, cfg.DHIS2PAT, cfg.DHIS2Program)
 
+	// Ensure default admin user
+	st.EnsureDefaultAdmin(cfg.AdminToken)
+
 	// Start scheduler
 	sched := scheduler.New(st, client)
 	if err := sched.Start(cfg.SyncCron); err != nil {

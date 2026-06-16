@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Activity, AlertTriangle, AlertCircle, Info, Clock } from 'lucide-react';
 import MethodNote from '../components/MethodNote';
 import { api } from '../api/client';
-import type { Summary, QualitySummaryRow } from '../types';
+import type { Summary, QualitySummaryRow, ReportingRate } from '../types';
 import KpiCard from '../components/KpiCard';
 import ScoreByDistrict from '../components/charts/ScoreByDistrict';
 import IssuesByRule from '../components/charts/IssuesByRule';
@@ -11,6 +11,7 @@ export default function Dashboard() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [districtScores, setDistrictScores] = useState<QualitySummaryRow[]>([]);
   const [regionScores, setRegionScores] = useState<QualitySummaryRow[]>([]);
+  const [reportingGlobal, setReportingGlobal] = useState<ReportingRate | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -18,11 +19,14 @@ export default function Dashboard() {
       api.getSummary(),
       api.getQualitySummary('district'),
       api.getQualitySummary('region'),
+      api.getReportingRate('global'),
     ])
-      .then(([s, d, r]) => {
+      .then(([s, d, r, rr]) => {
         setSummary(s);
         setDistrictScores(d);
         setRegionScores(r);
+        const global = rr.find((x) => x.key === 'all');
+        if (global) setReportingGlobal(global);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -79,8 +83,16 @@ export default function Dashboard() {
           value={summary.n_operationnel}
           subtitle={`sur ${summary.n_structures}`}
         />
+        {reportingGlobal && (
+          <KpiCard
+            title="Taux de rapportage"
+            value={`${reportingGlobal.pct.toFixed(1)}%`}
+            subtitle={`${reportingGlobal.n_reported} / ${reportingGlobal.n_expected} structures`}
+            color={reportingGlobal.pct >= 80 ? 'text-green-600' : reportingGlobal.pct >= 50 ? 'text-yellow-600' : 'text-red-600'}
+          />
+        )}
         <KpiCard
-          title="Dernière synchro"
+          title="Derniere synchro"
           value={lastSyncDate}
           subtitle={summary.last_sync ? `${summary.last_sync.duration_ms}ms` : undefined}
           icon={<Clock size={20} />}

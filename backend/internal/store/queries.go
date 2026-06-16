@@ -365,6 +365,28 @@ func (s *Store) GetUsageCommodites(district string) ([]models.UsageCommodite, er
 	return out, rows.Err()
 }
 
+// --- Reporting Rate ---
+
+func (s *Store) GetReportingRate(dimension string) ([]models.ReportingRate, error) {
+	if dimension == "" {
+		dimension = "global"
+	}
+	rows, err := s.db.Query(`SELECT dimension, key, label, n_expected, n_reported, pct FROM reporting_rate WHERE dimension=? ORDER BY pct ASC`, dimension)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []models.ReportingRate
+	for rows.Next() {
+		var r models.ReportingRate
+		if err := rows.Scan(&r.Dimension, &r.Key, &r.Label, &r.NExpected, &r.NReported, &r.Pct); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
 // --- Plateau technique ---
 
 type PlateauItem struct {
