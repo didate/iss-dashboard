@@ -524,6 +524,66 @@ func (s *Store) GetRHSummary(district string) (*RHSummaryResult, error) {
 	return r, nil
 }
 
+// --- Closed OUs ---
+
+type ClosedOUItem struct {
+	UID        string `json:"uid"`
+	Name       string `json:"name"`
+	ClosedDate string `json:"closed_date"`
+	District   string `json:"district"`
+	Region     string `json:"region"`
+	HasData    bool   `json:"has_data"`
+}
+
+func (s *Store) GetClosedOUs(district string) ([]ClosedOUItem, error) {
+	query := `
+		SELECT
+			ou.uid, ou.name, ou.closed_date,
+			COALESCE(p3.name, '') as district,
+			COALESCE(p2.name, '') as region,
+			CASE WHEN e.event_uid IS NOT NULL THEN 1 ELSE 0 END as has_data
+		FROM org_unit ou
+		LEFT JOIN org_unit p ON ou.parent_uid = p.uid
+		LEFT JOIN org_unit p3 ON
+			CASE
+				WHEN ou.level = 6 THEN p.parent_uid
+				WHEN ou.level = 5 THEN ou.parent_uid
+				ELSE ''
+			END = p3.uid AND p3.level = 3
+		LEFT JOIN org_unit p2 ON p3.parent_uid = p2.uid AND p2.level = 2
+		LEFT JOIN event e ON ou.uid = e.org_unit_uid
+		WHERE ou.closed_date != ''
+	`
+	args := []any{}
+	if district != "" {
+		query += ` AND p3.name = ?`
+		args = append(args, district)
+	}
+	query += ` ORDER BY ou.closed_date DESC, ou.name`
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []ClosedOUItem
+	for rows.Next() {
+		var c ClosedOUItem
+		var hasData int
+		if err := rows.Scan(&c.UID, &c.Name, &c.ClosedDate, &c.District, &c.Region, &hasData); err != nil {
+			return nil, err
+		}
+		c.HasData = hasData == 1
+		// Clean closedDate format
+		if len(c.ClosedDate) > 10 {
+			c.ClosedDate = c.ClosedDate[:10]
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
 // --- Filters ---
 
 type RuleInfo struct {

@@ -11,6 +11,7 @@ import type {
   ServiceMatrixRow,
   RHSummaryResult,
   ReportingRate,
+  ClosedOUItem,
   Filters,
 } from '../types';
 import DataTable from '../components/DataTable';
@@ -26,6 +27,7 @@ const tabs = [
   { key: 'equipements', label: 'Equipements' },
   { key: 'rh', label: 'Ressources humaines' },
   { key: 'commodites', label: 'Commodites' },
+  { key: 'fermees', label: 'Structures fermees' },
 ];
 
 export default function Usage() {
@@ -81,6 +83,7 @@ export default function Usage() {
         {tab === 'equipements' && <EquipementsTab district={district} />}
         {tab === 'rh' && <RHTab district={district} />}
         {tab === 'commodites' && <CommoditesTab district={district} />}
+        {tab === 'fermees' && <ClosedOUsTab district={district} />}
       </div>
     </div>
   );
@@ -647,6 +650,93 @@ function CommoditesTab({ district }: { district: string }) {
         <p><strong>Types de source d'energie</strong> : champs booleens independants (multi-choix possible). Une structure peut avoir reseau + solaire + generateur.</p>
         <p><strong>Eau aux points critiques</strong> : champ booleen ISS_EAU_DISPO_PTS_CRITIQUES = true.</p>
         <p><strong>Source d'eau principale</strong> : champ a choix unique (optionSet). Les pourcentages sont calcules sur le nombre total de structures ayant renseigne ce champ.</p>
+      </MethodNote>
+    </div>
+  );
+}
+
+// ==================== STRUCTURES FERMEES ====================
+
+function ClosedOUsTab({ district }: { district: string }) {
+  const [data, setData] = useState<ClosedOUItem[]>([]);
+
+  useEffect(() => {
+    api.getClosedOUs(district).then((d) => setData(d ?? [])).catch(console.error);
+  }, [district]);
+
+  const withData = data.filter((d) => d.has_data);
+  const withoutData = data.filter((d) => !d.has_data);
+
+  const columns = [
+    { key: 'name', header: 'Structure' },
+    { key: 'district', header: 'District' },
+    { key: 'region', header: 'Region' },
+    { key: 'closed_date', header: 'Date de fermeture' },
+    {
+      key: 'has_data',
+      header: 'Donnees',
+      render: (row: Record<string, unknown>) =>
+        row.has_data
+          ? <span className="text-red-600 font-medium">Oui (apres fermeture)</span>
+          : <span className="text-gray-400">Non</span>,
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* KPIs */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="bg-gray-50 rounded-lg p-5 text-center">
+          <p className="text-sm text-gray-500">Structures fermees</p>
+          <p className="text-3xl font-bold text-gray-900 mt-2">{data.length.toLocaleString('fr-FR')}</p>
+          <p className="text-xs text-gray-400">assignees au programme ISS</p>
+        </div>
+        <div className="bg-gray-50 rounded-lg p-5 text-center">
+          <p className="text-sm text-gray-500">Avec donnees soumises</p>
+          <p className="text-3xl font-bold text-red-600 mt-2">{withData.length}</p>
+          <p className="text-xs text-gray-400">ont rapporte apres fermeture</p>
+        </div>
+        <div className="bg-gray-50 rounded-lg p-5 text-center">
+          <p className="text-sm text-gray-500">Sans donnees</p>
+          <p className="text-3xl font-bold text-gray-600 mt-2">{withoutData.length}</p>
+          <p className="text-xs text-gray-400">fermees, pas de soumission</p>
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <ExportCSV
+          data={data as unknown as Record<string, unknown>[]}
+          columns={[
+            { key: 'name', header: 'Structure' },
+            { key: 'uid', header: 'UID' },
+            { key: 'district', header: 'District' },
+            { key: 'region', header: 'Region' },
+            { key: 'closed_date', header: 'Date de fermeture' },
+            { key: 'has_data', header: 'Donnees apres fermeture' },
+          ]}
+          filename="structures_fermees"
+        />
+      </div>
+
+      {/* Table with data (problematic) */}
+      {withData.length > 0 && (
+        <div>
+          <h4 className="text-sm font-semibold text-red-700 mb-2">Structures fermees ayant soumis des donnees</h4>
+          <DataTable columns={columns} data={withData as unknown as Record<string, unknown>[]} />
+        </div>
+      )}
+
+      {/* Full table */}
+      <div>
+        <h4 className="text-sm font-semibold text-gray-700 mb-2">Toutes les structures fermees ({data.length})</h4>
+        <DataTable columns={columns} data={data as unknown as Record<string, unknown>[]} />
+      </div>
+
+      <MethodNote title="Methodologie - Structures fermees">
+        <p>Liste des unites organisationnelles ayant une <strong>closedDate</strong> renseignee dans DHIS2 et etant assignees au programme ISS.</p>
+        <p><strong>Avec donnees</strong> : la structure a soumis au moins un formulaire ISS dont la date est posterieure a sa date de fermeture.</p>
+        <p><strong>Sans donnees</strong> : la structure est fermee et n'a aucun formulaire ISS actif (soit jamais soumis, soit les donnees ont ete supprimees).</p>
+        <p>Ces structures devraient idealement etre desassignees du programme ISS dans DHIS2 pour ne plus etre comptees dans le taux de rapportage.</p>
       </MethodNote>
     </div>
   );

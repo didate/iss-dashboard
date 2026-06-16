@@ -171,6 +171,15 @@ export interface RHSummaryResult {
   pct_structures_sans_medecin: number;
 }
 
+export interface ClosedOUItem {
+  uid: string;
+  name: string;
+  closed_date: string;
+  district: string;
+  region: string;
+  has_data: boolean;
+}
+
 export interface RuleInfo {
   code: string;
   name: string;

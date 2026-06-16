@@ -12,6 +12,7 @@ import type {
   PlateauItem,
   ServiceMatrixRow,
   RHSummaryResult,
+  ClosedOUItem,
   Filters,
   SyncStatus,
   ReportingRate,
@@ -109,6 +110,9 @@ export const api = {
 
   getRHSummary: (district?: string) =>
     request<RHSummaryResult>(`/api/usage/rh/summary${qs({ district })}`),
+
+  getClosedOUs: (district?: string) =>
+    request<ClosedOUItem[]>(`/api/usage/closed-ous${qs({ district })}`),
 
   getFilters: () => request<Filters>('/api/meta/filters'),
 
