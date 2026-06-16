@@ -34,8 +34,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     headers,
   });
 
-  if (res.status === 401) {
-    // Token expired or invalid
+  if (res.status === 401 && path === '/api/auth/me') {
+    // Only clear auth on explicit auth check failure, not on transient DB locks
     const { clearAuth } = await import('./auth');
     clearAuth();
   }

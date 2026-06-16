@@ -142,7 +142,12 @@ func JWTAuth(jwtSecret string, st *store.Store) gin.HandlerFunc {
 
 		userID := int64(claims["user_id"].(float64))
 		user, err := st.GetUserByID(userID)
-		if err != nil || user == nil {
+		if err != nil {
+			// DB busy (e.g. during sync) — return 503 not 401
+			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "base de donnees occupee, reessayez"})
+			return
+		}
+		if user == nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "utilisateur introuvable"})
 			return
 		}
