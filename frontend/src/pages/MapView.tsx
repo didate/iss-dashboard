@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
+import { MapContainer, GeoJSON } from 'react-leaflet';
+import L from 'leaflet';
 import type { Layer, PathOptions } from 'leaflet';
 import type { Feature, Geometry } from 'geojson';
 import { api } from '../api/client';
 import type { MapDistrictCollection, MapDistrictProperties } from '../types';
+import MethodNote from '../components/MethodNote';
 
 type LayerKey = 'rapportage' | 'qualite' | 'services' | 'equipements' | 'wash' | 'rh';
 
@@ -66,7 +68,7 @@ interface LegendItem {
 }
 
 function getLegendItems(layer: LayerKey, breaks?: number[]): LegendItem[] {
-  if (layer === 'rapportage' || layer === 'services' || layer === 'wash') {
+  if (layer === 'rapportage' || layer === 'wash') {
     return [
       { color: '#ef4444', label: '< 30%' },
       { color: '#f97316', label: '30-50%' },
@@ -93,7 +95,7 @@ function getLegendItems(layer: LayerKey, breaks?: number[]): LegendItem[] {
       { color: '#d1d5db', label: 'Pas de donnees' },
     ];
   }
-  if (layer === 'equipements' && breaks && breaks.length > 0) {
+  if ((layer === 'equipements' || layer === 'services') && breaks && breaks.length > 0) {
     const labels = [`<= ${breaks[0]}`];
     for (let i = 1; i < breaks.length; i++) {
       labels.push(`${breaks[i - 1] + 1} - ${breaks[i]}`);
@@ -107,6 +109,35 @@ function getLegendItems(layer: LayerKey, breaks?: number[]): LegendItem[] {
   return [{ color: '#d1d5db', label: 'Pas de donnees' }];
 }
 
+function getShortValue(props: MapDistrictProperties, layer: LayerKey, selectedService: string, selectedEquipCategory: string): string {
+  switch (layer) {
+    case 'rapportage':
+      return props.rapportage_pct !== null ? `${props.rapportage_pct.toFixed(0)}%` : '-';
+    case 'qualite':
+      return props.qualite_avg_score !== null ? `${props.qualite_avg_score.toFixed(0)}` : '-';
+    case 'services': {
+      const svc = props.services?.[selectedService];
+      return svc ? `${svc.n_oui}` : '-';
+    }
+    case 'equipements': {
+      let total = 0, fonct = 0;
+      for (const eq of Object.values(props.equipements || {})) {
+        if (eq.category === selectedEquipCategory) {
+          total += eq.sum_total;
+          fonct += eq.sum_fonct;
+        }
+      }
+      return total > 0 || fonct > 0 ? `${fonct}/${total}` : '-';
+    }
+    case 'wash':
+      return props.wash_forage_ou_reseau_pct !== null ? `${props.wash_forage_ou_reseau_pct.toFixed(0)}%` : '-';
+    case 'rh':
+      return props.rh_medecins_par_structure !== null ? `${props.rh_medecins_par_structure.toFixed(1)}` : '-';
+    default:
+      return '-';
+  }
+}
+
 export default function MapView() {
   const [data, setData] = useState<MapDistrictCollection | null>(null);
   const [loading, setLoading] = useState(true);
@@ -115,6 +146,8 @@ export default function MapView() {
   const [selectedService, setSelectedService] = useState('');
   const [selectedEquipCategory, setSelectedEquipCategory] = useState('');
   const geoJsonRef = useRef<L.GeoJSON | null>(null);
+  const labelsRef = useRef<L.LayerGroup | null>(null);
+  const mapRef = useRef<L.Map | null>(null);
 
   useEffect(() => {
     api.getMapData()
@@ -123,7 +156,6 @@ export default function MapView() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Derive available services and equipment categories from data
   const serviceOptions = useMemo(() => {
     if (!data) return [];
     const allServices = new Map<string, string>();
@@ -146,7 +178,6 @@ export default function MapView() {
     return Array.from(cats).sort();
   }, [data]);
 
-  // Set defaults when data loads
   useEffect(() => {
     if (serviceOptions.length > 0 && !selectedService) {
       setSelectedService(serviceOptions[0][0]);
@@ -159,7 +190,6 @@ export default function MapView() {
     }
   }, [equipCategories, selectedEquipCategory]);
 
-  // Quantile breaks for equipment layer
   const equipBreaks = useMemo(() => {
     if (!data || activeLayer !== 'equipements' || !selectedEquipCategory) return [];
     const values: number[] = [];
@@ -172,6 +202,16 @@ export default function MapView() {
     }
     return computeQuantileBreaks(values, 5);
   }, [data, activeLayer, selectedEquipCategory]);
+
+  const serviceBreaks = useMemo(() => {
+    if (!data || activeLayer !== 'services' || !selectedService) return [];
+    const values: number[] = [];
+    for (const f of data.features) {
+      const svc = f.properties.services?.[selectedService];
+      if (svc) values.push(svc.n_oui);
+    }
+    return computeQuantileBreaks(values, 5);
+  }, [data, activeLayer, selectedService]);
 
   const getFeatureValue = useCallback((props: MapDistrictProperties): { value: number | null; display: string } => {
     switch (activeLayer) {
@@ -188,7 +228,7 @@ export default function MapView() {
       case 'services': {
         const svc = props.services?.[selectedService];
         if (!svc) return { value: null, display: 'N/A' };
-        return { value: svc.pct_fonctionnel, display: `${svc.pct_fonctionnel.toFixed(1)}% (${svc.n_oui}/${svc.n_total})` };
+        return { value: svc.n_oui, display: `${svc.n_oui} structures avec le service (${svc.pct_fonctionnel.toFixed(1)}% sur ${svc.n_total})` };
       }
       case 'equipements': {
         let total = 0, fonct = 0;
@@ -223,9 +263,10 @@ export default function MapView() {
   const getColor = useCallback((value: number | null): string => {
     switch (activeLayer) {
       case 'rapportage':
-      case 'services':
       case 'wash':
         return getColorPct(value);
+      case 'services':
+        return getColorQuantile(value, serviceBreaks);
       case 'qualite':
         return getColorScore(value);
       case 'rh':
@@ -235,7 +276,7 @@ export default function MapView() {
       default:
         return '#d1d5db';
     }
-  }, [activeLayer, equipBreaks]);
+  }, [activeLayer, equipBreaks, serviceBreaks]);
 
   const style = useCallback((feature: Feature<Geometry, MapDistrictProperties> | undefined): PathOptions => {
     if (!feature) return { fillColor: '#d1d5db', weight: 1, color: '#6b7280', fillOpacity: 0.7 };
@@ -252,10 +293,10 @@ export default function MapView() {
     const props = feature.properties;
     const { display } = getFeatureValue(props);
 
-    layer.bindTooltip(`<strong>${props.district_name}</strong><br/>${display}`, {
-      sticky: true,
-      className: 'map-tooltip',
-    });
+    layer.bindTooltip(
+      `<strong>${props.district_name}</strong><br/>${display}`,
+      { sticky: true, className: 'map-tooltip' }
+    );
 
     layer.on({
       mouseover: (e) => {
@@ -271,7 +312,46 @@ export default function MapView() {
     });
   }, [getFeatureValue]);
 
-  // Force GeoJSON re-render when layer/selection changes
+  // Add district name + value labels on the map
+  useEffect(() => {
+    if (!mapRef.current || !data) return;
+    const map = mapRef.current;
+
+    // Remove previous labels
+    if (labelsRef.current) {
+      map.removeLayer(labelsRef.current);
+    }
+
+    const labelGroup = L.layerGroup();
+    for (const feature of data.features) {
+      const props = feature.properties;
+      const shortVal = getShortValue(props, activeLayer, selectedService, selectedEquipCategory);
+
+      // Compute centroid from geometry
+      try {
+        const geoLayer = L.geoJSON(feature as unknown as GeoJSON.Feature);
+        const bounds = geoLayer.getBounds();
+        const center = bounds.getCenter();
+
+        const icon = L.divIcon({
+          className: 'district-label',
+          html: `<div style="text-align:center;pointer-events:none;text-shadow:1px 1px 2px white,-1px -1px 2px white,1px -1px 2px white,-1px 1px 2px white;">
+            <div style="font-size:10px;font-weight:700;color:#1f2937;line-height:1.2;">${props.district_name}</div>
+            <div style="font-size:11px;font-weight:800;color:#1e3a5f;line-height:1.2;">${shortVal}</div>
+          </div>`,
+          iconSize: [80, 30],
+          iconAnchor: [40, 15],
+        });
+        L.marker(center, { icon, interactive: false }).addTo(labelGroup);
+      } catch {
+        // skip if geometry can't be parsed
+      }
+    }
+
+    labelGroup.addTo(map);
+    labelsRef.current = labelGroup;
+  }, [data, activeLayer, selectedService, selectedEquipCategory]);
+
   const geoJsonKey = `${activeLayer}-${selectedService}-${selectedEquipCategory}`;
 
   if (loading) return <div className="p-6 text-gray-500">Chargement de la carte...</div>;
@@ -280,12 +360,12 @@ export default function MapView() {
     return <div className="p-6 text-gray-500">Aucune donnee geographique disponible. Lancez une synchronisation pour recuperer les contours des districts.</div>;
   }
 
-  const legendItems = getLegendItems(activeLayer, equipBreaks);
+  const legendItems = getLegendItems(activeLayer, activeLayer === 'services' ? serviceBreaks : equipBreaks);
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="space-y-4">
       {/* Layer tabs */}
-      <div className="flex flex-wrap gap-1 mb-3">
+      <div className="flex flex-wrap gap-1">
         {LAYERS.map(l => (
           <button
             key={l.key}
@@ -303,44 +383,37 @@ export default function MapView() {
 
       {/* Sub-selectors */}
       {activeLayer === 'services' && serviceOptions.length > 0 && (
-        <div className="mb-3">
-          <select
-            value={selectedService}
-            onChange={e => setSelectedService(e.target.value)}
-            className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white"
-          >
-            {serviceOptions.map(([code, label]) => (
-              <option key={code} value={code}>{label}</option>
-            ))}
-          </select>
-        </div>
+        <select
+          value={selectedService}
+          onChange={e => setSelectedService(e.target.value)}
+          className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white"
+        >
+          {serviceOptions.map(([code, label]) => (
+            <option key={code} value={code}>{label}</option>
+          ))}
+        </select>
       )}
       {activeLayer === 'equipements' && equipCategories.length > 0 && (
-        <div className="mb-3">
-          <select
-            value={selectedEquipCategory}
-            onChange={e => setSelectedEquipCategory(e.target.value)}
-            className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white"
-          >
-            {equipCategories.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
-        </div>
+        <select
+          value={selectedEquipCategory}
+          onChange={e => setSelectedEquipCategory(e.target.value)}
+          className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white"
+        >
+          {equipCategories.map(cat => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
+        </select>
       )}
 
       {/* Map + Legend */}
-      <div className="flex-1 relative rounded-lg overflow-hidden border border-gray-200" style={{ minHeight: '500px' }}>
+      <div className="relative rounded-lg overflow-hidden border border-gray-200 bg-white" style={{ height: '600px' }}>
         <MapContainer
           center={[10.5, -11.8]}
           zoom={7}
-          style={{ height: '100%', width: '100%' }}
+          style={{ height: '100%', width: '100%', background: '#ffffff' }}
           scrollWheelZoom={true}
+          ref={mapRef}
         >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
           <GeoJSON
             key={geoJsonKey}
             ref={(ref) => { geoJsonRef.current = ref; }}
@@ -366,6 +439,19 @@ export default function MapView() {
           ))}
         </div>
       </div>
+
+      {/* Methodologie */}
+      <MethodNote title="Methodologie - Carte thematique">
+        <p>La carte affiche les districts avec un code couleur selon l'indicateur selectionne. Les contours sont recuperes depuis DHIS2 (geometry des org units niveau 3).</p>
+        <ul className="list-disc ml-4 mt-1 space-y-1">
+          <li><strong>Taux de rapportage</strong> : % de structures attendues ayant soumis des donnees. Vert (&gt;80%), jaune (50-80%), orange (30-50%), rouge (&lt;30%).</li>
+          <li><strong>Score qualite</strong> : score moyen (0-100) des structures du district. Penalites : -15/erreur, -5/avertissement, -1/info.</li>
+          <li><strong>Couverture services</strong> : nombre de structures disposant du service selectionne. Echelle a quantiles dynamiques.</li>
+          <li><strong>Equipements</strong> : nombres bruts (fonctionnels / total) par categorie. Echelle a quantiles dynamiques.</li>
+          <li><strong>WASH</strong> : % de structures alimentees par forage (FMH/FME) ou reseau public.</li>
+          <li><strong>Densite RH</strong> : ratio medecins par structure dans le district.</li>
+        </ul>
+      </MethodNote>
     </div>
   );
 }
