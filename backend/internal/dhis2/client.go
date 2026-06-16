@@ -147,7 +147,7 @@ func (c *Client) FetchOptionSets() ([]models.OptionEntry, error) {
 
 // FetchOrgUnits fetches organisation units with parent info.
 func (c *Client) FetchOrgUnits() ([]models.OrgUnit, error) {
-	url := fmt.Sprintf("%s/api/organisationUnits.json?fields=id,name,level,parent[id,name]&paging=false", c.baseURL)
+	url := fmt.Sprintf("%s/api/organisationUnits.json?fields=id,name,level,parent[id,name],closedDate&paging=false", c.baseURL)
 	body, err := c.doGet(url)
 	if err != nil {
 		return nil, err
@@ -161,9 +161,10 @@ func (c *Client) FetchOrgUnits() ([]models.OrgUnit, error) {
 	var out []models.OrgUnit
 	for _, ou := range resp.OrganisationUnits {
 		o := models.OrgUnit{
-			UID:   ou.ID,
-			Name:  ou.Name,
-			Level: ou.Level,
+			UID:        ou.ID,
+			Name:       ou.Name,
+			Level:      ou.Level,
+			ClosedDate: ou.ClosedDate,
 		}
 		if ou.Parent != nil {
 			o.ParentUID = ou.Parent.ID

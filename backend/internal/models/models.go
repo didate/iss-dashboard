@@ -81,6 +81,7 @@ type OrgUnit struct {
 	Level      int    `json:"level"`
 	ParentUID  string `json:"parentUid,omitempty"`
 	ParentName string `json:"parentName,omitempty"`
+	ClosedDate string `json:"closedDate,omitempty"`
 }
 
 // EquipPair represents a TOTAL/FONC equipment pair.
@@ -234,10 +235,11 @@ type DHIS2OptionSetsResponse struct {
 
 type DHIS2OrgUnitsResponse struct {
 	OrganisationUnits []struct {
-		ID     string `json:"id"`
-		Name   string `json:"name"`
-		Level  int    `json:"level"`
-		Parent *struct {
+		ID         string `json:"id"`
+		Name       string `json:"name"`
+		Level      int    `json:"level"`
+		ClosedDate string `json:"closedDate"`
+		Parent     *struct {
 			ID   string `json:"id"`
 			Name string `json:"name"`
 		} `json:"parent"`

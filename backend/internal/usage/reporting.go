@@ -5,13 +5,32 @@ import (
 )
 
 // ComputeReportingRate calculates reporting completeness.
-// Expected = org units assigned to the ISS program.
+// Expected = org units assigned to the ISS program that are NOT closed.
 // Reported = org units with at least one submitted event.
 func ComputeReportingRate(events []*models.Event, programOrgUnits []string, orgUnits []models.OrgUnit) []models.ReportingRate {
 	// Build org unit lookup
 	ouMap := make(map[string]models.OrgUnit, len(orgUnits))
 	for _, ou := range orgUnits {
 		ouMap[ou.UID] = ou
+	}
+
+	// Build set of closed org units
+	closedOUs := make(map[string]bool)
+	for _, ou := range orgUnits {
+		if ou.ClosedDate != "" {
+			closedOUs[ou.UID] = true
+		}
+	}
+
+	// Also mark as closed org units that submitted with non-operational status
+	for _, evt := range events {
+		for _, dv := range evt.DataValues {
+			if dv.DataElement == "HpjvSNCEWM0" { // ISS_STATUT_OP_DE
+				if dv.Value == "non_operationnel" || dv.Value == "ferme_temporairement" {
+					closedOUs[evt.OrgUnitUID] = true
+				}
+			}
+		}
 	}
 
 	// Resolve district/region by walking up hierarchy
@@ -65,8 +84,11 @@ func ComputeReportingRate(events []*models.Event, programOrgUnits []string, orgU
 		return dims[dim][key]
 	}
 
-	// Count expected from program org units
+	// Count expected from program org units (excluding closed ones)
 	for _, uid := range programOrgUnits {
+		if closedOUs[uid] {
+			continue
+		}
 		loc := resolveLocation(uid)
 		ensure("global", "all").expected++
 		if loc.district != "" {
@@ -77,8 +99,11 @@ func ComputeReportingRate(events []*models.Event, programOrgUnits []string, orgU
 		}
 	}
 
-	// Count reported (distinct org units with events)
+	// Count reported (distinct org units with events, excluding closed/non-operational)
 	for _, evt := range events {
+		if closedOUs[evt.OrgUnitUID] {
+			continue
+		}
 		ensure("global", "all").reported[evt.OrgUnitUID] = true
 		if evt.District != "" {
 			ensure("district", evt.District).reported[evt.OrgUnitUID] = true

@@ -1,12 +1,16 @@
 import { useEffect, useState, useCallback } from 'react';
-import { RefreshCw, CheckCircle, XCircle, Clock, UserPlus, Trash2 } from 'lucide-react';
+import { RefreshCw, CheckCircle, XCircle, Clock, UserPlus, Trash2, Download } from 'lucide-react';
 import { api } from '../api/client';
+import { getToken } from '../api/auth';
 import type { SyncStatus } from '../types';
+
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
 export default function Admin() {
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   // Users
   const [users, setUsers] = useState<{ id: number; username: string; name: string; role: string }[]>([]);
@@ -15,7 +19,9 @@ export default function Admin() {
   const [userError, setUserError] = useState('');
 
   const fetchStatus = useCallback(() => {
-    api.getSyncStatus().then(setStatus).catch(() => {});
+    api.getSyncStatus().then(setStatus).catch((err) => {
+      console.error('fetchStatus error:', err);
+    });
   }, []);
 
   const fetchUsers = useCallback(() => {
@@ -29,16 +35,43 @@ export default function Admin() {
     return () => clearInterval(interval);
   }, [fetchStatus, fetchUsers]);
 
+  const isRunning = status?.current?.status === 'running';
+
   const triggerSync = async () => {
     setSyncing(true);
     setError('');
     try {
       await api.triggerSync();
-      setTimeout(fetchStatus, 1000);
+      // Poll more frequently right after triggering
+      setTimeout(fetchStatus, 2000);
+      setTimeout(fetchStatus, 5000);
+      setTimeout(fetchStatus, 10000);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Erreur');
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const token = getToken();
+      const res = await fetch(`${BASE_URL}/api/export/excel`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `extraction_iss_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Erreur export');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -74,29 +107,43 @@ export default function Admin() {
     <div className="space-y-6 max-w-4xl">
       <h2 className="text-xl font-bold text-gray-900">Administration</h2>
 
-      {/* Sync control */}
+      {/* Sync + Export */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="font-medium text-gray-900">Synchronisation</h3>
-            {status?.current?.status === 'running' && (
-              <p className="text-sm text-yellow-600 mt-1">Synchro en cours...</p>
+            {isRunning && (
+              <p className="text-sm text-yellow-600 mt-1 flex items-center gap-1">
+                <Clock size={14} className="animate-spin" /> Synchro en cours...
+              </p>
             )}
-            {status?.last && status.last.status !== 'running' && (
+            {status?.last && !isRunning && (
               <p className="text-sm text-gray-500 mt-1">
                 Derniere : {new Date(status.last.finished_at || status.last.started_at).toLocaleString('fr-FR')}
                 {' — '}{status.last.events_pulled} events, {status.last.issues_found} issues, {(status.last.duration_ms / 1000).toFixed(1)}s
+                {status.last.status === 'success' && <CheckCircle size={14} className="inline ml-1 text-green-500" />}
+                {status.last.status === 'error' && <XCircle size={14} className="inline ml-1 text-red-500" />}
               </p>
             )}
           </div>
-          <button
-            onClick={triggerSync}
-            disabled={syncing || status?.current?.status === 'running'}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <RefreshCw size={16} className={status?.current?.status === 'running' ? 'animate-spin' : ''} />
-            Synchroniser maintenant
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded text-sm font-medium hover:bg-gray-200 disabled:opacity-50"
+            >
+              <Download size={16} />
+              {exporting ? 'Export...' : 'Export Excel'}
+            </button>
+            <button
+              onClick={triggerSync}
+              disabled={syncing || isRunning}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCw size={16} className={isRunning ? 'animate-spin' : ''} />
+              {isRunning ? 'En cours...' : 'Synchroniser'}
+            </button>
+          </div>
         </div>
         {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
       </div>

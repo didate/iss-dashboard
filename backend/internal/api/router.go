@@ -50,7 +50,8 @@ func SetupRouter(cfg *config.Config, st *store.Store, client *dhis2.Client) *gin
 	authenticated.Use(JWTAuth(jwtSecret, st))
 	{
 		authenticated.GET("/auth/me", auth.GetMe)
-		authenticated.GET("/export/excel", h_exportPlaceholder)
+		exp := &ExportHandlers{Store: st}
+		authenticated.GET("/export/excel", exp.ExportExcel)
 	}
 
 	// Admin endpoints (JWT + admin role)
@@ -66,8 +67,4 @@ func SetupRouter(cfg *config.Config, st *store.Store, client *dhis2.Client) *gin
 	}
 
 	return r
-}
-
-func h_exportPlaceholder(c *gin.Context) {
-	c.JSON(200, gin.H{"message": "use scripts/export_excel.py for now"})
 }
