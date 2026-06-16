@@ -352,6 +352,17 @@ export default function MapView() {
     labelsRef.current = labelGroup;
   }, [data, activeLayer, selectedService, selectedEquipCategory]);
 
+  // Filter Conakry districts for inset map
+  const conakryData = useMemo(() => {
+    if (!data) return null;
+    const conakryNames = ['dixinn', 'kaloum', 'matam', 'matoto', 'ratoma'];
+    const conakryFeatures = data.features.filter(f =>
+      conakryNames.some(n => f.properties.district_name.toLowerCase().includes(n))
+    );
+    if (conakryFeatures.length === 0) return null;
+    return { type: 'FeatureCollection' as const, features: conakryFeatures };
+  }, [data]);
+
   const geoJsonKey = `${activeLayer}-${selectedService}-${selectedEquipCategory}`;
 
   if (loading) return <div className="p-6 text-gray-500">Chargement de la carte...</div>;
@@ -405,8 +416,8 @@ export default function MapView() {
         </select>
       )}
 
-      {/* Map + Legend */}
-      <div className="relative rounded-lg overflow-hidden border border-gray-200 bg-white" style={{ height: '600px' }}>
+      {/* Map + Legend + Inset */}
+      <div className="relative rounded-lg overflow-hidden border border-gray-200 bg-white" style={{ height: 'calc(100vh - 200px)', minHeight: '650px' }}>
         <MapContainer
           center={[10.5, -11.8]}
           zoom={7}
@@ -423,8 +434,32 @@ export default function MapView() {
           />
         </MapContainer>
 
+        {/* Inset map — Conakry zoom */}
+        {conakryData && (
+          <div className="absolute top-3 right-3 z-[1000] rounded-lg overflow-hidden border-2 border-gray-400 shadow-lg" style={{ width: '250px', height: '200px' }}>
+            <div className="bg-gray-700 text-white text-[10px] font-semibold px-2 py-0.5 text-center">Conakry</div>
+            <MapContainer
+              key={`inset-${geoJsonKey}`}
+              center={[9.53, -13.68]}
+              zoom={11}
+              style={{ height: 'calc(100% - 20px)', width: '100%', background: '#ffffff' }}
+              scrollWheelZoom={false}
+              dragging={false}
+              zoomControl={false}
+              doubleClickZoom={false}
+              attributionControl={false}
+            >
+              <GeoJSON
+                data={conakryData as unknown as GeoJSON.FeatureCollection}
+                style={style as (feature?: Feature) => PathOptions}
+                onEachFeature={onEachFeature as (feature: Feature, layer: Layer) => void}
+              />
+            </MapContainer>
+          </div>
+        )}
+
         {/* Legend */}
-        <div className="absolute bottom-4 right-4 bg-white rounded-lg shadow-lg p-3 z-[1000]">
+        <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-3 z-[1000]">
           <h4 className="text-xs font-semibold mb-2 text-gray-700">
             {LAYERS.find(l => l.key === activeLayer)?.label}
           </h4>
