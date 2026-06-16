@@ -536,8 +536,8 @@ type Filters struct {
 
 func (s *Store) GetFilters() (*Filters, error) {
 	f := &Filters{}
-	f.Districts = s.distinctCol(`SELECT DISTINCT district FROM event WHERE district != '' ORDER BY district`)
-	f.Regions = s.distinctCol(`SELECT DISTINCT region FROM event WHERE region != '' ORDER BY region`)
+	f.Districts = s.distinctCol(`SELECT DISTINCT name FROM org_unit WHERE level=3 ORDER BY name`)
+	f.Regions = s.distinctCol(`SELECT DISTINCT name FROM org_unit WHERE level=2 ORDER BY name`)
 	f.Rules = s.distinctCol(`SELECT DISTINCT rule_code FROM quality_issue ORDER BY rule_code`)
 	f.Services = s.distinctCol(`SELECT DISTINCT service_code FROM usage_service WHERE district='all' ORDER BY service_code`)
 	f.Statuts = []string{"publique", "privée"}
