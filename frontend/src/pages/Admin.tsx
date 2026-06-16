@@ -25,7 +25,7 @@ export default function Admin() {
   }, []);
 
   const fetchUsers = useCallback(() => {
-    api.getUsers().then(setUsers).catch(() => {});
+    api.getUsers().then((u) => setUsers(u ?? [])).catch(() => {});
   }, []);
 
   const isRunning = status?.current?.status === 'running';

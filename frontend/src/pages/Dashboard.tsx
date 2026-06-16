@@ -23,9 +23,9 @@ export default function Dashboard() {
     ])
       .then(([s, d, r, rr]) => {
         setSummary(s);
-        setDistrictScores(d);
-        setRegionScores(r);
-        const global = rr.find((x) => x.key === 'all');
+        setDistrictScores(d ?? []);
+        setRegionScores(r ?? []);
+        const global = (rr ?? []).find((x) => x.key === 'all');
         if (global) setReportingGlobal(global);
       })
       .catch(console.error)

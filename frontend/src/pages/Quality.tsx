@@ -40,6 +40,7 @@ export default function Quality() {
     api.getEventDetail(item.event_uid).then(setDetail).catch(console.error);
   };
 
+  const items = result?.data ?? [];
   const totalPages = result ? Math.ceil(result.total / result.page_size) : 0;
 
   return (
@@ -48,9 +49,9 @@ export default function Quality() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 bg-white p-3 rounded-lg border border-gray-200 items-center">
-        {result && result.data.length > 0 && (
+        {items.length > 0 && (
           <ExportCSV
-            data={result.data.map((d) => ({ ...d, issues: d.issues.map((i) => i.message).join(' | ') })) as unknown as Record<string, unknown>[]}
+            data={items.map((d) => ({ ...d, issues: (d.issues ?? []).map((i) => i.message).join(' | ') })) as unknown as Record<string, unknown>[]}
             columns={[
               { key: 'org_unit_name', header: 'Structure' },
               { key: 'district', header: 'District' },
@@ -126,7 +127,7 @@ export default function Quality() {
                     </tr>
                   </thead>
                   <tbody>
-                    {result?.data.map((item) => (
+                    {items.map((item) => (
                       <tr
                         key={item.event_uid}
                         className="border-b border-gray-100 cursor-pointer hover:bg-blue-50"
@@ -145,7 +146,7 @@ export default function Quality() {
                         </td>
                       </tr>
                     ))}
-                    {result?.data.length === 0 && (
+                    {items.length === 0 && (
                       <tr>
                         <td colSpan={5} className="px-3 py-8 text-center text-gray-400">
                           Aucun problème trouvé
@@ -212,7 +213,7 @@ export default function Quality() {
 
             <h4 className="font-medium text-gray-700 text-sm mb-2">Problèmes</h4>
             <div className="space-y-2 mb-4">
-              {detail.issues.map((iss, i) => (
+              {(detail.issues ?? []).map((iss, i) => (
                 <div key={i} className="flex gap-2 items-start text-xs">
                   <SeverityBadge severity={iss.severity} />
                   <span className="text-gray-700">{iss.message}</span>
@@ -224,7 +225,7 @@ export default function Quality() {
             <div className="max-h-60 overflow-y-auto">
               <table className="w-full text-xs">
                 <tbody>
-                  {detail.values.slice(0, 50).map((v, i) => (
+                  {(detail.values ?? []).slice(0, 50).map((v, i) => (
                     <tr key={i} className="border-b border-gray-50">
                       <td className="py-1 text-gray-500 pr-2">{v.de_name}</td>
                       <td className="py-1 font-medium text-gray-800">{v.value}</td>

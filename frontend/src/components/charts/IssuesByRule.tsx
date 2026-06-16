@@ -6,8 +6,9 @@ interface Props {
 }
 
 export default function IssuesByRule({ data }: Props) {
-  // Use global summary row which has aggregated counts
-  const chartData = data.map((r) => ({
+  if (!data || data.length === 0) return null;
+
+  const chartData = (data ?? []).map((r) => ({
     name: r.label,
     errors: r.n_error,
     warnings: r.n_warning,

@@ -94,9 +94,9 @@ function RapportageTab() {
   const [globalRate, setGlobalRate] = useState<ReportingRate | null>(null);
 
   useEffect(() => {
-    api.getReportingRate(by).then(setData).catch(console.error);
+    api.getReportingRate(by).then((d) => setData(d ?? [])).catch(console.error);
     api.getReportingRate('global').then((r) => {
-      const g = r.find((x) => x.key === 'all');
+      const g = (r ?? []).find((x) => x.key === 'all');
       if (g) setGlobalRate(g);
     }).catch(console.error);
   }, [by]);
@@ -183,7 +183,7 @@ function RecensementTab() {
   const [data, setData] = useState<UsageRecensement[]>([]);
 
   useEffect(() => {
-    api.getUsageRecensement(by).then(setData).catch(console.error);
+    api.getUsageRecensement(by).then((d) => setData(d ?? [])).catch(console.error);
   }, [by]);
 
   const columns = [
@@ -223,7 +223,7 @@ function PlateauTab({ district }: { district: string }) {
   const [data, setData] = useState<PlateauItem[]>([]);
 
   useEffect(() => {
-    api.getPlateauTechnique(district).then(setData).catch(console.error);
+    api.getPlateauTechnique(district).then((d) => setData(d ?? [])).catch(console.error);
   }, [district]);
 
   const columns = [
@@ -271,7 +271,7 @@ function ServicesTab({ district }: { district: string }) {
   const [data, setData] = useState<UsageService[]>([]);
 
   useEffect(() => {
-    api.getUsageServices(district).then(setData).catch(console.error);
+    api.getUsageServices(district).then((d) => setData(d ?? [])).catch(console.error);
   }, [district]);
 
   const columns = [
@@ -320,9 +320,10 @@ function MatriceTab() {
 
   useEffect(() => {
     api.getServiceMatrix().then((rows) => {
-      setData(rows);
+      const safeRows = rows ?? [];
+      setData(safeRows);
       const allDistricts = new Set<string>();
-      rows.forEach((r) => Object.keys(r.districts).forEach((d) => allDistricts.add(d)));
+      safeRows.forEach((r) => Object.keys(r.districts ?? {}).forEach((d) => allDistricts.add(d)));
       setDistricts([...allDistricts].sort());
     }).catch(console.error);
   }, []);
@@ -387,7 +388,7 @@ function EquipementsTab({ district }: { district: string }) {
   const [data, setData] = useState<UsageEquipement[]>([]);
 
   useEffect(() => {
-    api.getUsageEquipements(focus, district).then(setData).catch(console.error);
+    api.getUsageEquipements(focus, district).then((d) => setData(d ?? [])).catch(console.error);
   }, [focus, district]);
 
   const columns = [
@@ -453,7 +454,7 @@ function RHTab({ district }: { district: string }) {
   const [summary, setSummary] = useState<RHSummaryResult | null>(null);
 
   useEffect(() => {
-    api.getUsageRH(district).then(setData).catch(console.error);
+    api.getUsageRH(district).then((d) => setData(d ?? [])).catch(console.error);
     api.getRHSummary(district).then(setSummary).catch(console.error);
   }, [district]);
 
@@ -540,7 +541,7 @@ function CommoditesTab({ district }: { district: string }) {
   const [data, setData] = useState<UsageCommodite[]>([]);
 
   useEffect(() => {
-    api.getUsageCommodites(district).then(setData).catch(console.error);
+    api.getUsageCommodites(district).then((d) => setData(d ?? [])).catch(console.error);
   }, [district]);
 
   const labels: Record<string, string> = {

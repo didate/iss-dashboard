@@ -8,11 +8,13 @@ function getColor(score: number) {
 }
 
 export default function ScoreByDistrict({ data }: { data: QualitySummaryRow[] }) {
-  const sorted = [...data].sort((a, b) => a.avg_score - b.avg_score);
+  const sorted = [...(data ?? [])].sort((a, b) => a.avg_score - b.avg_score);
+
+  if (sorted.length === 0) return null;
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4">
-      <h3 className="text-sm font-medium text-gray-500 mb-4">Score qualité par district</h3>
+      <h3 className="text-sm font-medium text-gray-500 mb-4">Score qualite par district</h3>
       <ResponsiveContainer width="100%" height={Math.max(300, sorted.length * 30)}>
         <BarChart data={sorted} layout="vertical" margin={{ left: 120 }}>
           <CartesianGrid strokeDasharray="3 3" />
