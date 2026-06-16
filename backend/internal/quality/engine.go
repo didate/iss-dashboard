@@ -21,7 +21,7 @@ func init() {
 		{Code: "R3", Name: "Service sans support", Fn: CheckServiceSupport},
 		{Code: "R4", Name: "Cohérence commodités", Fn: CheckCommodites},
 		{Code: "R5", Name: "Valeurs aberrantes", Fn: CheckOutliers},
-		{Code: "R6", Name: "Doublons", Fn: CheckDuplicates},
+		{Code: "R6", Name: "Soumissions multiples", Fn: CheckDuplicates},
 		{Code: "R7", Name: "Complétude", Fn: CheckCompleteness},
 	}
 }

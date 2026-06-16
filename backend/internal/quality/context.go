@@ -28,6 +28,9 @@ type QualityContext struct {
 	// Duplicate detection: org_unit_uid → count of events
 	OrgUnitCounts map[string]int
 
+	// Duplicate per year: "org_unit_uid|year" → count
+	OrgUnitYearCounts map[string]int
+
 	// Service-support specs for R3
 	ServiceSpecs []ServiceSupportSpec
 
@@ -59,8 +62,9 @@ func BuildContext(
 		UIDToCode:     make(map[string]string),
 		OptionsBySet:  make(map[string][]models.OptionEntry),
 		Medians:       make(map[string]MedianStat),
-		OrgUnitCounts: make(map[string]int),
-		AllEvents:     events,
+		OrgUnitCounts:     make(map[string]int),
+		OrgUnitYearCounts: make(map[string]int),
+		AllEvents:         events,
 	}
 
 	for _, de := range metadata {
@@ -78,6 +82,7 @@ func BuildContext(
 	ctx.EquipPairs = discoverEquipPairs(metadata, ctx.CodeToUID)
 	ctx.ServiceSpecs = buildServiceSpecs(ctx)
 	ctx.OrgUnitCounts = countOrgUnits(events)
+	ctx.OrgUnitYearCounts = countOrgUnitsByYear(events)
 	ctx.Medians = computeMedians(events, ctx)
 
 	return ctx
@@ -216,6 +221,19 @@ func countOrgUnits(events []*models.Event) map[string]int {
 	counts := make(map[string]int)
 	for _, e := range events {
 		counts[e.OrgUnitUID]++
+	}
+	return counts
+}
+
+func countOrgUnitsByYear(events []*models.Event) map[string]int {
+	counts := make(map[string]int)
+	for _, e := range events {
+		year := ""
+		if len(e.EventDate) >= 4 {
+			year = e.EventDate[:4]
+		}
+		key := e.OrgUnitUID + "|" + year
+		counts[key]++
 	}
 	return counts
 }

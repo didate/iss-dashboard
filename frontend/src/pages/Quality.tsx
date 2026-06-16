@@ -82,9 +82,9 @@ export default function Quality() {
           value={rule}
           onChange={(e) => { setRule(e.target.value); setPage(1); }}
         >
-          <option value="">Toutes règles</option>
-          {filters?.rules.map((r) => (
-            <option key={r} value={r}>{r}</option>
+          <option value="">Toutes regles</option>
+          {(filters?.rules ?? []).map((r) => (
+            <option key={r.code} value={r.code}>{r.code} — {r.name}</option>
           ))}
         </select>
 

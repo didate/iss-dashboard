@@ -286,7 +286,7 @@ func TestR6_Duplicate(t *testing.T) {
 	}
 }
 
-func TestR6_NoDuplicate(t *testing.T) {
+func TestR6_NoDuplicate_DifferentOU(t *testing.T) {
 	e1 := makeEvent("e1", nil)
 	e1.OrgUnitUID = "ou1"
 	e2 := makeEvent("e2", nil)
@@ -296,6 +296,21 @@ func TestR6_NoDuplicate(t *testing.T) {
 	issues := CheckDuplicates(e1, ctx)
 	if len(issues) != 0 {
 		t.Fatalf("expected 0 issues, got %d", len(issues))
+	}
+}
+
+func TestR6_NoDuplicate_DifferentYear(t *testing.T) {
+	e1 := makeEvent("e1", nil)
+	e1.OrgUnitUID = "ou1"
+	e1.EventDate = "2025-01-15"
+	e2 := makeEvent("e2", nil)
+	e2.OrgUnitUID = "ou1"
+	e2.EventDate = "2026-03-20"
+	ctx := buildTestContext([]*models.Event{e1, e2})
+
+	issues := CheckDuplicates(e1, ctx)
+	if len(issues) != 0 {
+		t.Fatalf("expected 0 issues for different years, got %d: %+v", len(issues), issues)
 	}
 }
 

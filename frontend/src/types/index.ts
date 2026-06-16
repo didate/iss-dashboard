@@ -171,10 +171,15 @@ export interface RHSummaryResult {
   pct_structures_sans_medecin: number;
 }
 
+export interface RuleInfo {
+  code: string;
+  name: string;
+}
+
 export interface Filters {
   districts: string[];
   regions: string[];
-  rules: string[];
+  rules: RuleInfo[];
   services: string[];
   statuts: string[];
 }

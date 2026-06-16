@@ -526,21 +526,37 @@ func (s *Store) GetRHSummary(district string) (*RHSummaryResult, error) {
 
 // --- Filters ---
 
+type RuleInfo struct {
+	Code string `json:"code"`
+	Name string `json:"name"`
+}
+
 type Filters struct {
-	Districts []string `json:"districts"`
-	Regions   []string `json:"regions"`
-	Rules     []string `json:"rules"`
-	Services  []string `json:"services"`
-	Statuts   []string `json:"statuts"`
+	Districts []string   `json:"districts"`
+	Regions   []string   `json:"regions"`
+	Rules     []RuleInfo `json:"rules"`
+	Services  []string   `json:"services"`
+	Statuts   []string   `json:"statuts"`
 }
 
 func (s *Store) GetFilters() (*Filters, error) {
 	f := &Filters{}
 	f.Districts = s.distinctCol(`SELECT DISTINCT name FROM org_unit WHERE level=3 ORDER BY name`)
 	f.Regions = s.distinctCol(`SELECT DISTINCT name FROM org_unit WHERE level=2 ORDER BY name`)
-	f.Rules = s.distinctCol(`SELECT DISTINCT rule_code FROM quality_issue ORDER BY rule_code`)
 	f.Services = s.distinctCol(`SELECT DISTINCT service_code FROM usage_service WHERE district='all' ORDER BY service_code`)
 	f.Statuts = []string{"publique", "privée"}
+
+	// Rules with names
+	rows, err := s.db.Query(`SELECT DISTINCT rule_code, rule_name FROM quality_issue ORDER BY rule_code`)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var r RuleInfo
+			if err := rows.Scan(&r.Code, &r.Name); err == nil {
+				f.Rules = append(f.Rules, r)
+			}
+		}
+	}
 	return f, nil
 }
 
