@@ -34,8 +34,12 @@ func New(dbPath string) (*Store, error) {
 func (s *Store) DB() *sql.DB { return s.db }
 
 func (s *Store) migrate() error {
-	_, err := s.db.Exec(migrationSQL)
-	return err
+	if _, err := s.db.Exec(migrationSQL); err != nil {
+		return err
+	}
+	// Clean up orphan "running" sync_runs from previous crashes
+	s.db.Exec(`UPDATE sync_run SET status='error', error_text='interrupted by restart' WHERE status='running'`)
+	return nil
 }
 
 func (s *Store) Close() error {

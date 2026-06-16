@@ -10,6 +10,7 @@ import type {
   PlateauItem,
   ServiceMatrixRow,
   RHSummaryResult,
+  ReportingRate,
   Filters,
 } from '../types';
 import DataTable from '../components/DataTable';
@@ -17,6 +18,7 @@ import ExportCSV from '../components/ExportCSV';
 import MethodNote from '../components/MethodNote';
 
 const tabs = [
+  { key: 'rapportage', label: 'Rapportage' },
   { key: 'recensement', label: 'Recensement' },
   { key: 'plateau', label: 'Plateau technique' },
   { key: 'services', label: 'Services' },
@@ -35,7 +37,7 @@ export default function Usage() {
     api.getFilters().then(setFilters).catch(console.error);
   }, []);
 
-  const showDistrictFilter = !['recensement', 'matrice'].includes(tab);
+  const showDistrictFilter = !['recensement', 'matrice', 'rapportage'].includes(tab);
 
   return (
     <div className="space-y-4">
@@ -71,6 +73,7 @@ export default function Usage() {
       </div>
 
       <div className="bg-white rounded-lg border border-gray-200 p-4">
+        {tab === 'rapportage' && <RapportageTab />}
         {tab === 'recensement' && <RecensementTab />}
         {tab === 'plateau' && <PlateauTab district={district} />}
         {tab === 'services' && <ServicesTab district={district} />}
@@ -79,6 +82,96 @@ export default function Usage() {
         {tab === 'rh' && <RHTab district={district} />}
         {tab === 'commodites' && <CommoditesTab district={district} />}
       </div>
+    </div>
+  );
+}
+
+// ==================== RAPPORTAGE ====================
+
+function RapportageTab() {
+  const [by, setBy] = useState('district');
+  const [data, setData] = useState<ReportingRate[]>([]);
+  const [globalRate, setGlobalRate] = useState<ReportingRate | null>(null);
+
+  useEffect(() => {
+    api.getReportingRate(by).then(setData).catch(console.error);
+    api.getReportingRate('global').then((r) => {
+      const g = r.find((x) => x.key === 'all');
+      if (g) setGlobalRate(g);
+    }).catch(console.error);
+  }, [by]);
+
+  const columns = [
+    { key: 'label', header: by.charAt(0).toUpperCase() + by.slice(1) },
+    { key: 'n_expected', header: 'Attendu' },
+    { key: 'n_reported', header: 'Soumis' },
+    { key: 'pct', header: '% Rapportage', render: (row: Record<string, unknown>) => `${(row.pct as number).toFixed(1)}%` },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {/* Global KPI */}
+      {globalRate && (
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-gray-50 rounded-lg p-5 text-center">
+            <p className="text-sm text-gray-500">Rapports attendus</p>
+            <p className="text-3xl font-bold text-gray-900 mt-2">{globalRate.n_expected}</p>
+            <p className="text-xs text-gray-400">structures assignees au programme</p>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-5 text-center">
+            <p className="text-sm text-gray-500">Rapports soumis</p>
+            <p className="text-3xl font-bold text-blue-600 mt-2">{globalRate.n_reported}</p>
+            <p className="text-xs text-gray-400">structures ayant soumis</p>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-5 text-center">
+            <p className="text-sm text-gray-500">Taux de rapportage</p>
+            <p className={`text-3xl font-bold mt-2 ${globalRate.pct >= 80 ? 'text-green-600' : globalRate.pct >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+              {globalRate.pct.toFixed(1)}%
+            </p>
+            <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+              <div className={`h-2 rounded-full ${globalRate.pct >= 80 ? 'bg-green-500' : globalRate.pct >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                style={{ width: `${Math.min(globalRate.pct, 100)}%` }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <div className="flex gap-2">
+          {['district', 'region'].map((v) => (
+            <button key={v} onClick={() => setBy(v)}
+              className={`px-2 py-1 text-xs rounded ${by === v ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600'}`}>
+              {v.charAt(0).toUpperCase() + v.slice(1)}
+            </button>
+          ))}
+        </div>
+        <ExportCSV data={data as unknown as Record<string, unknown>[]} columns={columns} filename={`rapportage_${by}`} />
+      </div>
+
+      {/* Bar chart */}
+      {data.length > 0 && (
+        <ResponsiveContainer width="100%" height={Math.max(300, data.length * 30)}>
+          <BarChart data={[...data].sort((a, b) => a.pct - b.pct)} layout="vertical" margin={{ left: 150 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis type="number" domain={[0, 100]} unit="%" />
+            <YAxis type="category" dataKey="label" tick={{ fontSize: 11 }} width={140} />
+            <Tooltip formatter={(v: number) => `${v.toFixed(1)}%`} />
+            <Bar dataKey="pct" name="% rapportage">
+              {[...data].sort((a, b) => a.pct - b.pct).map((d, i) => (
+                <Cell key={i} fill={d.pct >= 80 ? '#22c55e' : d.pct >= 50 ? '#eab308' : '#ef4444'} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      )}
+
+      <DataTable columns={columns} data={data as unknown as Record<string, unknown>[]} />
+
+      <MethodNote title="Methodologie - Taux de rapportage">
+        <p><strong>Attendu</strong> = nombre d'unites organisationnelles assignees au programme ISS dans DHIS2.</p>
+        <p><strong>Soumis</strong> = nombre d'unites organisationnelles distinctes ayant au moins un evenement soumis.</p>
+        <p><strong>Taux de rapportage</strong> = (soumis / attendu) x 100.</p>
+      </MethodNote>
     </div>
   );
 }
