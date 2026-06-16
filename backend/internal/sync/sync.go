@@ -107,7 +107,7 @@ func RunSync(st *store.Store, client *dhis2.Client) (*models.SyncRun, error) {
 	log.Println("[SYNC] Running quality rules...")
 	metadata, _ := st.GetAllMetadataDE()
 	options, _ := st.GetAllOptionEntries()
-	ctx := quality.BuildContext(metadata, options, eventPtrs)
+	ctx := quality.BuildContext(metadata, options, eventPtrs, orgUnits)
 
 	log.Printf("[SYNC] Discovered %d equipment pairs", len(ctx.EquipPairs))
 

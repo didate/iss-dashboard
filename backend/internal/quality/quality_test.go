@@ -49,7 +49,7 @@ func buildTestContext(events []*models.Event) *QualityContext {
 		{OptionSetID: "RGsTov6dBHH", Code: "oui", Name: "Oui, fonctionnel"},
 	}
 
-	return BuildContext(metadata, options, events)
+	return BuildContext(metadata, options, events, nil)
 }
 
 // --- R1 Tests ---
@@ -311,6 +311,50 @@ func TestR6_NoDuplicate_DifferentYear(t *testing.T) {
 	issues := CheckDuplicates(e1, ctx)
 	if len(issues) != 0 {
 		t.Fatalf("expected 0 issues for different years, got %d: %+v", len(issues), issues)
+	}
+}
+
+// --- R8 Tests ---
+
+func TestR8_ClosedReporting(t *testing.T) {
+	evt := makeEvent("e1", nil)
+	evt.OrgUnitUID = "ou_closed"
+	evt.EventDate = "2026-03-15"
+	orgUnits := []models.OrgUnit{
+		{UID: "ou_closed", Name: "Closed Facility", ClosedDate: "2025-12-31"},
+	}
+	ctx := BuildContext(nil, nil, []*models.Event{evt}, orgUnits)
+	issues := CheckClosedReporting(evt, ctx)
+	if len(issues) != 1 {
+		t.Fatalf("expected 1 issue, got %d: %+v", len(issues), issues)
+	}
+	if issues[0].Severity != "warning" {
+		t.Errorf("expected warning, got %s", issues[0].Severity)
+	}
+}
+
+func TestR8_OpenFacility(t *testing.T) {
+	evt := makeEvent("e1", nil)
+	evt.OrgUnitUID = "ou_open"
+	evt.EventDate = "2026-03-15"
+	ctx := BuildContext(nil, nil, []*models.Event{evt}, nil)
+	issues := CheckClosedReporting(evt, ctx)
+	if len(issues) != 0 {
+		t.Fatalf("expected 0 issues, got %d", len(issues))
+	}
+}
+
+func TestR8_ReportBeforeClosure(t *testing.T) {
+	evt := makeEvent("e1", nil)
+	evt.OrgUnitUID = "ou_closed"
+	evt.EventDate = "2025-06-15"
+	orgUnits := []models.OrgUnit{
+		{UID: "ou_closed", Name: "Closed Facility", ClosedDate: "2025-12-31"},
+	}
+	ctx := BuildContext(nil, nil, []*models.Event{evt}, orgUnits)
+	issues := CheckClosedReporting(evt, ctx)
+	if len(issues) != 0 {
+		t.Fatalf("expected 0 issues for report before closure, got %d", len(issues))
 	}
 }
 

@@ -37,6 +37,8 @@ func (s *Store) migrate() error {
 	if _, err := s.db.Exec(migrationSQL); err != nil {
 		return err
 	}
+	// Incremental migrations (ignore errors if column already exists)
+	s.db.Exec(`ALTER TABLE org_unit ADD COLUMN closed_date TEXT DEFAULT ''`)
 	// Clean up orphan "running" sync_runs from previous crashes
 	s.db.Exec(`UPDATE sync_run SET status='error', error_text='interrupted by restart' WHERE status='running'`)
 	return nil
@@ -186,14 +188,14 @@ func (s *Store) UpsertOrgUnits(units []models.OrgUnit) error {
 	}
 	defer tx.Rollback()
 
-	stmt, err := tx.Prepare(`INSERT OR REPLACE INTO org_unit (uid, name, level, parent_uid, parent_name) VALUES (?,?,?,?,?)`)
+	stmt, err := tx.Prepare(`INSERT OR REPLACE INTO org_unit (uid, name, level, parent_uid, parent_name, closed_date) VALUES (?,?,?,?,?,?)`)
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
 	for _, ou := range units {
-		if _, err := stmt.Exec(ou.UID, ou.Name, ou.Level, ou.ParentUID, ou.ParentName); err != nil {
+		if _, err := stmt.Exec(ou.UID, ou.Name, ou.Level, ou.ParentUID, ou.ParentName, ou.ClosedDate); err != nil {
 			return err
 		}
 	}
@@ -235,7 +237,7 @@ func (s *Store) GetAllOptionEntries() ([]models.OptionEntry, error) {
 }
 
 func (s *Store) GetAllOrgUnits() ([]models.OrgUnit, error) {
-	rows, err := s.db.Query(`SELECT uid, name, level, COALESCE(parent_uid,''), COALESCE(parent_name,'') FROM org_unit`)
+	rows, err := s.db.Query(`SELECT uid, name, level, COALESCE(parent_uid,''), COALESCE(parent_name,''), COALESCE(closed_date,'') FROM org_unit`)
 	if err != nil {
 		return nil, err
 	}
@@ -243,7 +245,7 @@ func (s *Store) GetAllOrgUnits() ([]models.OrgUnit, error) {
 	var out []models.OrgUnit
 	for rows.Next() {
 		var ou models.OrgUnit
-		if err := rows.Scan(&ou.UID, &ou.Name, &ou.Level, &ou.ParentUID, &ou.ParentName); err != nil {
+		if err := rows.Scan(&ou.UID, &ou.Name, &ou.Level, &ou.ParentUID, &ou.ParentName, &ou.ClosedDate); err != nil {
 			return nil, err
 		}
 		out = append(out, ou)

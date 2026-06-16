@@ -31,6 +31,9 @@ type QualityContext struct {
 	// Duplicate per year: "org_unit_uid|year" → count
 	OrgUnitYearCounts map[string]int
 
+	// Closed org units: org_unit_uid → closedDate
+	OrgUnitClosedDate map[string]string
+
 	// Service-support specs for R3
 	ServiceSpecs []ServiceSupportSpec
 
@@ -50,21 +53,30 @@ type ServiceSupportSpec struct {
 	Message       string
 }
 
-// BuildContext constructs a QualityContext from metadata and events.
+// BuildContext constructs a QualityContext from metadata, events and org units.
 func BuildContext(
 	metadata []models.DataElementMeta,
 	options []models.OptionEntry,
 	events []*models.Event,
+	orgUnits []models.OrgUnit,
 ) *QualityContext {
 	ctx := &QualityContext{
-		MetadataByUID: make(map[string]models.DataElementMeta),
-		CodeToUID:     make(map[string]string),
-		UIDToCode:     make(map[string]string),
-		OptionsBySet:  make(map[string][]models.OptionEntry),
-		Medians:       make(map[string]MedianStat),
+		MetadataByUID:     make(map[string]models.DataElementMeta),
+		CodeToUID:         make(map[string]string),
+		UIDToCode:         make(map[string]string),
+		OptionsBySet:      make(map[string][]models.OptionEntry),
+		Medians:           make(map[string]MedianStat),
 		OrgUnitCounts:     make(map[string]int),
 		OrgUnitYearCounts: make(map[string]int),
+		OrgUnitClosedDate: make(map[string]string),
 		AllEvents:         events,
+	}
+
+	// Build closed date map
+	for _, ou := range orgUnits {
+		if ou.ClosedDate != "" {
+			ctx.OrgUnitClosedDate[ou.UID] = ou.ClosedDate
+		}
 	}
 
 	for _, de := range metadata {

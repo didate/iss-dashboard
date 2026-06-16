@@ -23,6 +23,7 @@ func init() {
 		{Code: "R5", Name: "Valeurs aberrantes", Fn: CheckOutliers},
 		{Code: "R6", Name: "Soumissions multiples", Fn: CheckDuplicates},
 		{Code: "R7", Name: "Complétude", Fn: CheckCompleteness},
+		{Code: "R8", Name: "Rapport après fermeture", Fn: CheckClosedReporting},
 	}
 }
 

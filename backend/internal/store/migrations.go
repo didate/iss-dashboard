@@ -35,8 +35,10 @@ CREATE TABLE IF NOT EXISTS org_unit (
     name            TEXT NOT NULL,
     level           INTEGER DEFAULT 0,
     parent_uid      TEXT DEFAULT '',
-    parent_name     TEXT DEFAULT ''
+    parent_name     TEXT DEFAULT '',
+    closed_date     TEXT DEFAULT ''
 );
+
 
 CREATE TABLE IF NOT EXISTS event (
     event_uid       TEXT PRIMARY KEY,
