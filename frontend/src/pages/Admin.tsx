@@ -28,14 +28,19 @@ export default function Admin() {
     api.getUsers().then(setUsers).catch(() => {});
   }, []);
 
+  const isRunning = status?.current?.status === 'running';
+
   useEffect(() => {
     fetchStatus();
     fetchUsers();
-    const interval = setInterval(fetchStatus, 5000);
-    return () => clearInterval(interval);
   }, [fetchStatus, fetchUsers]);
 
-  const isRunning = status?.current?.status === 'running';
+  // Poll only when sync is running or just triggered
+  useEffect(() => {
+    if (!isRunning && !syncing) return;
+    const interval = setInterval(fetchStatus, 3000);
+    return () => clearInterval(interval);
+  }, [isRunning, syncing, fetchStatus]);
 
   const triggerSync = async () => {
     setSyncing(true);
