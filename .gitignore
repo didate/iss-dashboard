@@ -3,3 +3,5 @@ dist/
 .env
 *.db
 *.xlsx
+backend/tmp/
+backend/data/
