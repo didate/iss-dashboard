@@ -115,12 +115,12 @@ function RapportageTab() {
         <div className="grid grid-cols-3 gap-4">
           <div className="bg-gray-50 rounded-lg p-5 text-center">
             <p className="text-sm text-gray-500">Rapports attendus</p>
-            <p className="text-3xl font-bold text-gray-900 mt-2">{globalRate.n_expected}</p>
+            <p className="text-3xl font-bold text-gray-900 mt-2">{globalRate.n_expected.toLocaleString('fr-FR')}</p>
             <p className="text-xs text-gray-400">structures assignees au programme</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-5 text-center">
             <p className="text-sm text-gray-500">Rapports soumis</p>
-            <p className="text-3xl font-bold text-blue-600 mt-2">{globalRate.n_reported}</p>
+            <p className="text-3xl font-bold text-blue-600 mt-2">{globalRate.n_reported.toLocaleString('fr-FR')}</p>
             <p className="text-xs text-gray-400">structures ayant soumis</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-5 text-center">
@@ -486,12 +486,12 @@ function RHTab({ district }: { district: string }) {
           </div>
           <div className="bg-gray-50 rounded-lg p-4 text-center">
             <p className="text-sm text-gray-500">Structures avec medecin</p>
-            <p className="text-2xl font-bold text-blue-600 mt-1">{summary.n_structures - summary.n_structures_sans_medecin}</p>
+            <p className="text-2xl font-bold text-blue-600 mt-1">{(summary.n_structures - summary.n_structures_sans_medecin).toLocaleString('fr-FR')}</p>
             <p className="text-xs text-gray-400">{(100 - summary.pct_structures_sans_medecin).toFixed(1)}% des structures</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-4 text-center">
             <p className="text-sm text-gray-500">Structures analysees</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{summary.n_structures}</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{summary.n_structures.toLocaleString('fr-FR')}</p>
           </div>
         </div>
       )}
@@ -596,8 +596,8 @@ function CommoditesTab({ district }: { district: string }) {
                 {energyTypes.map((c) => (
                   <tr key={c.indicator} className="border-b border-gray-100">
                     <td className="px-3 py-2 font-medium text-gray-800">{labels[c.indicator] || c.indicator}</td>
-                    <td className="px-3 py-2 text-right text-gray-700">{c.n_oui}</td>
-                    <td className="px-3 py-2 text-right text-gray-500">{c.n_total}</td>
+                    <td className="px-3 py-2 text-right text-gray-700">{c.n_oui.toLocaleString('fr-FR')}</td>
+                    <td className="px-3 py-2 text-right text-gray-500">{c.n_total.toLocaleString('fr-FR')}</td>
                     <td className="px-3 py-2 text-right font-medium text-gray-900">{c.pct.toFixed(1)}%</td>
                     <td className="px-3 py-2"><div className="w-full bg-gray-200 rounded-full h-2"><div className="h-2 rounded-full bg-amber-500" style={{ width: `${Math.min(c.pct, 100)}%` }} /></div></td>
                   </tr>

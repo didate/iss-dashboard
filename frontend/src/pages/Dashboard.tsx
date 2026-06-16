@@ -81,13 +81,13 @@ export default function Dashboard() {
         <KpiCard
           title="Structures opérationnelles"
           value={summary.n_operationnel}
-          subtitle={`sur ${summary.n_structures}`}
+          subtitle={`sur ${summary.n_structures.toLocaleString('fr-FR')}`}
         />
         {reportingGlobal && (
           <KpiCard
             title="Taux de rapportage"
             value={`${reportingGlobal.pct.toFixed(1)}%`}
-            subtitle={`${reportingGlobal.n_reported} / ${reportingGlobal.n_expected} structures`}
+            subtitle={`${reportingGlobal.n_reported.toLocaleString('fr-FR')} / ${reportingGlobal.n_expected.toLocaleString('fr-FR')} structures`}
             color={reportingGlobal.pct >= 80 ? 'text-green-600' : reportingGlobal.pct >= 50 ? 'text-yellow-600' : 'text-red-600'}
           />
         )}

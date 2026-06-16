@@ -25,7 +25,7 @@ func NewClient(baseURL, pat, programID string) *Client {
 		pat:       pat,
 		programID: programID,
 		http: &http.Client{
-			Timeout: 120 * time.Second,
+			Timeout: 300 * time.Second,
 		},
 	}
 }

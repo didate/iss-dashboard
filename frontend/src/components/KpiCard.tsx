@@ -8,6 +8,11 @@ interface Props {
   color?: string;
 }
 
+function fmt(v: string | number): string {
+  if (typeof v === 'number') return v.toLocaleString('fr-FR');
+  return v;
+}
+
 export default function KpiCard({ title, value, subtitle, icon, color = 'text-gray-900' }: Props) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-5">
@@ -15,7 +20,7 @@ export default function KpiCard({ title, value, subtitle, icon, color = 'text-gr
         <p className="text-sm font-medium text-gray-500">{title}</p>
         {icon && <span className="text-gray-400">{icon}</span>}
       </div>
-      <p className={`text-2xl font-bold mt-2 ${color}`}>{value}</p>
+      <p className={`text-2xl font-bold mt-2 ${color}`}>{fmt(value)}</p>
       {subtitle && <p className="text-xs text-gray-400 mt-1">{subtitle}</p>}
     </div>
   );
