@@ -436,12 +436,12 @@ export default function MapView() {
 
         {/* Inset map — Conakry zoom */}
         {conakryData && (
-          <div className="absolute top-3 right-3 z-[1000] rounded-lg overflow-hidden border-2 border-gray-400 shadow-lg" style={{ width: '250px', height: '200px' }}>
+          <div className="absolute top-3 right-3 z-[1000] rounded-lg overflow-hidden border-2 border-gray-400 shadow-lg" style={{ width: '300px', height: '250px' }}>
             <div className="bg-gray-700 text-white text-[10px] font-semibold px-2 py-0.5 text-center">Conakry</div>
             <MapContainer
               key={`inset-${geoJsonKey}`}
-              center={[9.53, -13.68]}
-              zoom={11}
+              center={[9.6, -13.58]}
+              zoom={10}
               style={{ height: 'calc(100% - 20px)', width: '100%', background: '#ffffff' }}
               scrollWheelZoom={false}
               dragging={false}
