@@ -63,6 +63,25 @@ export default function Comparison() {
     }));
   })() : [];
 
+  // Build equipment comparison data
+  const equipChartData = result ? (() => {
+    const allRoots = new Set<string>();
+    result.district1.equipements.forEach(e => allRoots.add(e.equip_root));
+    result.district2.equipements.forEach(e => allRoots.add(e.equip_root));
+    const d1Map = new Map(result.district1.equipements.map(e => [e.equip_root, e]));
+    const d2Map = new Map(result.district2.equipements.map(e => [e.equip_root, e]));
+    const natMap = new Map(result.national.equipements.map(e => [e.equip_root, e]));
+    return Array.from(allRoots).map(root => ({
+      name: d1Map.get(root)?.label || d2Map.get(root)?.label || root,
+      d1_total: d1Map.get(root)?.sum_total ?? 0,
+      d1_fonct: d1Map.get(root)?.sum_fonct ?? 0,
+      d2_total: d2Map.get(root)?.sum_total ?? 0,
+      d2_fonct: d2Map.get(root)?.sum_fonct ?? 0,
+      nat_total: natMap.get(root)?.sum_total ?? 0,
+      nat_fonct: natMap.get(root)?.sum_fonct ?? 0,
+    })).sort((a, b) => a.name.localeCompare(b.name));
+  })() : [];
+
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold text-gray-900">Comparaison de districts</h2>
@@ -187,6 +206,47 @@ export default function Comparison() {
             </div>
           )}
 
+          {/* Equipements table */}
+          {equipChartData.length > 0 && (
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Equipements — total / fonctionnel</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-gray-50">
+                      <th className="text-left px-3 py-2 font-medium text-gray-500">Equipement</th>
+                      <th className="text-center px-2 py-2 font-medium text-blue-600" colSpan={2}>{result.district1.name}</th>
+                      <th className="text-center px-2 py-2 font-medium text-orange-600" colSpan={2}>{result.district2.name}</th>
+                      <th className="text-center px-2 py-2 font-medium text-gray-400" colSpan={2}>National</th>
+                    </tr>
+                    <tr className="border-b bg-gray-50">
+                      <th></th>
+                      <th className="text-right px-2 py-1 text-xs text-gray-400">Total</th>
+                      <th className="text-right px-2 py-1 text-xs text-gray-400">Fonct.</th>
+                      <th className="text-right px-2 py-1 text-xs text-gray-400">Total</th>
+                      <th className="text-right px-2 py-1 text-xs text-gray-400">Fonct.</th>
+                      <th className="text-right px-2 py-1 text-xs text-gray-400">Total</th>
+                      <th className="text-right px-2 py-1 text-xs text-gray-400">Fonct.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {equipChartData.map((row) => (
+                      <tr key={row.name} className="border-b border-gray-100">
+                        <td className="px-3 py-1.5 text-gray-700">{row.name}</td>
+                        <td className="px-2 py-1.5 text-right font-medium">{row.d1_total}</td>
+                        <td className="px-2 py-1.5 text-right text-green-600">{row.d1_fonct}</td>
+                        <td className="px-2 py-1.5 text-right font-medium">{row.d2_total}</td>
+                        <td className="px-2 py-1.5 text-right text-green-600">{row.d2_fonct}</td>
+                        <td className="px-2 py-1.5 text-right text-gray-400">{row.nat_total}</td>
+                        <td className="px-2 py-1.5 text-right text-gray-400">{row.nat_fonct}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* Commodites chart */}
           {commoditesData.length > 0 && (
             <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -253,11 +313,14 @@ export default function Comparison() {
 
       <MethodNote title="Methodologie - Comparaison de districts">
         <p>Cet outil permet de comparer deux districts cote a cote sur l'ensemble des indicateurs ISS.</p>
-        <p><strong>Score qualite</strong> : moyenne des scores de toutes les structures du district.</p>
-        <p><strong>Taux de rapportage</strong> : structures ayant soumis / structures attendues.</p>
+        <p><strong>Score qualite</strong> : moyenne des scores de toutes les structures du district (0-100, penalites : -15/erreur, -5/avertissement, -1/info).</p>
+        <p><strong>Taux de rapportage</strong> : structures ayant soumis / structures attendues x 100.</p>
+        <p><strong>Med./structure</strong> : nombre total de medecins (generalistes + specialistes : chirurgiens, gynecologues, pediatres, anesthesistes, urgentistes, sante publique, autres) divise par le nombre de structures du district.</p>
         <p><strong>Services</strong> : nombre de structures disposant de chaque service (fonctionnel).</p>
+        <p><strong>Equipements</strong> : nombres bruts total et fonctionnel par type d'equipement.</p>
         <p><strong>Commodites</strong> : pourcentage de structures disposant de chaque commodite (energie, eau).</p>
-        <p>La <strong>moyenne nationale</strong> est affichee comme reference (barres grises ou valeur centrale).</p>
+        <p><strong>Ressources humaines</strong> : effectifs par profil et statut d'emploi (fonctionnaires, contractuels, benevoles).</p>
+        <p>La <strong>moyenne nationale</strong> est affichee comme reference.</p>
       </MethodNote>
     </div>
   );

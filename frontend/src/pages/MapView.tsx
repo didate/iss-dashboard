@@ -208,6 +208,8 @@ export default function MapView() {
   const [selectedEquipCategory, setSelectedEquipCategory] = useState('');
   const geoJsonRef = useRef<L.GeoJSON | null>(null);
   const mapRef = useRef<L.Map | null>(null);
+  const insetRef = useRef<HTMLDivElement | null>(null);
+  const dragState = useRef<{ dragging: boolean; offsetX: number; offsetY: number }>({ dragging: false, offsetX: 0, offsetY: 0 });
 
   useEffect(() => {
     api.getMapData()
@@ -461,10 +463,43 @@ export default function MapView() {
           />
         </MapContainer>
 
-        {/* Inset map — Conakry zoom */}
+        {/* Inset map — Conakry zoom (draggable) */}
         {conakryData && (
-          <div className="absolute top-3 right-3 z-[1000] rounded-lg overflow-hidden border-2 border-gray-400 shadow-lg hidden sm:block" style={{ width: '300px', height: '250px' }}>
-            <div className="bg-gray-700 text-white text-[10px] font-semibold px-2 py-0.5 text-center">Conakry</div>
+          <div
+            ref={insetRef}
+            className="absolute z-[1000] rounded-lg overflow-hidden border-2 border-gray-400 shadow-lg hidden sm:block"
+            style={{ width: '300px', height: '250px', top: '12px', right: '12px', cursor: 'move' }}
+            onMouseDown={(e) => {
+              const el = insetRef.current;
+              if (!el) return;
+              // Only drag from the title bar area (first 20px)
+              const rect = el.getBoundingClientRect();
+              if (e.clientY - rect.top > 22) return;
+              e.preventDefault();
+              dragState.current = { dragging: true, offsetX: e.clientX - rect.left, offsetY: e.clientY - rect.top };
+              const onMove = (ev: MouseEvent) => {
+                if (!dragState.current.dragging || !el.parentElement) return;
+                const parent = el.parentElement.getBoundingClientRect();
+                let x = ev.clientX - parent.left - dragState.current.offsetX;
+                let y = ev.clientY - parent.top - dragState.current.offsetY;
+                x = Math.max(0, Math.min(x, parent.width - el.offsetWidth));
+                y = Math.max(0, Math.min(y, parent.height - el.offsetHeight));
+                el.style.left = `${x}px`;
+                el.style.top = `${y}px`;
+                el.style.right = 'auto';
+              };
+              const onUp = () => {
+                dragState.current.dragging = false;
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+              };
+              document.addEventListener('mousemove', onMove);
+              document.addEventListener('mouseup', onUp);
+            }}
+          >
+            <div className="bg-gray-700 text-white text-[10px] font-semibold px-2 py-0.5 text-center select-none" style={{ cursor: 'grab' }}>
+              Conakry
+            </div>
             <MapContainer
               key={`inset-${geoJsonKey}`}
               center={[9.6, -13.58]}
