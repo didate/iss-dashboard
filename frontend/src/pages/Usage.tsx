@@ -115,20 +115,20 @@ function RapportageTab() {
     <div className="space-y-4">
       {/* Global KPI */}
       {globalRate && (
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-gray-50 rounded-lg p-5 text-center">
-            <p className="text-sm text-gray-500">Rapports attendus</p>
-            <p className="text-3xl font-bold text-gray-900 mt-2">{globalRate.n_expected.toLocaleString('fr-FR')}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <div className="bg-gray-50 rounded-lg p-3 sm:p-5 text-center">
+            <p className="text-xs sm:text-sm text-gray-500">Rapports attendus</p>
+            <p className="text-xl sm:text-3xl font-bold text-gray-900 mt-1 sm:mt-2">{globalRate.n_expected.toLocaleString('fr-FR')}</p>
             <p className="text-xs text-gray-400">structures assignees au programme</p>
           </div>
-          <div className="bg-gray-50 rounded-lg p-5 text-center">
-            <p className="text-sm text-gray-500">Rapports soumis</p>
-            <p className="text-3xl font-bold text-blue-600 mt-2">{globalRate.n_reported.toLocaleString('fr-FR')}</p>
+          <div className="bg-gray-50 rounded-lg p-3 sm:p-5 text-center">
+            <p className="text-xs sm:text-sm text-gray-500">Rapports soumis</p>
+            <p className="text-xl sm:text-3xl font-bold text-blue-600 mt-1 sm:mt-2">{globalRate.n_reported.toLocaleString('fr-FR')}</p>
             <p className="text-xs text-gray-400">structures ayant soumis</p>
           </div>
-          <div className="bg-gray-50 rounded-lg p-5 text-center">
-            <p className="text-sm text-gray-500">Taux de rapportage</p>
-            <p className={`text-3xl font-bold mt-2 ${globalRate.pct >= 80 ? 'text-green-600' : globalRate.pct >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+          <div className="bg-gray-50 rounded-lg p-3 sm:p-5 text-center">
+            <p className="text-xs sm:text-sm text-gray-500">Taux de rapportage</p>
+            <p className={`text-xl sm:text-3xl font-bold mt-1 sm:mt-2 ${globalRate.pct >= 80 ? 'text-green-600' : globalRate.pct >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
               {globalRate.pct.toFixed(1)}%
             </p>
             <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
@@ -154,10 +154,10 @@ function RapportageTab() {
       {/* Bar chart */}
       {data.length > 0 && (
         <ResponsiveContainer width="100%" height={Math.max(300, data.length * 30)}>
-          <BarChart data={[...data].sort((a, b) => a.pct - b.pct)} layout="vertical" margin={{ left: 150 }}>
+          <BarChart data={[...data].sort((a, b) => a.pct - b.pct)} layout="vertical" margin={{ left: 100 }}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis type="number" domain={[0, 100]} unit="%" />
-            <YAxis type="category" dataKey="label" tick={{ fontSize: 11 }} width={140} />
+            <YAxis type="category" dataKey="label" tick={{ fontSize: 10 }} width={90} />
             <Tooltip formatter={(v: number) => `${v.toFixed(1)}%`} />
             <Bar dataKey="pct" name="% rapportage">
               {[...data].sort((a, b) => a.pct - b.pct).map((d, i) => (
@@ -243,10 +243,10 @@ function PlateauTab({ district }: { district: string }) {
       </div>
 
       <ResponsiveContainer width="100%" height={Math.max(300, data.length * 35)}>
-        <BarChart data={data} layout="vertical" margin={{ left: 220 }}>
+        <BarChart data={data} layout="vertical" margin={{ left: 120 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis type="number" domain={[0, 100]} unit="%" />
-          <YAxis type="category" dataKey="service_label" tick={{ fontSize: 11 }} width={210} />
+          <YAxis type="category" dataKey="service_label" tick={{ fontSize: 10 }} width={110} />
           <Tooltip formatter={(v: number) => `${v.toFixed(1)}%`} />
           <Bar dataKey="pct" name="% disponibilite">
             {data.map((d, i) => (
@@ -291,10 +291,10 @@ function ServicesTab({ district }: { district: string }) {
       </div>
 
       <ResponsiveContainer width="100%" height={Math.max(300, data.length * 25)}>
-        <BarChart data={data} layout="vertical" margin={{ left: 200 }}>
+        <BarChart data={data} layout="vertical" margin={{ left: 120 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis type="number" domain={[0, 100]} unit="%" />
-          <YAxis type="category" dataKey="service_label" tick={{ fontSize: 10 }} width={190} />
+          <YAxis type="category" dataKey="service_label" tick={{ fontSize: 10 }} width={110} />
           <Tooltip formatter={(v: number) => `${v.toFixed(1)}%`} />
           <Bar dataKey="pct_fonctionnel" name="% fonctionnel">
             {data.map((_, i) => (
@@ -426,10 +426,10 @@ function EquipementsTab({ district }: { district: string }) {
       {/* Stacked bar chart */}
       {chartData.length > 0 && chartData.length <= 20 && (
         <ResponsiveContainer width="100%" height={Math.max(300, chartData.length * 30)}>
-          <BarChart data={chartData} layout="vertical" margin={{ left: 180 }}>
+          <BarChart data={chartData} layout="vertical" margin={{ left: 120 }}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis type="number" />
-            <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={170} />
+            <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={110} />
             <Tooltip />
             <Legend />
             <Bar dataKey="fonctionnel" name="Fonctionnel" stackId="a" fill="#22c55e" />
@@ -479,23 +479,23 @@ function RHTab({ district }: { district: string }) {
     <div className="space-y-4">
       {/* KPI Cards */}
       {summary && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-gray-50 rounded-lg p-4 text-center">
-            <p className="text-sm text-gray-500">Effectif total</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{summary.total_effectif.toLocaleString()}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="bg-gray-50 rounded-lg p-3 sm:p-4 text-center">
+            <p className="text-xs sm:text-sm text-gray-500">Effectif total</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900 mt-1">{summary.total_effectif.toLocaleString()}</p>
           </div>
-          <div className="bg-gray-50 rounded-lg p-4 text-center">
-            <p className="text-sm text-gray-500">Medecins / structure</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{summary.ratio_med_per_structure.toFixed(2)}</p>
+          <div className="bg-gray-50 rounded-lg p-3 sm:p-4 text-center">
+            <p className="text-xs sm:text-sm text-gray-500">Medecins / structure</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900 mt-1">{summary.ratio_med_per_structure.toFixed(2)}</p>
           </div>
-          <div className="bg-gray-50 rounded-lg p-4 text-center">
-            <p className="text-sm text-gray-500">Structures avec medecin</p>
-            <p className="text-2xl font-bold text-blue-600 mt-1">{(summary.n_structures - summary.n_structures_sans_medecin).toLocaleString('fr-FR')}</p>
+          <div className="bg-gray-50 rounded-lg p-3 sm:p-4 text-center">
+            <p className="text-xs sm:text-sm text-gray-500">Structures avec medecin</p>
+            <p className="text-xl sm:text-2xl font-bold text-blue-600 mt-1">{(summary.n_structures - summary.n_structures_sans_medecin).toLocaleString('fr-FR')}</p>
             <p className="text-xs text-gray-400">{(100 - summary.pct_structures_sans_medecin).toFixed(1)}% des structures</p>
           </div>
-          <div className="bg-gray-50 rounded-lg p-4 text-center">
-            <p className="text-sm text-gray-500">Structures analysees</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{summary.n_structures.toLocaleString('fr-FR')}</p>
+          <div className="bg-gray-50 rounded-lg p-3 sm:p-4 text-center">
+            <p className="text-xs sm:text-sm text-gray-500">Structures analysees</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900 mt-1">{summary.n_structures.toLocaleString('fr-FR')}</p>
           </div>
         </div>
       )}
@@ -568,13 +568,13 @@ function CommoditesTab({ district }: { district: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         {mainIndicators.map((c) => {
           const color = c.pct >= 50 ? 'text-green-600' : c.pct >= 25 ? 'text-yellow-600' : 'text-red-600';
           return (
-            <div key={c.indicator} className="bg-gray-50 rounded-lg p-5 text-center">
-              <p className="text-sm font-medium text-gray-500">{labels[c.indicator] || c.indicator}</p>
-              <p className={`text-3xl font-bold mt-2 ${color}`}>{c.pct.toFixed(1)}%</p>
+            <div key={c.indicator} className="bg-gray-50 rounded-lg p-3 sm:p-5 text-center">
+              <p className="text-xs sm:text-sm font-medium text-gray-500">{labels[c.indicator] || c.indicator}</p>
+              <p className={`text-xl sm:text-3xl font-bold mt-1 sm:mt-2 ${color}`}>{c.pct.toFixed(1)}%</p>
               <p className="text-xs text-gray-400 mt-1">{c.n_oui} / {c.n_total} structures</p>
               <div className="mt-3 w-full bg-gray-200 rounded-full h-2">
                 <div className="h-2 rounded-full" style={{ width: `${Math.min(c.pct, 100)}%`, backgroundColor: c.indicator === 'energie' ? '#f59e0b' : '#3b82f6' }} />
@@ -685,20 +685,20 @@ function ClosedOUsTab({ district }: { district: string }) {
   return (
     <div className="space-y-6">
       {/* KPIs */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-gray-50 rounded-lg p-5 text-center">
-          <p className="text-sm text-gray-500">Structures fermees</p>
-          <p className="text-3xl font-bold text-gray-900 mt-2">{data.length.toLocaleString('fr-FR')}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="bg-gray-50 rounded-lg p-3 sm:p-5 text-center">
+          <p className="text-xs sm:text-sm text-gray-500">Structures fermees</p>
+          <p className="text-xl sm:text-3xl font-bold text-gray-900 mt-1 sm:mt-2">{data.length.toLocaleString('fr-FR')}</p>
           <p className="text-xs text-gray-400">assignees au programme ISS</p>
         </div>
-        <div className="bg-gray-50 rounded-lg p-5 text-center">
-          <p className="text-sm text-gray-500">Avec donnees soumises</p>
-          <p className="text-3xl font-bold text-red-600 mt-2">{withData.length}</p>
+        <div className="bg-gray-50 rounded-lg p-3 sm:p-5 text-center">
+          <p className="text-xs sm:text-sm text-gray-500">Avec donnees soumises</p>
+          <p className="text-xl sm:text-3xl font-bold text-red-600 mt-1 sm:mt-2">{withData.length}</p>
           <p className="text-xs text-gray-400">ont rapporte apres fermeture</p>
         </div>
-        <div className="bg-gray-50 rounded-lg p-5 text-center">
-          <p className="text-sm text-gray-500">Sans donnees</p>
-          <p className="text-3xl font-bold text-gray-600 mt-2">{withoutData.length}</p>
+        <div className="bg-gray-50 rounded-lg p-3 sm:p-5 text-center">
+          <p className="text-xs sm:text-sm text-gray-500">Sans donnees</p>
+          <p className="text-xl sm:text-3xl font-bold text-gray-600 mt-1 sm:mt-2">{withoutData.length}</p>
           <p className="text-xs text-gray-400">fermees, pas de soumission</p>
         </div>
       </div>

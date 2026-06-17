@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, ShieldAlert, BarChart3, Map, Settings, LogOut, User } from 'lucide-react';
+import { LayoutDashboard, ShieldAlert, BarChart3, Map, Settings, LogOut, User, Menu, X } from 'lucide-react';
 import type { AuthUser } from '../api/auth';
 
 const navItems = [
@@ -16,12 +17,30 @@ interface Props {
 }
 
 export default function Layout({ user, onLogout }: Props) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
     <div className="flex h-screen">
-      <nav className="w-56 bg-gray-900 text-gray-300 flex flex-col shrink-0">
-        <div className="p-4 border-b border-gray-700">
-          <h1 className="text-white font-bold text-lg">ISS Dashboard</h1>
-          <p className="text-xs text-gray-500 mt-1">Qualite & Utilisation</p>
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      {/* Sidebar */}
+      <nav className={`
+        fixed inset-y-0 left-0 z-40 w-56 bg-gray-900 text-gray-300 flex flex-col shrink-0
+        transform transition-transform duration-200 ease-in-out
+        lg:relative lg:translate-x-0
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+          <div>
+            <h1 className="text-white font-bold text-lg">ISS Dashboard</h1>
+            <p className="text-xs text-gray-500 mt-1">Qualite & Utilisation</p>
+          </div>
+          <button className="lg:hidden text-gray-400 hover:text-white" onClick={() => setSidebarOpen(false)}>
+            <X size={20} />
+          </button>
         </div>
         <ul className="flex-1 py-2">
           {navItems.map((item) => (
@@ -29,6 +48,7 @@ export default function Layout({ user, onLogout }: Props) {
               <NavLink
                 to={item.to}
                 end={item.to === '/'}
+                onClick={() => setSidebarOpen(false)}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
                     isActive
@@ -64,9 +84,20 @@ export default function Layout({ user, onLogout }: Props) {
           )}
         </div>
       </nav>
-      <main className="flex-1 overflow-auto bg-gray-50 p-6">
-        <Outlet />
-      </main>
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Mobile top bar */}
+        <div className="lg:hidden flex items-center gap-3 bg-white border-b border-gray-200 px-4 py-3">
+          <button onClick={() => setSidebarOpen(true)} className="text-gray-600">
+            <Menu size={24} />
+          </button>
+          <h1 className="font-bold text-gray-900">ISS Dashboard</h1>
+        </div>
+        <main className="flex-1 overflow-auto bg-gray-50 p-3 sm:p-6">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

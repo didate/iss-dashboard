@@ -102,15 +102,15 @@ export default function Quality() {
         <input
           type="text"
           placeholder="Rechercher par nom..."
-          className="border border-gray-300 rounded px-2 py-1.5 text-sm flex-1 min-w-[200px]"
+          className="border border-gray-300 rounded px-2 py-1.5 text-sm flex-1 min-w-0 w-full sm:w-auto"
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
         />
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex flex-col lg:flex-row gap-4">
         {/* Issues list */}
-        <div className="flex-1 bg-white rounded-lg border border-gray-200">
+        <div className="flex-1 min-w-0 bg-white rounded-lg border border-gray-200">
           {loading ? (
             <div className="p-8 text-gray-400 text-center">Chargement...</div>
           ) : (
@@ -187,7 +187,7 @@ export default function Quality() {
 
         {/* Detail panel */}
         {detail && (
-          <div className="w-96 bg-white rounded-lg border border-gray-200 p-4 overflow-y-auto max-h-[80vh]">
+          <div className="w-full lg:w-96 bg-white rounded-lg border border-gray-200 p-4 overflow-y-auto max-h-[80vh]">
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h3 className="font-bold text-gray-900">{detail.event.org_unit_name}</h3>

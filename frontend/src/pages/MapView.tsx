@@ -148,6 +148,8 @@ export default function MapView() {
   const geoJsonRef = useRef<L.GeoJSON | null>(null);
   const labelsRef = useRef<L.LayerGroup | null>(null);
   const mapRef = useRef<L.Map | null>(null);
+  const insetMapRef = useRef<L.Map | null>(null);
+  const insetLabelsRef = useRef<L.LayerGroup | null>(null);
 
   useEffect(() => {
     api.getMapData()
@@ -312,12 +314,22 @@ export default function MapView() {
     });
   }, [getFeatureValue]);
 
-  // Add district name + value labels on the map
+  // Filter Conakry districts for inset map
+  const conakryData = useMemo(() => {
+    if (!data) return null;
+    const conakryNames = ['dixinn', 'kaloum', 'matam', 'matoto', 'ratoma'];
+    const conakryFeatures = data.features.filter(f =>
+      conakryNames.some(n => f.properties.district_name.toLowerCase().includes(n))
+    );
+    if (conakryFeatures.length === 0) return null;
+    return { type: 'FeatureCollection' as const, features: conakryFeatures };
+  }, [data]);
+
+  // Add district name + value labels on the main map
   useEffect(() => {
     if (!mapRef.current || !data) return;
     const map = mapRef.current;
 
-    // Remove previous labels
     if (labelsRef.current) {
       map.removeLayer(labelsRef.current);
     }
@@ -327,7 +339,6 @@ export default function MapView() {
       const props = feature.properties;
       const shortVal = getShortValue(props, activeLayer, selectedService, selectedEquipCategory);
 
-      // Compute centroid from geometry
       try {
         const geoLayer = L.geoJSON(feature as unknown as GeoJSON.Feature);
         const bounds = geoLayer.getBounds();
@@ -352,16 +363,43 @@ export default function MapView() {
     labelsRef.current = labelGroup;
   }, [data, activeLayer, selectedService, selectedEquipCategory]);
 
-  // Filter Conakry districts for inset map
-  const conakryData = useMemo(() => {
-    if (!data) return null;
-    const conakryNames = ['dixinn', 'kaloum', 'matam', 'matoto', 'ratoma'];
-    const conakryFeatures = data.features.filter(f =>
-      conakryNames.some(n => f.properties.district_name.toLowerCase().includes(n))
-    );
-    if (conakryFeatures.length === 0) return null;
-    return { type: 'FeatureCollection' as const, features: conakryFeatures };
-  }, [data]);
+  // Add labels on inset map (Conakry)
+  useEffect(() => {
+    if (!insetMapRef.current || !conakryData) return;
+    const map = insetMapRef.current;
+
+    if (insetLabelsRef.current) {
+      map.removeLayer(insetLabelsRef.current);
+    }
+
+    const labelGroup = L.layerGroup();
+    for (const feature of conakryData.features) {
+      const props = feature.properties;
+      const shortVal = getShortValue(props, activeLayer, selectedService, selectedEquipCategory);
+
+      try {
+        const geoLayer = L.geoJSON(feature as unknown as GeoJSON.Feature);
+        const bounds = geoLayer.getBounds();
+        const center = bounds.getCenter();
+
+        const icon = L.divIcon({
+          className: 'district-label',
+          html: `<div style="text-align:center;pointer-events:none;text-shadow:1px 1px 2px white,-1px -1px 2px white,1px -1px 2px white,-1px 1px 2px white;">
+            <div style="font-size:9px;font-weight:700;color:#1f2937;line-height:1.1;">${props.district_name}</div>
+            <div style="font-size:10px;font-weight:800;color:#1e3a5f;line-height:1.1;">${shortVal}</div>
+          </div>`,
+          iconSize: [70, 26],
+          iconAnchor: [35, 13],
+        });
+        L.marker(center, { icon, interactive: false }).addTo(labelGroup);
+      } catch {
+        // skip
+      }
+    }
+
+    labelGroup.addTo(map);
+    insetLabelsRef.current = labelGroup;
+  }, [conakryData, activeLayer, selectedService, selectedEquipCategory]);
 
   const geoJsonKey = `${activeLayer}-${selectedService}-${selectedEquipCategory}`;
 
@@ -417,7 +455,7 @@ export default function MapView() {
       )}
 
       {/* Map + Legend + Inset */}
-      <div className="relative rounded-lg overflow-hidden border border-gray-200 bg-white" style={{ height: 'calc(100vh - 200px)', minHeight: '650px' }}>
+      <div className="relative rounded-lg overflow-hidden border border-gray-200 bg-white" style={{ height: 'calc(100vh - 200px)', minHeight: '400px' }}>
         <MapContainer
           center={[10.5, -11.8]}
           zoom={7}
@@ -436,7 +474,7 @@ export default function MapView() {
 
         {/* Inset map — Conakry zoom */}
         {conakryData && (
-          <div className="absolute top-3 right-3 z-[1000] rounded-lg overflow-hidden border-2 border-gray-400 shadow-lg" style={{ width: '300px', height: '250px' }}>
+          <div className="absolute top-3 right-3 z-[1000] rounded-lg overflow-hidden border-2 border-gray-400 shadow-lg hidden sm:block" style={{ width: '300px', height: '250px' }}>
             <div className="bg-gray-700 text-white text-[10px] font-semibold px-2 py-0.5 text-center">Conakry</div>
             <MapContainer
               key={`inset-${geoJsonKey}`}
@@ -448,6 +486,7 @@ export default function MapView() {
               zoomControl={false}
               doubleClickZoom={false}
               attributionControl={false}
+              ref={insetMapRef}
             >
               <GeoJSON
                 data={conakryData as unknown as GeoJSON.FeatureCollection}
