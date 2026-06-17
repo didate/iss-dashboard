@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { MapContainer, GeoJSON } from 'react-leaflet';
+import { MapContainer, GeoJSON, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import type { Layer, PathOptions } from 'leaflet';
 import type { Feature, Geometry } from 'geojson';
@@ -138,6 +138,67 @@ function getShortValue(props: MapDistrictProperties, layer: LayerKey, selectedSe
   }
 }
 
+// Component that renders district labels inside a MapContainer
+function DistrictLabels({ features, activeLayer, selectedService, selectedEquipCategory, fontSize = 'normal' }: {
+  features: MapDistrictCollection['features'];
+  activeLayer: LayerKey;
+  selectedService: string;
+  selectedEquipCategory: string;
+  fontSize?: 'normal' | 'small';
+}) {
+  const map = useMap();
+  const labelsRef = useRef<L.LayerGroup | null>(null);
+
+  useEffect(() => {
+    if (labelsRef.current) {
+      map.removeLayer(labelsRef.current);
+    }
+
+    const labelGroup = L.layerGroup();
+    const isSmall = fontSize === 'small';
+
+    for (const feature of features) {
+      const props = feature.properties;
+      const shortVal = getShortValue(props, activeLayer, selectedService, selectedEquipCategory);
+
+      try {
+        const geoLayer = L.geoJSON(feature as unknown as GeoJSON.Feature);
+        const bounds = geoLayer.getBounds();
+        const center = bounds.getCenter();
+
+        const nameFontSize = isSmall ? '9px' : '10px';
+        const valFontSize = isSmall ? '10px' : '11px';
+        const iconW = isSmall ? 70 : 80;
+        const iconH = isSmall ? 26 : 30;
+
+        const icon = L.divIcon({
+          className: 'district-label',
+          html: `<div style="text-align:center;pointer-events:none;text-shadow:1px 1px 2px white,-1px -1px 2px white,1px -1px 2px white,-1px 1px 2px white;">
+            <div style="font-size:${nameFontSize};font-weight:700;color:#1f2937;line-height:1.2;">${props.district_name}</div>
+            <div style="font-size:${valFontSize};font-weight:800;color:#1e3a5f;line-height:1.2;">${shortVal}</div>
+          </div>`,
+          iconSize: [iconW, iconH],
+          iconAnchor: [iconW / 2, iconH / 2],
+        });
+        L.marker(center, { icon, interactive: false }).addTo(labelGroup);
+      } catch {
+        // skip
+      }
+    }
+
+    labelGroup.addTo(map);
+    labelsRef.current = labelGroup;
+
+    return () => {
+      if (labelsRef.current) {
+        map.removeLayer(labelsRef.current);
+      }
+    };
+  }, [map, features, activeLayer, selectedService, selectedEquipCategory, fontSize]);
+
+  return null;
+}
+
 export default function MapView() {
   const [data, setData] = useState<MapDistrictCollection | null>(null);
   const [loading, setLoading] = useState(true);
@@ -146,10 +207,7 @@ export default function MapView() {
   const [selectedService, setSelectedService] = useState('');
   const [selectedEquipCategory, setSelectedEquipCategory] = useState('');
   const geoJsonRef = useRef<L.GeoJSON | null>(null);
-  const labelsRef = useRef<L.LayerGroup | null>(null);
   const mapRef = useRef<L.Map | null>(null);
-  const insetMapRef = useRef<L.Map | null>(null);
-  const insetLabelsRef = useRef<L.LayerGroup | null>(null);
 
   useEffect(() => {
     api.getMapData()
@@ -325,81 +383,6 @@ export default function MapView() {
     return { type: 'FeatureCollection' as const, features: conakryFeatures };
   }, [data]);
 
-  // Add district name + value labels on the main map
-  useEffect(() => {
-    if (!mapRef.current || !data) return;
-    const map = mapRef.current;
-
-    if (labelsRef.current) {
-      map.removeLayer(labelsRef.current);
-    }
-
-    const labelGroup = L.layerGroup();
-    for (const feature of data.features) {
-      const props = feature.properties;
-      const shortVal = getShortValue(props, activeLayer, selectedService, selectedEquipCategory);
-
-      try {
-        const geoLayer = L.geoJSON(feature as unknown as GeoJSON.Feature);
-        const bounds = geoLayer.getBounds();
-        const center = bounds.getCenter();
-
-        const icon = L.divIcon({
-          className: 'district-label',
-          html: `<div style="text-align:center;pointer-events:none;text-shadow:1px 1px 2px white,-1px -1px 2px white,1px -1px 2px white,-1px 1px 2px white;">
-            <div style="font-size:10px;font-weight:700;color:#1f2937;line-height:1.2;">${props.district_name}</div>
-            <div style="font-size:11px;font-weight:800;color:#1e3a5f;line-height:1.2;">${shortVal}</div>
-          </div>`,
-          iconSize: [80, 30],
-          iconAnchor: [40, 15],
-        });
-        L.marker(center, { icon, interactive: false }).addTo(labelGroup);
-      } catch {
-        // skip if geometry can't be parsed
-      }
-    }
-
-    labelGroup.addTo(map);
-    labelsRef.current = labelGroup;
-  }, [data, activeLayer, selectedService, selectedEquipCategory]);
-
-  // Add labels on inset map (Conakry)
-  useEffect(() => {
-    if (!insetMapRef.current || !conakryData) return;
-    const map = insetMapRef.current;
-
-    if (insetLabelsRef.current) {
-      map.removeLayer(insetLabelsRef.current);
-    }
-
-    const labelGroup = L.layerGroup();
-    for (const feature of conakryData.features) {
-      const props = feature.properties;
-      const shortVal = getShortValue(props, activeLayer, selectedService, selectedEquipCategory);
-
-      try {
-        const geoLayer = L.geoJSON(feature as unknown as GeoJSON.Feature);
-        const bounds = geoLayer.getBounds();
-        const center = bounds.getCenter();
-
-        const icon = L.divIcon({
-          className: 'district-label',
-          html: `<div style="text-align:center;pointer-events:none;text-shadow:1px 1px 2px white,-1px -1px 2px white,1px -1px 2px white,-1px 1px 2px white;">
-            <div style="font-size:9px;font-weight:700;color:#1f2937;line-height:1.1;">${props.district_name}</div>
-            <div style="font-size:10px;font-weight:800;color:#1e3a5f;line-height:1.1;">${shortVal}</div>
-          </div>`,
-          iconSize: [70, 26],
-          iconAnchor: [35, 13],
-        });
-        L.marker(center, { icon, interactive: false }).addTo(labelGroup);
-      } catch {
-        // skip
-      }
-    }
-
-    labelGroup.addTo(map);
-    insetLabelsRef.current = labelGroup;
-  }, [conakryData, activeLayer, selectedService, selectedEquipCategory]);
 
   const geoJsonKey = `${activeLayer}-${selectedService}-${selectedEquipCategory}`;
 
@@ -470,6 +453,12 @@ export default function MapView() {
             style={style as (feature?: Feature) => PathOptions}
             onEachFeature={onEachFeature as (feature: Feature, layer: Layer) => void}
           />
+          <DistrictLabels
+            features={data.features}
+            activeLayer={activeLayer}
+            selectedService={selectedService}
+            selectedEquipCategory={selectedEquipCategory}
+          />
         </MapContainer>
 
         {/* Inset map — Conakry zoom */}
@@ -486,12 +475,18 @@ export default function MapView() {
               zoomControl={false}
               doubleClickZoom={false}
               attributionControl={false}
-              ref={insetMapRef}
             >
               <GeoJSON
                 data={conakryData as unknown as GeoJSON.FeatureCollection}
                 style={style as (feature?: Feature) => PathOptions}
                 onEachFeature={onEachFeature as (feature: Feature, layer: Layer) => void}
+              />
+              <DistrictLabels
+                features={conakryData.features}
+                activeLayer={activeLayer}
+                selectedService={selectedService}
+                selectedEquipCategory={selectedEquipCategory}
+                fontSize="small"
               />
             </MapContainer>
           </div>
