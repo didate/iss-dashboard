@@ -44,7 +44,13 @@ func SetupRouter(cfg *config.Config, st *store.Store, client *dhis2.Client) *gin
 		read.GET("/usage/services/matrix", h.GetServiceMatrix)
 		read.GET("/usage/rh/summary", h.GetRHSummary)
 		read.GET("/meta/filters", h.GetFilters)
+		read.GET("/structures", h.GetStructuresList)
+		read.GET("/compare", h.GetCompareDistricts)
 		read.GET("/map/districts", h.GetMapData)
+
+		pdfH := &PDFHandlers{Store: st}
+		read.GET("/export/pdf", pdfH.ExportDistrictPDF)
+		read.GET("/export/pdf/structure/:uid", pdfH.ExportStructurePDF)
 	}
 
 	// Authenticated endpoints (JWT required)

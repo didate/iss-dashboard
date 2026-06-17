@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 
 	"iss-dashboard-backend/internal/store"
 
@@ -119,6 +120,38 @@ func (h *ReadHandlers) GetFilters(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, filters)
+}
+
+func (h *ReadHandlers) GetCompareDistricts(c *gin.Context) {
+	d1 := c.Query("district1")
+	d2 := c.Query("district2")
+	if d1 == "" || d2 == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "district1 and district2 required"})
+		return
+	}
+	result, err := h.Store.GetCompareData(d1, d2)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+func (h *ReadHandlers) GetStructuresList(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+	params := store.StructureListParams{
+		District: c.Query("district"),
+		Search:   c.Query("search"),
+		Page:     page,
+		PageSize: pageSize,
+	}
+	result, err := h.Store.GetStructuresList(params)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, result)
 }
 
 func (h *ReadHandlers) GetMapData(c *gin.Context) {

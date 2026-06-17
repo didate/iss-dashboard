@@ -17,6 +17,8 @@ import type {
   SyncStatus,
   ReportingRate,
   MapDistrictCollection,
+  StructureListResult,
+  CompareResult,
 } from '../types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
@@ -116,6 +118,46 @@ export const api = {
     request<ClosedOUItem[]>(`/api/usage/closed-ous${qs({ district })}`),
 
   getFilters: () => request<Filters>('/api/meta/filters'),
+
+  getStructuresList: (params: {
+    district?: string;
+    search?: string;
+    page?: number;
+    pageSize?: number;
+  }) => request<StructureListResult>(`/api/structures${qs(params)}`),
+
+  getCompare: (district1: string, district2: string) =>
+    request<CompareResult>(`/api/compare${qs({ district1, district2 })}`),
+
+  exportStructurePDF: async (uid: string) => {
+    const token = (await import('./auth')).getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${BASE_URL}/api/export/pdf/structure/${uid}`, { headers });
+    if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fiche_structure_${uid}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+
+  exportDistrictPDF: async (district: string) => {
+    const token = (await import('./auth')).getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${BASE_URL}/api/export/pdf${qs({ district })}`, { headers });
+    if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `rapport_iss_${district}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
 
   getMapData: () => request<MapDistrictCollection>('/api/map/districts'),
 

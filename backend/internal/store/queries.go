@@ -198,9 +198,96 @@ type EventDetail struct {
 }
 
 type EventValueDisplay struct {
-	DECode string `json:"de_code"`
-	DEName string `json:"de_name"`
-	Value  string `json:"value"`
+	DECode        string `json:"de_code"`
+	DEName        string `json:"de_name"`
+	Value         string `json:"value"`
+	SectionPrefix string `json:"section_prefix"`
+}
+
+// --- Structures list ---
+
+type StructureListParams struct {
+	District string
+	Search   string
+	Page     int
+	PageSize int
+}
+
+type StructureListItem struct {
+	EventUID    string `json:"event_uid"`
+	OrgUnitName string `json:"org_unit_name"`
+	District    string `json:"district"`
+	Region      string `json:"region"`
+	EventDate   string `json:"event_date"`
+	Status      string `json:"status"`
+	Score       int    `json:"score"`
+	NError      int    `json:"n_error"`
+	NWarning    int    `json:"n_warning"`
+	NInfo       int    `json:"n_info"`
+}
+
+type StructureListResult struct {
+	Data     []StructureListItem `json:"data"`
+	Total    int                 `json:"total"`
+	Page     int                 `json:"page"`
+	PageSize int                 `json:"page_size"`
+}
+
+func (s *Store) GetStructuresList(p StructureListParams) (*StructureListResult, error) {
+	if p.Page < 1 {
+		p.Page = 1
+	}
+	if p.PageSize < 1 || p.PageSize > 100 {
+		p.PageSize = 20
+	}
+
+	where := []string{"1=1"}
+	args := []any{}
+
+	if p.District != "" {
+		where = append(where, "e.district = ?")
+		args = append(args, p.District)
+	}
+	if p.Search != "" {
+		where = append(where, "e.org_unit_name LIKE ?")
+		args = append(args, "%"+p.Search+"%")
+	}
+
+	whereClause := strings.Join(where, " AND ")
+
+	// Count
+	var total int
+	countQ := fmt.Sprintf(`SELECT COUNT(*) FROM event e WHERE %s`, whereClause)
+	s.db.QueryRow(countQ, args...).Scan(&total)
+
+	// Data
+	query := fmt.Sprintf(`
+		SELECT e.event_uid, e.org_unit_name, e.district, e.region, e.event_date, e.status,
+			COALESCE(eq.score, 100), COALESCE(eq.n_error, 0), COALESCE(eq.n_warning, 0), COALESCE(eq.n_info, 0)
+		FROM event e
+		LEFT JOIN event_quality eq ON e.event_uid = eq.event_uid
+		WHERE %s
+		ORDER BY e.org_unit_name ASC
+		LIMIT ? OFFSET ?
+	`, whereClause)
+	args = append(args, p.PageSize, (p.Page-1)*p.PageSize)
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var data []StructureListItem
+	for rows.Next() {
+		var item StructureListItem
+		if err := rows.Scan(&item.EventUID, &item.OrgUnitName, &item.District, &item.Region, &item.EventDate, &item.Status, &item.Score, &item.NError, &item.NWarning, &item.NInfo); err != nil {
+			return nil, err
+		}
+		data = append(data, item)
+	}
+
+	return &StructureListResult{Data: data, Total: total, Page: p.Page, PageSize: p.PageSize}, rows.Err()
 }
 
 func (s *Store) GetEventDetail(eventUID string) (*EventDetail, error) {
@@ -216,11 +303,11 @@ func (s *Store) GetEventDetail(eventUID string) (*EventDetail, error) {
 
 	// Values
 	valRows, err := s.db.Query(`
-		SELECT ev.de_code, COALESCE(md.name, ev.de_uid), ev.value
+		SELECT ev.de_code, COALESCE(md.name, ev.de_uid), ev.value, COALESCE(md.section_prefix, '')
 		FROM event_value ev
 		LEFT JOIN metadata_de md ON ev.de_uid = md.de_uid
 		WHERE ev.event_uid=?
-		ORDER BY COALESCE(md.name, ev.de_uid)
+		ORDER BY md.section_prefix, COALESCE(md.name, ev.de_uid)
 	`, eventUID)
 	if err != nil {
 		return nil, err
@@ -229,7 +316,7 @@ func (s *Store) GetEventDetail(eventUID string) (*EventDetail, error) {
 	var values []EventValueDisplay
 	for valRows.Next() {
 		var v EventValueDisplay
-		if err := valRows.Scan(&v.DECode, &v.DEName, &v.Value); err != nil {
+		if err := valRows.Scan(&v.DECode, &v.DEName, &v.Value, &v.SectionPrefix); err != nil {
 			return nil, err
 		}
 		values = append(values, v)
@@ -621,6 +708,78 @@ func (s *Store) GetFilters() (*Filters, error) {
 }
 
 // --- Map Data ---
+
+// --- Compare Districts ---
+
+type CompareDistrictData struct {
+	Name           string                  `json:"name"`
+	AvgScore       float64                 `json:"avg_score"`
+	NStructures    int                     `json:"n_structures"`
+	ReportingPct   float64                 `json:"reporting_pct"`
+	ReportingExp   int                     `json:"reporting_expected"`
+	ReportingRep   int                     `json:"reporting_reported"`
+	Services       []models.UsageService   `json:"services"`
+	Equipements    []models.UsageEquipement `json:"equipements"`
+	RH             []models.UsageRH        `json:"rh"`
+	RHSummary      *RHSummaryResult        `json:"rh_summary"`
+	Commodites     []models.UsageCommodite `json:"commodites"`
+}
+
+type CompareResult struct {
+	District1 CompareDistrictData `json:"district1"`
+	District2 CompareDistrictData `json:"district2"`
+	National  CompareDistrictData `json:"national"`
+}
+
+func (s *Store) getDistrictCompareData(district string) CompareDistrictData {
+	d := CompareDistrictData{Name: district}
+	if district == "" {
+		d.Name = "National"
+	}
+
+	// Quality score
+	qKey := district
+	if district == "" {
+		qKey = "all"
+	}
+	s.db.QueryRow(`SELECT COALESCE(avg_score,0), COALESCE(n_structures,0) FROM quality_summary WHERE dimension='district' AND key=?`, qKey).Scan(&d.AvgScore, &d.NStructures)
+	if district == "" {
+		// For national, use global
+		s.db.QueryRow(`SELECT COALESCE(avg_score,0), COALESCE(n_structures,0) FROM quality_summary WHERE dimension='global' AND key='all'`).Scan(&d.AvgScore, &d.NStructures)
+	}
+
+	// Reporting
+	rKey := district
+	if district == "" {
+		rKey = "all"
+	}
+	dim := "district"
+	if district == "" {
+		dim = "global"
+	}
+	s.db.QueryRow(`SELECT COALESCE(pct,0), COALESCE(n_expected,0), COALESCE(n_reported,0) FROM reporting_rate WHERE dimension=? AND key=?`, dim, rKey).Scan(&d.ReportingPct, &d.ReportingExp, &d.ReportingRep)
+
+	// Services
+	svcDist := district
+	if svcDist == "" {
+		svcDist = "all"
+	}
+	d.Services, _ = s.GetUsageServices(svcDist)
+	d.Equipements, _ = s.GetUsageEquipements("all", svcDist)
+	d.RH, _ = s.GetUsageRH(svcDist)
+	d.RHSummary, _ = s.GetRHSummary(svcDist)
+	d.Commodites, _ = s.GetUsageCommodites(svcDist)
+
+	return d
+}
+
+func (s *Store) GetCompareData(district1, district2 string) (*CompareResult, error) {
+	return &CompareResult{
+		District1: s.getDistrictCompareData(district1),
+		District2: s.getDistrictCompareData(district2),
+		National:  s.getDistrictCompareData(""),
+	}, nil
+}
 
 func (s *Store) GetMapData() (*models.MapDistrictCollection, error) {
 	// 1. Load district org units (level 3) with geometry

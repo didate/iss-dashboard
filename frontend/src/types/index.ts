@@ -61,6 +61,27 @@ export interface EventValueDisplay {
   de_code: string;
   de_name: string;
   value: string;
+  section_prefix: string;
+}
+
+export interface StructureListItem {
+  event_uid: string;
+  org_unit_name: string;
+  district: string;
+  region: string;
+  event_date: string;
+  status: string;
+  score: number;
+  n_error: number;
+  n_warning: number;
+  n_info: number;
+}
+
+export interface StructureListResult {
+  data: StructureListItem[];
+  total: number;
+  page: number;
+  page_size: number;
 }
 
 export interface EventQuality {
@@ -197,6 +218,28 @@ export interface SyncStatus {
   current: SyncRun | null;
   last: SyncRun | null;
   history: SyncRun[];
+}
+
+// --- Compare types ---
+
+export interface CompareDistrictData {
+  name: string;
+  avg_score: number;
+  n_structures: number;
+  reporting_pct: number;
+  reporting_expected: number;
+  reporting_reported: number;
+  services: UsageService[];
+  equipements: UsageEquipement[];
+  rh: UsageRH[];
+  rh_summary: RHSummaryResult;
+  commodites: UsageCommodite[];
+}
+
+export interface CompareResult {
+  district1: CompareDistrictData;
+  district2: CompareDistrictData;
+  national: CompareDistrictData;
 }
 
 // --- Map / Carte types ---

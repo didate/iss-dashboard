@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { FileDown } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 import { api } from '../api/client';
 import type {
@@ -71,6 +72,16 @@ export default function Usage() {
               <option key={d} value={d}>{d}</option>
             ))}
           </select>
+        )}
+
+        {district && (
+          <button
+            onClick={() => api.exportDistrictPDF(district)}
+            className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            <FileDown size={16} />
+            PDF
+          </button>
         )}
       </div>
 
