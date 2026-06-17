@@ -148,21 +148,42 @@ export default function Comparison() {
             ))}
           </div>
 
-          {/* Services chart */}
+          {/* Services table */}
           {servicesChartData.length > 0 && (
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <h3 className="text-sm font-semibold text-gray-700 mb-3">Services — nombre de structures avec le service</h3>
-              <ResponsiveContainer width="100%" height={Math.max(300, servicesChartData.length * 28)}>
-                <BarChart data={servicesChartData} layout="vertical" margin={{ left: 120 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={110} />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey={result.district1.name} fill="#3b82f6" />
-                  <Bar dataKey={result.district2.name} fill="#f97316" />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-gray-50">
+                      <th className="text-left px-3 py-2 font-medium text-gray-500">Service</th>
+                      <th className="text-right px-3 py-2 font-medium text-blue-600">{result.district1.name}</th>
+                      <th className="text-right px-3 py-2 font-medium text-orange-600">{result.district2.name}</th>
+                      <th className="px-3 py-2 font-medium text-gray-500 w-48">Comparaison</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {servicesChartData.map((row) => {
+                      const v1 = (row as Record<string, unknown>)[result.district1.name] as number;
+                      const v2 = (row as Record<string, unknown>)[result.district2.name] as number;
+                      const max = Math.max(v1, v2, 1);
+                      return (
+                        <tr key={row.name} className="border-b border-gray-100">
+                          <td className="px-3 py-1.5 text-gray-700">{row.name}</td>
+                          <td className="px-3 py-1.5 text-right font-medium">{v1}</td>
+                          <td className="px-3 py-1.5 text-right font-medium">{v2}</td>
+                          <td className="px-3 py-1.5">
+                            <div className="flex gap-0.5 items-center h-4">
+                              <div className="h-3 rounded-sm bg-blue-500" style={{ width: `${(v1 / max) * 45}%` }} />
+                              <div className="h-3 rounded-sm bg-orange-500" style={{ width: `${(v2 / max) * 45}%` }} />
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
