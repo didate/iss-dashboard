@@ -86,7 +86,19 @@ func (c *Client) FetchAllEvents() ([]models.Event, error) {
 		}
 		page++
 	}
-	return all, nil
+	// Deduplicate events (DHIS2 pagination can return overlapping results)
+	seen := make(map[string]bool, len(all))
+	deduped := make([]models.Event, 0, len(all))
+	for _, evt := range all {
+		if !seen[evt.EventUID] {
+			seen[evt.EventUID] = true
+			deduped = append(deduped, evt)
+		}
+	}
+	if len(deduped) < len(all) {
+		log.Printf("[DHIS2] Deduplicated: %d → %d events (%d doublons ignores)", len(all), len(deduped), len(all)-len(deduped))
+	}
+	return deduped, nil
 }
 
 // FetchDataElements fetches ISS data element metadata.

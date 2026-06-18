@@ -285,8 +285,13 @@ func (s *Store) PersistSyncData(syncRunID int64, data *SyncData) error {
 
 	// Clear derived tables (order matters for FK)
 	for _, table := range []string{"event_value", "quality_issue", "event_quality", "quality_summary", "usage_recensement", "usage_service", "usage_equipement", "usage_rh", "usage_commodite", "reporting_rate", "event"} {
-		if _, err := tx.Exec("DELETE FROM " + table); err != nil {
+		res, err := tx.Exec("DELETE FROM " + table)
+		if err != nil {
 			return fmt.Errorf("clear %s: %w", table, err)
+		}
+		n, _ := res.RowsAffected()
+		if n > 0 {
+			log.Printf("[SYNC] Cleared %s: %d rows", table, n)
 		}
 	}
 
@@ -298,7 +303,7 @@ func (s *Store) PersistSyncData(syncRunID int64, data *SyncData) error {
 	}
 
 	// Events + values
-	evtStmt, err := tx.Prepare(`INSERT INTO event (event_uid, org_unit_uid, org_unit_name, district, region, event_date, status, raw_json, sync_run_id) VALUES (?,?,?,?,?,?,?,?,?)`)
+	evtStmt, err := tx.Prepare(`INSERT OR REPLACE INTO event (event_uid, org_unit_uid, org_unit_name, district, region, event_date, status, raw_json, sync_run_id) VALUES (?,?,?,?,?,?,?,?,?)`)
 	if err != nil {
 		return err
 	}
@@ -336,7 +341,7 @@ func (s *Store) PersistSyncData(syncRunID int64, data *SyncData) error {
 	}
 
 	// Event quality
-	eqStmt, err := tx.Prepare(`INSERT INTO event_quality (event_uid, n_error, n_warning, n_info, worst_severity, score) VALUES (?,?,?,?,?,?)`)
+	eqStmt, err := tx.Prepare(`INSERT OR REPLACE INTO event_quality (event_uid, n_error, n_warning, n_info, worst_severity, score) VALUES (?,?,?,?,?,?)`)
 	if err != nil {
 		return err
 	}
