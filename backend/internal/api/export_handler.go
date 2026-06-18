@@ -23,7 +23,7 @@ func (h *ExportHandlers) ExportExcel(c *gin.Context) {
 	type deMeta struct {
 		uid, code, name string
 	}
-	deRows, err := db.Query("SELECT de_uid, COALESCE(code,''), name FROM metadata_de ORDER BY section_prefix, name")
+	deRows, err := db.Query("SELECT de_uid, COALESCE(code,''), COALESCE(NULLIF(form_name,''), name) FROM metadata_de ORDER BY section_prefix, COALESCE(NULLIF(form_name,''), name)")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

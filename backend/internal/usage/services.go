@@ -16,7 +16,7 @@ func ComputeServices(events []*models.Event, ctx *quality.QualityContext) []mode
 	var serviceDEs []svcDE
 	for _, de := range ctx.MetadataByUID {
 		if (de.SectionPrefix == "ISS_SVC" || de.SectionPrefix == "ISS_LAB") && de.OptionSetID == "RGsTov6dBHH" {
-			serviceDEs = append(serviceDEs, svcDE{uid: de.UID, code: de.Code, label: de.Name})
+			serviceDEs = append(serviceDEs, svcDE{uid: de.UID, code: de.Code, label: de.DisplayName()})
 		}
 	}
 

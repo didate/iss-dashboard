@@ -303,11 +303,11 @@ func (s *Store) GetEventDetail(eventUID string) (*EventDetail, error) {
 
 	// Values
 	valRows, err := s.db.Query(`
-		SELECT ev.de_code, COALESCE(md.name, ev.de_uid), ev.value, COALESCE(md.section_prefix, '')
+		SELECT ev.de_code, COALESCE(NULLIF(md.form_name,''), md.name, ev.de_uid), ev.value, COALESCE(md.section_prefix, '')
 		FROM event_value ev
 		LEFT JOIN metadata_de md ON ev.de_uid = md.de_uid
 		WHERE ev.event_uid=?
-		ORDER BY md.section_prefix, COALESCE(md.name, ev.de_uid)
+		ORDER BY md.section_prefix, COALESCE(NULLIF(md.form_name,''), md.name, ev.de_uid)
 	`, eventUID)
 	if err != nil {
 		return nil, err
@@ -917,6 +917,23 @@ func (s *Store) GetMapData() (*models.MapDistrictCollection, error) {
 		}
 	}
 
+	// 6b. Load eau_pts_critiques by district
+	type eauData struct {
+		nOui, nTotal int
+	}
+	eauPts := map[string]*eauData{}
+	epRows, err := s.db.Query(`SELECT district, n_oui, n_total FROM usage_commodite WHERE district != 'all' AND indicator='eau_pts_critiques'`)
+	if err == nil {
+		defer epRows.Close()
+		for epRows.Next() {
+			var dist string
+			var nOui, nTotal int
+			if epRows.Scan(&dist, &nOui, &nTotal) == nil {
+				eauPts[dist] = &eauData{nOui: nOui, nTotal: nTotal}
+			}
+		}
+	}
+
 	// 7. Load RH medecin totals by district
 	type rhData struct {
 		medTotal    int
@@ -1007,6 +1024,13 @@ func (s *Store) GetMapData() (*models.MapDistrictCollection, error) {
 			if w.total > 0 {
 				pct := float64(n) / float64(w.total) * 100
 				props.WashForageOuReseauPct = &pct
+			}
+		}
+		if ep, ok := eauPts[d.name]; ok {
+			props.WashEauPtsCritiquesN = ep.nOui
+			if ep.nTotal > 0 {
+				pct := float64(ep.nOui) / float64(ep.nTotal) * 100
+				props.WashEauPtsCritiquesPct = &pct
 			}
 		}
 

@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS metadata_de (
     de_uid          TEXT PRIMARY KEY,
     code            TEXT DEFAULT '',
     name            TEXT NOT NULL,
+    form_name       TEXT DEFAULT '',
     value_type      TEXT DEFAULT '',
     option_set_id   TEXT DEFAULT '',
     section_prefix  TEXT DEFAULT ''

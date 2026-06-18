@@ -271,6 +271,8 @@ export interface MapDistrictProperties {
   wash_forage_ou_reseau_pct: number | null;
   wash_forage_ou_reseau_n: number;
   wash_total: number;
+  wash_eau_pts_critiques_pct: number | null;
+  wash_eau_pts_critiques_n: number;
   rh_medecins_total: number;
   rh_n_structures: number;
   rh_medecins_par_structure: number | null;

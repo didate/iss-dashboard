@@ -68,11 +68,11 @@ func ComputeRH(events []*models.Event, ctx *quality.QualityContext) []models.Usa
 		// Normalize known irregular roots
 		root = normalizeRHRoot(root)
 
-		rhDEs = append(rhDEs, rhDE{uid: de.UID, root: root, statut: statut, label: de.Name})
+		rhDEs = append(rhDEs, rhDE{uid: de.UID, root: root, statut: statut, label: de.DisplayName()})
 
-		// Build label from DE name (strip the status suffix)
+		// Build label from DE display name (strip the status suffix)
 		if _, ok := rootLabels[root]; !ok {
-			label := de.Name
+			label := de.DisplayName()
 			for _, suf := range []string{" — Fonctionnaire", " — Contractuel", " — Bénévole"} {
 				label = strings.TrimSuffix(label, suf)
 			}

@@ -65,9 +65,18 @@ type DataElementMeta struct {
 	UID           string `json:"id"`
 	Code          string `json:"code"`
 	Name          string `json:"name"`
+	FormName      string `json:"formName,omitempty"`
 	ValueType     string `json:"valueType"`
 	OptionSetID   string `json:"optionSetId,omitempty"`
 	SectionPrefix string `json:"sectionPrefix,omitempty"`
+}
+
+// DisplayName returns formName if set, otherwise name.
+func (d DataElementMeta) DisplayName() string {
+	if d.FormName != "" {
+		return d.FormName
+	}
+	return d.Name
 }
 
 // OptionEntry is one option within an option set.
@@ -218,6 +227,7 @@ type DHIS2DataElementsResponse struct {
 	DataElements []struct {
 		ID        string `json:"id"`
 		Name      string `json:"name"`
+		FormName  string `json:"formName"`
 		Code      string `json:"code"`
 		ValueType string `json:"valueType"`
 		OptionSet *struct {
@@ -285,6 +295,8 @@ type MapDistrictProperties struct {
 	WashForageOuReseauPct *float64 `json:"wash_forage_ou_reseau_pct"`
 	WashForageOuReseauN   int      `json:"wash_forage_ou_reseau_n"`
 	WashTotal             int      `json:"wash_total"`
+	WashEauPtsCritiquesPct *float64 `json:"wash_eau_pts_critiques_pct"`
+	WashEauPtsCritiquesN   int      `json:"wash_eau_pts_critiques_n"`
 	// Couche 6 : Densité RH
 	RhMedecinsTotal     int      `json:"rh_medecins_total"`
 	RhNStructures       int      `json:"rh_n_structures"`

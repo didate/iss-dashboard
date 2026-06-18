@@ -378,27 +378,33 @@ export default function MapView() {
 
     const rapPct = props.rapportage_pct;
     const washPct = props.wash_forage_ou_reseau_pct;
+    const eauPct = props.wash_eau_pts_critiques_pct;
     const rhRatio = props.rh_medecins_par_structure;
 
     return `
       <div style="min-width:260px;font-family:system-ui,sans-serif;">
         <div style="font-size:14px;font-weight:700;margin-bottom:8px;border-bottom:2px solid #e5e7eb;padding-bottom:6px;">${props.district_name}</div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px 12px;margin-bottom:10px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-bottom:10px;">
           <div>
             <div style="font-size:10px;color:#6b7280;">Rapportage</div>
             <div style="font-size:15px;font-weight:700;color:${pctColor(rapPct)};">${rapPct !== null ? rapPct.toFixed(0) + '%' : '-'}</div>
             <div style="font-size:9px;color:#9ca3af;">${props.rapportage_reported}/${props.rapportage_expected}</div>
           </div>
           <div>
-            <div style="font-size:10px;color:#6b7280;">WASH (forage/reseau)</div>
+            <div style="font-size:10px;color:#6b7280;">Medecins/structure</div>
+            <div style="font-size:15px;font-weight:700;color:${rhRatio !== null && rhRatio >= 1 ? '#16a34a' : rhRatio !== null && rhRatio >= 0.5 ? '#ca8a04' : '#dc2626'};">${rhRatio !== null ? rhRatio.toFixed(2) : '-'}</div>
+            <div style="font-size:9px;color:#9ca3af;">${props.rh_medecins_total} med, ${props.rh_n_structures} struct.</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:#6b7280;">Eau (forage/reseau)</div>
             <div style="font-size:15px;font-weight:700;color:${pctColor(washPct)};">${washPct !== null ? washPct.toFixed(0) + '%' : '-'}</div>
             <div style="font-size:9px;color:#9ca3af;">${props.wash_forage_ou_reseau_n}/${props.wash_total}</div>
           </div>
           <div>
-            <div style="font-size:10px;color:#6b7280;">Medecins/structure</div>
-            <div style="font-size:15px;font-weight:700;color:${rhRatio !== null && rhRatio >= 1 ? '#16a34a' : rhRatio !== null && rhRatio >= 0.5 ? '#ca8a04' : '#dc2626'};">${rhRatio !== null ? rhRatio.toFixed(2) : '-'}</div>
-            <div style="font-size:9px;color:#9ca3af;">${props.rh_medecins_total} med, ${props.rh_n_structures} struct.</div>
+            <div style="font-size:10px;color:#6b7280;">Eau pts critiques</div>
+            <div style="font-size:15px;font-weight:700;color:${pctColor(eauPct)};">${eauPct !== null ? eauPct.toFixed(0) + '%' : '-'}</div>
+            <div style="font-size:9px;color:#9ca3af;">${props.wash_eau_pts_critiques_n} struct.</div>
           </div>
         </div>
 

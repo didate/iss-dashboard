@@ -91,7 +91,7 @@ func (c *Client) FetchAllEvents() ([]models.Event, error) {
 
 // FetchDataElements fetches ISS data element metadata.
 func (c *Client) FetchDataElements() ([]models.DataElementMeta, error) {
-	url := fmt.Sprintf("%s/api/dataElements.json?filter=name:like:ISS&fields=id,name,code,valueType,optionSet[id]&paging=false", c.baseURL)
+	url := fmt.Sprintf("%s/api/dataElements.json?filter=name:like:ISS&fields=id,name,formName,code,valueType,optionSet[id]&paging=false", c.baseURL)
 	body, err := c.doGet(url)
 	if err != nil {
 		return nil, err
@@ -108,6 +108,7 @@ func (c *Client) FetchDataElements() ([]models.DataElementMeta, error) {
 			UID:       de.ID,
 			Code:      de.Code,
 			Name:      de.Name,
+			FormName:  de.FormName,
 			ValueType: de.ValueType,
 		}
 		if de.OptionSet != nil {

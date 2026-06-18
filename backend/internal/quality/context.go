@@ -139,7 +139,7 @@ func discoverEquipPairs(metadata []models.DataElementMeta, codeToUID map[string]
 				Root:     root,
 				TotalUID: totalDE.UID,
 				FoncUID:  foncDE.UID,
-				Label:    cleanLabel(totalDE.Name),
+				Label:    cleanLabel(totalDE.DisplayName()),
 			})
 			matched[root] = true
 			continue
@@ -158,7 +158,7 @@ func discoverEquipPairs(metadata []models.DataElementMeta, codeToUID map[string]
 					Root:     root,
 					TotalUID: totalDE.UID,
 					FoncUID:  foncDE.UID,
-					Label:    cleanLabel(totalDE.Name),
+					Label:    cleanLabel(totalDE.DisplayName()),
 				})
 				matched[fRoot] = true
 				matched[root] = true

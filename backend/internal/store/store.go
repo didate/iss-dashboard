@@ -40,6 +40,7 @@ func (s *Store) migrate() error {
 	// Incremental migrations (ignore errors if column already exists)
 	s.db.Exec(`ALTER TABLE org_unit ADD COLUMN closed_date TEXT DEFAULT ''`)
 	s.db.Exec(`ALTER TABLE org_unit ADD COLUMN geometry TEXT DEFAULT ''`)
+	s.db.Exec(`ALTER TABLE metadata_de ADD COLUMN form_name TEXT DEFAULT ''`)
 	// Clean up orphan "running" sync_runs from previous crashes
 	s.db.Exec(`UPDATE sync_run SET status='error', error_text='interrupted by restart' WHERE status='running'`)
 	return nil
@@ -144,14 +145,14 @@ func (s *Store) UpsertMetadataDE(des []models.DataElementMeta) error {
 	}
 	defer tx.Rollback()
 
-	stmt, err := tx.Prepare(`INSERT OR REPLACE INTO metadata_de (de_uid, code, name, value_type, option_set_id, section_prefix) VALUES (?,?,?,?,?,?)`)
+	stmt, err := tx.Prepare(`INSERT OR REPLACE INTO metadata_de (de_uid, code, name, form_name, value_type, option_set_id, section_prefix) VALUES (?,?,?,?,?,?,?)`)
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
 	for _, de := range des {
-		if _, err := stmt.Exec(de.UID, de.Code, de.Name, de.ValueType, de.OptionSetID, de.SectionPrefix); err != nil {
+		if _, err := stmt.Exec(de.UID, de.Code, de.Name, de.FormName, de.ValueType, de.OptionSetID, de.SectionPrefix); err != nil {
 			return err
 		}
 	}
@@ -204,7 +205,7 @@ func (s *Store) UpsertOrgUnits(units []models.OrgUnit) error {
 }
 
 func (s *Store) GetAllMetadataDE() ([]models.DataElementMeta, error) {
-	rows, err := s.db.Query(`SELECT de_uid, COALESCE(code,''), name, COALESCE(value_type,''), COALESCE(option_set_id,''), COALESCE(section_prefix,'') FROM metadata_de`)
+	rows, err := s.db.Query(`SELECT de_uid, COALESCE(code,''), name, COALESCE(form_name,''), COALESCE(value_type,''), COALESCE(option_set_id,''), COALESCE(section_prefix,'') FROM metadata_de`)
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +213,7 @@ func (s *Store) GetAllMetadataDE() ([]models.DataElementMeta, error) {
 	var out []models.DataElementMeta
 	for rows.Next() {
 		var de models.DataElementMeta
-		if err := rows.Scan(&de.UID, &de.Code, &de.Name, &de.ValueType, &de.OptionSetID, &de.SectionPrefix); err != nil {
+		if err := rows.Scan(&de.UID, &de.Code, &de.Name, &de.FormName, &de.ValueType, &de.OptionSetID, &de.SectionPrefix); err != nil {
 			return nil, err
 		}
 		out = append(out, de)
