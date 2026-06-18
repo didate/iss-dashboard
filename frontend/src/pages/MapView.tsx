@@ -138,6 +138,44 @@ function getShortValue(props: MapDistrictProperties, layer: LayerKey, selectedSe
   }
 }
 
+// Scale bar + compass controls
+function MapControls() {
+  const map = useMap();
+
+  useEffect(() => {
+    // Scale bar
+    const scale = L.control.scale({ metric: true, imperial: false, position: 'bottomleft' });
+    scale.addTo(map);
+
+    // Compass (North arrow)
+    const CompassControl = L.Control.extend({
+      options: { position: 'topright' as L.ControlPosition },
+      onAdd: () => {
+        const div = L.DomUtil.create('div', 'leaflet-control');
+        div.innerHTML = `
+          <div style="background:white;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.2);border:1px solid #d1d5db;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <polygon points="12,2 15,14 12,11 9,14" fill="#dc2626"/>
+              <polygon points="12,22 9,14 12,17 15,14" fill="#374151"/>
+              <text x="12" y="7" text-anchor="middle" font-size="6" font-weight="bold" fill="#dc2626">N</text>
+            </svg>
+          </div>
+        `;
+        return div;
+      },
+    });
+    const compass = new CompassControl();
+    compass.addTo(map);
+
+    return () => {
+      scale.remove();
+      compass.remove();
+    };
+  }, [map]);
+
+  return null;
+}
+
 // Component that renders district labels inside a MapContainer
 function DistrictLabels({ features, activeLayer, selectedService, selectedEquipCategory, fontSize = 'normal' }: {
   features: MapDistrictCollection['features'];
@@ -547,6 +585,7 @@ export default function MapView() {
             selectedService={selectedService}
             selectedEquipCategory={selectedEquipCategory}
           />
+          <MapControls />
         </MapContainer>
 
         {/* Inset map — Conakry zoom (draggable) */}
