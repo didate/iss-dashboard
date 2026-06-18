@@ -86,7 +86,7 @@ export default function Usage() {
       </div>
 
       <div className="bg-white rounded-lg border border-gray-200 p-4">
-        {tab === 'rapportage' && <RapportageTab />}
+        {tab === 'rapportage' && <RapportageTab filters={filters} />}
         {tab === 'recensement' && <RecensementTab />}
         {tab === 'plateau' && <PlateauTab district={district} />}
         {tab === 'services' && <ServicesTab district={district} />}
@@ -102,8 +102,9 @@ export default function Usage() {
 
 // ==================== RAPPORTAGE ====================
 
-function RapportageTab() {
+function RapportageTab({ filters }: { filters: Filters | null }) {
   const [by, setBy] = useState('district');
+  const [regionFilter, setRegionFilter] = useState('');
   const [data, setData] = useState<ReportingRate[]>([]);
   const [globalRate, setGlobalRate] = useState<ReportingRate | null>(null);
 
@@ -114,6 +115,11 @@ function RapportageTab() {
       if (g) setGlobalRate(g);
     }).catch(console.error);
   }, [by]);
+
+  // Filter districts by region
+  const filteredData = by === 'district' && regionFilter && filters?.district_regions
+    ? data.filter(d => filters.district_regions[d.key] === regionFilter)
+    : data;
 
   const columns = [
     { key: 'label', header: by.charAt(0).toUpperCase() + by.slice(1) },
@@ -150,28 +156,40 @@ function RapportageTab() {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <div className="flex gap-2">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex gap-2 items-center">
           {['district', 'region'].map((v) => (
-            <button key={v} onClick={() => setBy(v)}
+            <button key={v} onClick={() => { setBy(v); setRegionFilter(''); }}
               className={`px-2 py-1 text-xs rounded ${by === v ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600'}`}>
               {v.charAt(0).toUpperCase() + v.slice(1)}
             </button>
           ))}
+          {by === 'district' && filters?.regions && (
+            <select
+              className="border border-gray-300 rounded px-2 py-1 text-xs"
+              value={regionFilter}
+              onChange={(e) => setRegionFilter(e.target.value)}
+            >
+              <option value="">Toutes les regions</option>
+              {filters.regions.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          )}
         </div>
-        <ExportCSV data={data as unknown as Record<string, unknown>[]} columns={columns} filename={`rapportage_${by}`} />
+        <ExportCSV data={filteredData as unknown as Record<string, unknown>[]} columns={columns} filename={`rapportage_${by}`} />
       </div>
 
       {/* Bar chart */}
-      {data.length > 0 && (
-        <ResponsiveContainer width="100%" height={Math.max(300, data.length * 30)}>
-          <BarChart data={[...data].sort((a, b) => a.pct - b.pct)} layout="vertical" margin={{ left: 100 }}>
+      {filteredData.length > 0 && (
+        <ResponsiveContainer width="100%" height={Math.max(300, filteredData.length * 30)}>
+          <BarChart data={[...filteredData].sort((a, b) => a.pct - b.pct)} layout="vertical" margin={{ left: 100 }}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis type="number" domain={[0, 100]} unit="%" />
             <YAxis type="category" dataKey="label" tick={{ fontSize: 10 }} width={90} />
             <Tooltip formatter={(v: number) => `${v.toFixed(1)}%`} />
             <Bar dataKey="pct" name="% rapportage">
-              {[...data].sort((a, b) => a.pct - b.pct).map((d, i) => (
+              {[...filteredData].sort((a, b) => a.pct - b.pct).map((d, i) => (
                 <Cell key={i} fill={d.pct >= 80 ? '#22c55e' : d.pct >= 50 ? '#eab308' : '#ef4444'} />
               ))}
             </Bar>
@@ -179,7 +197,7 @@ function RapportageTab() {
         </ResponsiveContainer>
       )}
 
-      <DataTable columns={columns} data={data as unknown as Record<string, unknown>[]} />
+      <DataTable columns={columns} data={filteredData as unknown as Record<string, unknown>[]} />
 
       <MethodNote title="Methodologie - Taux de rapportage">
         <p><strong>Attendu</strong> = nombre d'unites organisationnelles assignees au programme ISS dans DHIS2.</p>

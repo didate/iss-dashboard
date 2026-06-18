@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"iss-dashboard-backend/internal/store"
 
@@ -123,13 +124,23 @@ func (h *ReadHandlers) GetFilters(c *gin.Context) {
 }
 
 func (h *ReadHandlers) GetCompareDistricts(c *gin.Context) {
-	d1 := c.Query("district1")
-	d2 := c.Query("district2")
-	if d1 == "" || d2 == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "district1 and district2 required"})
+	raw := c.Query("districts")
+	if raw == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "districts parameter required (comma-separated)"})
 		return
 	}
-	result, err := h.Store.GetCompareData(d1, d2)
+	var districts []string
+	for _, d := range strings.Split(raw, ",") {
+		d = strings.TrimSpace(d)
+		if d != "" {
+			districts = append(districts, d)
+		}
+	}
+	if len(districts) < 2 || len(districts) > 4 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "select between 2 and 4 districts"})
+		return
+	}
+	result, err := h.Store.GetCompareData(districts)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

@@ -126,8 +126,8 @@ export const api = {
     pageSize?: number;
   }) => request<StructureListResult>(`/api/structures${qs(params)}`),
 
-  getCompare: (district1: string, district2: string) =>
-    request<CompareResult>(`/api/compare${qs({ district1, district2 })}`),
+  getCompare: (districts: string[]) =>
+    request<CompareResult>(`/api/compare${qs({ districts: districts.join(',') })}`),
 
   exportStructurePDF: async (uid: string) => {
     const token = (await import('./auth')).getToken();

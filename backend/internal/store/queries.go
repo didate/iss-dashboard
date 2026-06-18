@@ -679,11 +679,12 @@ type RuleInfo struct {
 }
 
 type Filters struct {
-	Districts []string   `json:"districts"`
-	Regions   []string   `json:"regions"`
-	Rules     []RuleInfo `json:"rules"`
-	Services  []string   `json:"services"`
-	Statuts   []string   `json:"statuts"`
+	Districts       []string            `json:"districts"`
+	Regions         []string            `json:"regions"`
+	DistrictRegions map[string]string   `json:"district_regions"`
+	Rules           []RuleInfo          `json:"rules"`
+	Services        []string            `json:"services"`
+	Statuts         []string            `json:"statuts"`
 }
 
 func (s *Store) GetFilters() (*Filters, error) {
@@ -692,6 +693,19 @@ func (s *Store) GetFilters() (*Filters, error) {
 	f.Regions = s.distinctCol(`SELECT DISTINCT name FROM org_unit WHERE level=2 ORDER BY name`)
 	f.Services = s.distinctCol(`SELECT DISTINCT service_code FROM usage_service WHERE district='all' ORDER BY service_code`)
 	f.Statuts = []string{"publique", "privée"}
+
+	// District → Region mapping
+	f.DistrictRegions = make(map[string]string)
+	drRows, err := s.db.Query(`SELECT d.name, COALESCE(r.name,'') FROM org_unit d LEFT JOIN org_unit r ON d.parent_uid = r.uid AND r.level=2 WHERE d.level=3`)
+	if err == nil {
+		defer drRows.Close()
+		for drRows.Next() {
+			var dist, region string
+			if drRows.Scan(&dist, &region) == nil && region != "" {
+				f.DistrictRegions[dist] = region
+			}
+		}
+	}
 
 	// Rules with names
 	rows, err := s.db.Query(`SELECT DISTINCT rule_code, rule_name FROM quality_issue ORDER BY rule_code`)
@@ -726,9 +740,8 @@ type CompareDistrictData struct {
 }
 
 type CompareResult struct {
-	District1 CompareDistrictData `json:"district1"`
-	District2 CompareDistrictData `json:"district2"`
-	National  CompareDistrictData `json:"national"`
+	Districts []CompareDistrictData `json:"districts"`
+	National  CompareDistrictData   `json:"national"`
 }
 
 func (s *Store) getDistrictCompareData(district string) CompareDistrictData {
@@ -773,12 +786,14 @@ func (s *Store) getDistrictCompareData(district string) CompareDistrictData {
 	return d
 }
 
-func (s *Store) GetCompareData(district1, district2 string) (*CompareResult, error) {
-	return &CompareResult{
-		District1: s.getDistrictCompareData(district1),
-		District2: s.getDistrictCompareData(district2),
-		National:  s.getDistrictCompareData(""),
-	}, nil
+func (s *Store) GetCompareData(districts []string) (*CompareResult, error) {
+	result := &CompareResult{
+		National: s.getDistrictCompareData(""),
+	}
+	for _, d := range districts {
+		result.Districts = append(result.Districts, s.getDistrictCompareData(d))
+	}
+	return result, nil
 }
 
 func (s *Store) GetMapData() (*models.MapDistrictCollection, error) {

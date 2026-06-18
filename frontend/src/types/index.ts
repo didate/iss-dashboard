@@ -209,6 +209,7 @@ export interface RuleInfo {
 export interface Filters {
   districts: string[];
   regions: string[];
+  district_regions: Record<string, string>;
   rules: RuleInfo[];
   services: string[];
   statuts: string[];
@@ -237,8 +238,7 @@ export interface CompareDistrictData {
 }
 
 export interface CompareResult {
-  district1: CompareDistrictData;
-  district2: CompareDistrictData;
+  districts: CompareDistrictData[];
   national: CompareDistrictData;
 }
 

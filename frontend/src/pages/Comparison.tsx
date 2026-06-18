@@ -1,12 +1,105 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { api } from '../api/client';
-import type { CompareResult, Filters } from '../types';
+import type { CompareResult, CompareDistrictData, Filters } from '../types';
+import ExportCSV from '../components/ExportCSV';
 import MethodNote from '../components/MethodNote';
+
+const DISTRICT_COLORS = [
+  { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', bar: 'bg-blue-500', header: 'bg-blue-100' },
+  { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', bar: 'bg-orange-500', header: 'bg-orange-100' },
+  { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', bar: 'bg-emerald-500', header: 'bg-emerald-100' },
+  { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', bar: 'bg-purple-500', header: 'bg-purple-100' },
+];
+
+const BAR_COLORS = ['#3b82f6', '#f97316', '#10b981', '#8b5cf6'];
+
+function MultiSelect({ options, selected, onChange, max }: {
+  options: string[];
+  selected: string[];
+  onChange: (v: string[]) => void;
+  max: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const toggle = (item: string) => {
+    if (selected.includes(item)) {
+      onChange(selected.filter(s => s !== item));
+    } else if (selected.length < max) {
+      onChange([...selected, item]);
+    }
+  };
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white min-w-[200px] text-left flex items-center justify-between gap-2"
+      >
+        <span className="truncate">
+          {selected.length === 0 ? 'Selectionner des districts...' : `${selected.length} district${selected.length > 1 ? 's' : ''}`}
+        </span>
+        <span className="text-gray-400 text-xs">{selected.length}/{max}</span>
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto w-64">
+          {options.map(opt => {
+            const checked = selected.includes(opt);
+            const disabled = !checked && selected.length >= max;
+            return (
+              <label
+                key={opt}
+                className={`flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-gray-50 cursor-pointer ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  disabled={disabled}
+                  onChange={() => toggle(opt)}
+                  className="rounded"
+                />
+                {opt}
+              </label>
+            );
+          })}
+        </div>
+      )}
+      {/* Selected tags */}
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-1">
+          {selected.map((s, i) => (
+            <span key={s} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${DISTRICT_COLORS[i]?.bg} ${DISTRICT_COLORS[i]?.text}`}>
+              {s}
+              <button onClick={() => onChange(selected.filter(x => x !== s))} className="hover:opacity-70">&times;</button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const pctColor = (v: number) => v >= 80 ? 'text-green-600' : v >= 50 ? 'text-yellow-600' : 'text-red-600';
+
+function buildCsvColumns(label: string, districtNames: string[]) {
+  return [
+    { key: 'label', header: label },
+    ...districtNames.map(n => ({ key: n, header: n })),
+    { key: 'national', header: 'National' },
+  ];
+}
 
 export default function Comparison() {
   const [filters, setFilters] = useState<Filters | null>(null);
-  const [d1, setD1] = useState('');
-  const [d2, setD2] = useState('');
+  const [selected, setSelected] = useState<string[]>([]);
   const [result, setResult] = useState<CompareResult | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -15,71 +108,93 @@ export default function Comparison() {
   }, []);
 
   const compare = () => {
-    if (!d1 || !d2) return;
+    if (selected.length < 2) return;
     setLoading(true);
-    api.getCompare(d1, d2)
+    api.getCompare(selected)
       .then(setResult)
       .catch(console.error)
       .finally(() => setLoading(false));
   };
 
-  const colorScore = (v: number) => v >= 80 ? 'text-green-600' : v >= 50 ? 'text-yellow-600' : 'text-red-600';
-  const colorPct = (v: number) => v >= 80 ? 'text-green-600' : v >= 50 ? 'text-yellow-600' : 'text-red-600';
+  const districts = result?.districts ?? [];
+  const nat = result?.national;
 
-  // Build services comparison chart data
-  const servicesChartData = result ? (() => {
+  // Build service comparison data
+  const serviceRows = result ? (() => {
     const allCodes = new Set<string>();
-    result.district1.services.forEach(s => allCodes.add(s.service_code));
-    result.district2.services.forEach(s => allCodes.add(s.service_code));
-    const d1Map = new Map(result.district1.services.map(s => [s.service_code, s]));
-    const d2Map = new Map(result.district2.services.map(s => [s.service_code, s]));
-    const natMap = new Map(result.national.services.map(s => [s.service_code, s]));
-    return Array.from(allCodes).map(code => ({
-      name: d1Map.get(code)?.service_label || d2Map.get(code)?.service_label || code,
-      [result.district1.name]: d1Map.get(code)?.n_oui ?? 0,
-      [result.district2.name]: d2Map.get(code)?.n_oui ?? 0,
-      national: natMap.get(code)?.n_oui ?? 0,
-    })).sort((a, b) => a.name.localeCompare(b.name));
+    districts.forEach(d => d.services.forEach(s => allCodes.add(s.service_code)));
+    const maps = districts.map(d => new Map(d.services.map(s => [s.service_code, s])));
+    const natMap = new Map(nat!.services.map(s => [s.service_code, s]));
+    return Array.from(allCodes).map(code => {
+      const label = maps.find(m => m.get(code))?.get(code)?.service_label || code;
+      const values = maps.map(m => m.get(code)?.n_oui ?? 0);
+      const natVal = natMap.get(code)?.n_oui ?? 0;
+      return { label, values, natVal };
+    }).sort((a, b) => a.label.localeCompare(b.label));
   })() : [];
 
-  // Build commodites comparison
-  const commoditesData = result ? (() => {
+  // Build equipment comparison data
+  const equipRows = result ? (() => {
+    const allRoots = new Set<string>();
+    districts.forEach(d => d.equipements.forEach(e => allRoots.add(e.equip_root)));
+    const maps = districts.map(d => new Map(d.equipements.map(e => [e.equip_root, e])));
+    const natMap = new Map(nat!.equipements.map(e => [e.equip_root, e]));
+    return Array.from(allRoots).map(root => {
+      const label = maps.find(m => m.get(root))?.get(root)?.label || root;
+      const totals = maps.map(m => m.get(root)?.sum_total ?? 0);
+      const foncts = maps.map(m => m.get(root)?.sum_fonct ?? 0);
+      const natTotal = natMap.get(root)?.sum_total ?? 0;
+      const natFonct = natMap.get(root)?.sum_fonct ?? 0;
+      return { label, totals, foncts, natTotal, natFonct };
+    }).sort((a, b) => a.label.localeCompare(b.label));
+  })() : [];
+
+  // Build commodites comparison data
+  const commoRows = result ? (() => {
     const labels: Record<string, string> = {
       energie: 'Energie', eau_pts_critiques: 'Eau pts critiques',
       energie_solaire: 'Solaire', energie_reseau: 'Reseau elec.', energie_generateur: 'Generateur',
     };
     const allInds = new Set<string>();
-    result.district1.commodites.filter(c => !c.indicator.startsWith('source_eau_')).forEach(c => allInds.add(c.indicator));
-    result.district2.commodites.filter(c => !c.indicator.startsWith('source_eau_')).forEach(c => allInds.add(c.indicator));
-    const d1Map = new Map(result.district1.commodites.map(c => [c.indicator, c]));
-    const d2Map = new Map(result.district2.commodites.map(c => [c.indicator, c]));
-    const natMap = new Map(result.national.commodites.map(c => [c.indicator, c]));
+    districts.forEach(d => d.commodites.filter(c => !c.indicator.startsWith('source_eau_')).forEach(c => allInds.add(c.indicator)));
+    const maps = districts.map(d => new Map(d.commodites.map(c => [c.indicator, c])));
+    const natMap = new Map(nat!.commodites.map(c => [c.indicator, c]));
     return Array.from(allInds).map(ind => ({
-      name: labels[ind] || ind,
-      [result.district1.name]: d1Map.get(ind)?.pct ?? 0,
-      [result.district2.name]: d2Map.get(ind)?.pct ?? 0,
-      national: natMap.get(ind)?.pct ?? 0,
+      label: labels[ind] || ind,
+      values: maps.map(m => m.get(ind)?.pct ?? 0),
+      natVal: natMap.get(ind)?.pct ?? 0,
     }));
   })() : [];
 
-  // Build equipment comparison data
-  const equipChartData = result ? (() => {
-    const allRoots = new Set<string>();
-    result.district1.equipements.forEach(e => allRoots.add(e.equip_root));
-    result.district2.equipements.forEach(e => allRoots.add(e.equip_root));
-    const d1Map = new Map(result.district1.equipements.map(e => [e.equip_root, e]));
-    const d2Map = new Map(result.district2.equipements.map(e => [e.equip_root, e]));
-    const natMap = new Map(result.national.equipements.map(e => [e.equip_root, e]));
-    return Array.from(allRoots).map(root => ({
-      name: d1Map.get(root)?.label || d2Map.get(root)?.label || root,
-      d1_total: d1Map.get(root)?.sum_total ?? 0,
-      d1_fonct: d1Map.get(root)?.sum_fonct ?? 0,
-      d2_total: d2Map.get(root)?.sum_total ?? 0,
-      d2_fonct: d2Map.get(root)?.sum_fonct ?? 0,
-      nat_total: natMap.get(root)?.sum_total ?? 0,
-      nat_fonct: natMap.get(root)?.sum_fonct ?? 0,
-    })).sort((a, b) => a.name.localeCompare(b.name));
+  // Build RH comparison data
+  const rhRows = result ? (() => {
+    const allProfiles = new Set<string>();
+    districts.forEach(d => d.rh.forEach(r => allProfiles.add(r.profil_code)));
+    const maps = districts.map(d => new Map(d.rh.map(r => [r.profil_code, r])));
+    const natMap = new Map(nat!.rh.map(r => [r.profil_code, r]));
+    return Array.from(allProfiles).map(code => {
+      const label = maps.find(m => m.get(code))?.get(code)?.label || natMap.get(code)?.label || code;
+      const values = maps.map(m => m.get(code)?.effectif_total ?? 0);
+      const natVal = natMap.get(code)?.effectif_total ?? 0;
+      return { label, values, natVal };
+    });
   })() : [];
+
+  const districtHeaders = (extra?: string) => (
+    <tr className="border-b bg-gray-50">
+      <th className="text-left px-3 py-2 font-medium text-gray-500">{extra || ''}</th>
+      {districts.map((d, i) => (
+        <th key={d.name} className={`text-right px-3 py-2 font-medium ${DISTRICT_COLORS[i].text} ${DISTRICT_COLORS[i].header}`}>
+          {d.name}
+        </th>
+      ))}
+      <th className="text-right px-3 py-2 font-medium text-gray-400">National</th>
+    </tr>
+  );
+
+  const coloredCell = (value: string, idx: number) => (
+    <td className={`text-right px-3 py-1.5 font-medium ${DISTRICT_COLORS[idx].bg}`}>{value}</td>
+  );
 
   return (
     <div className="space-y-4">
@@ -88,156 +203,103 @@ export default function Comparison() {
       {/* Selectors */}
       <div className="flex flex-wrap gap-3 bg-white p-4 rounded-lg border border-gray-200 items-end">
         <div>
-          <label className="block text-xs text-gray-500 mb-1">District 1</label>
-          <select className="border border-gray-300 rounded px-3 py-1.5 text-sm" value={d1} onChange={e => setD1(e.target.value)}>
-            <option value="">Selectionner...</option>
-            {filters?.districts.filter(d => d !== d2).map(d => <option key={d} value={d}>{d}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">District 2</label>
-          <select className="border border-gray-300 rounded px-3 py-1.5 text-sm" value={d2} onChange={e => setD2(e.target.value)}>
-            <option value="">Selectionner...</option>
-            {filters?.districts.filter(d => d !== d1).map(d => <option key={d} value={d}>{d}</option>)}
-          </select>
+          <label className="block text-xs text-gray-500 mb-1">Districts (2 a 4)</label>
+          <MultiSelect
+            options={filters?.districts ?? []}
+            selected={selected}
+            onChange={setSelected}
+            max={4}
+          />
         </div>
         <button
           onClick={compare}
-          disabled={!d1 || !d2 || loading}
+          disabled={selected.length < 2 || loading}
           className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40"
         >
           {loading ? 'Chargement...' : 'Comparer'}
         </button>
       </div>
 
-      {result && (
+      {result && districts.length > 0 && nat && (
         <>
-          {/* KPI comparison */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {[
-              {
-                label: 'Score qualite',
-                v1: result.district1.avg_score.toFixed(1),
-                v2: result.district2.avg_score.toFixed(1),
-                nat: result.national.avg_score.toFixed(1),
-                c1: colorScore(result.district1.avg_score),
-                c2: colorScore(result.district2.avg_score),
-              },
-              {
-                label: 'Taux rapportage',
-                v1: `${result.district1.reporting_pct.toFixed(1)}%`,
-                v2: `${result.district2.reporting_pct.toFixed(1)}%`,
-                nat: `${result.national.reporting_pct.toFixed(1)}%`,
-                c1: colorPct(result.district1.reporting_pct),
-                c2: colorPct(result.district2.reporting_pct),
-              },
-              {
-                label: 'Structures',
-                v1: String(result.district1.n_structures),
-                v2: String(result.district2.n_structures),
-                nat: String(result.national.n_structures),
-                c1: 'text-gray-900', c2: 'text-gray-900',
-              },
-              {
-                label: 'Med./structure',
-                v1: result.district1.rh_summary?.ratio_med_per_structure?.toFixed(2) ?? '-',
-                v2: result.district2.rh_summary?.ratio_med_per_structure?.toFixed(2) ?? '-',
-                nat: result.national.rh_summary?.ratio_med_per_structure?.toFixed(2) ?? '-',
-                c1: 'text-gray-900', c2: 'text-gray-900',
-              },
-            ].map((kpi, i) => (
-              <div key={i} className="bg-white rounded-lg border border-gray-200 p-4">
-                <p className="text-xs text-gray-500 mb-3 font-medium">{kpi.label}</p>
-                <div className="flex justify-between items-end">
-                  <div className="text-center">
-                    <p className={`text-lg font-bold ${kpi.c1}`}>{kpi.v1}</p>
-                    <p className="text-[10px] text-gray-400 mt-1">{result.district1.name}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm text-gray-400">{kpi.nat}</p>
-                    <p className="text-[10px] text-gray-300">National</p>
-                  </div>
-                  <div className="text-center">
-                    <p className={`text-lg font-bold ${kpi.c2}`}>{kpi.v2}</p>
-                    <p className="text-[10px] text-gray-400 mt-1">{result.district2.name}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
+          {/* KPIs table */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-700">Indicateurs cles</h3>
+              <ExportCSV
+                filename="comparaison_kpis"
+                columns={buildCsvColumns('Indicateur', districts.map(d => d.name))}
+                data={[
+                  { label: 'Score qualite', ...Object.fromEntries(districts.map(d => [d.name, d.avg_score.toFixed(1)])), national: nat!.avg_score.toFixed(1) },
+                  { label: 'Taux rapportage', ...Object.fromEntries(districts.map(d => [d.name, d.reporting_pct.toFixed(1) + '%'])), national: nat!.reporting_pct.toFixed(1) + '%' },
+                  { label: 'Structures', ...Object.fromEntries(districts.map(d => [d.name, d.n_structures])), national: nat!.n_structures },
+                  { label: 'Med./structure', ...Object.fromEntries(districts.map(d => [d.name, d.rh_summary?.ratio_med_per_structure?.toFixed(2) ?? '-'])), national: nat!.rh_summary?.ratio_med_per_structure?.toFixed(2) ?? '-' },
+                  { label: 'Effectif RH', ...Object.fromEntries(districts.map(d => [d.name, d.rh_summary?.total_effectif ?? 0])), national: nat!.rh_summary?.total_effectif ?? 0 },
+                ] as Record<string, unknown>[]}
+              />
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>{districtHeaders('Indicateur')}</thead>
+                <tbody>
+                  <tr className="border-b border-gray-100">
+                    <td className="px-3 py-1.5 text-gray-700">Score qualite</td>
+                    {districts.map((d, i) => (
+                      <td key={d.name} className={`text-right px-3 py-1.5 font-bold ${pctColor(d.avg_score)} ${DISTRICT_COLORS[i].bg}`}>
+                        {d.avg_score.toFixed(1)}
+                      </td>
+                    ))}
+                    <td className="text-right px-3 py-1.5 text-gray-400">{nat.avg_score.toFixed(1)}</td>
+                  </tr>
+                  <tr className="border-b border-gray-100">
+                    <td className="px-3 py-1.5 text-gray-700">Taux rapportage</td>
+                    {districts.map((d, i) => (
+                      <td key={d.name} className={`text-right px-3 py-1.5 font-bold ${pctColor(d.reporting_pct)} ${DISTRICT_COLORS[i].bg}`}>
+                        {d.reporting_pct.toFixed(1)}%
+                      </td>
+                    ))}
+                    <td className="text-right px-3 py-1.5 text-gray-400">{nat.reporting_pct.toFixed(1)}%</td>
+                  </tr>
+                  <tr className="border-b border-gray-100">
+                    <td className="px-3 py-1.5 text-gray-700">Structures</td>
+                    {districts.map((d, i) => coloredCell(String(d.n_structures), i))}
+                    <td className="text-right px-3 py-1.5 text-gray-400">{nat.n_structures}</td>
+                  </tr>
+                  <tr className="border-b border-gray-100">
+                    <td className="px-3 py-1.5 text-gray-700">Med./structure</td>
+                    {districts.map((d, i) => coloredCell(d.rh_summary?.ratio_med_per_structure?.toFixed(2) ?? '-', i))}
+                    <td className="text-right px-3 py-1.5 text-gray-400">{nat.rh_summary?.ratio_med_per_structure?.toFixed(2) ?? '-'}</td>
+                  </tr>
+                  <tr className="border-b border-gray-100">
+                    <td className="px-3 py-1.5 text-gray-700">Effectif RH total</td>
+                    {districts.map((d, i) => coloredCell(String(d.rh_summary?.total_effectif ?? 0), i))}
+                    <td className="text-right px-3 py-1.5 text-gray-400">{nat.rh_summary?.total_effectif ?? 0}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
 
-          {/* Services table */}
-          {servicesChartData.length > 0 && (
+          {/* Services */}
+          {serviceRows.length > 0 && (
             <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Services — nombre de structures avec le service</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-gray-50">
-                      <th className="text-left px-3 py-2 font-medium text-gray-500">Service</th>
-                      <th className="text-right px-3 py-2 font-medium text-blue-600">{result.district1.name}</th>
-                      <th className="text-right px-3 py-2 font-medium text-orange-600">{result.district2.name}</th>
-                      <th className="px-3 py-2 font-medium text-gray-500 w-48">Comparaison</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {servicesChartData.map((row) => {
-                      const v1 = (row as Record<string, unknown>)[result.district1.name] as number;
-                      const v2 = (row as Record<string, unknown>)[result.district2.name] as number;
-                      const max = Math.max(v1, v2, 1);
-                      return (
-                        <tr key={row.name} className="border-b border-gray-100">
-                          <td className="px-3 py-1.5 text-gray-700">{row.name}</td>
-                          <td className="px-3 py-1.5 text-right font-medium">{v1}</td>
-                          <td className="px-3 py-1.5 text-right font-medium">{v2}</td>
-                          <td className="px-3 py-1.5">
-                            <div className="flex gap-0.5 items-center h-4">
-                              <div className="h-3 rounded-sm bg-blue-500" style={{ width: `${(v1 / max) * 45}%` }} />
-                              <div className="h-3 rounded-sm bg-orange-500" style={{ width: `${(v2 / max) * 45}%` }} />
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-700">Services — nombre de structures</h3>
+                <ExportCSV
+                  filename="comparaison_services"
+                  columns={buildCsvColumns('Service', districts.map(d => d.name))}
+                  data={serviceRows.map(r => ({ label: r.label, ...Object.fromEntries(districts.map((d, i) => [d.name, r.values[i]])), national: r.natVal })) as Record<string, unknown>[]}
+                />
               </div>
-            </div>
-          )}
-
-          {/* Equipements table */}
-          {equipChartData.length > 0 && (
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Equipements — total / fonctionnel</h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-gray-50">
-                      <th className="text-left px-3 py-2 font-medium text-gray-500">Equipement</th>
-                      <th className="text-center px-2 py-2 font-medium text-blue-600" colSpan={2}>{result.district1.name}</th>
-                      <th className="text-center px-2 py-2 font-medium text-orange-600" colSpan={2}>{result.district2.name}</th>
-                      <th className="text-center px-2 py-2 font-medium text-gray-400" colSpan={2}>National</th>
-                    </tr>
-                    <tr className="border-b bg-gray-50">
-                      <th></th>
-                      <th className="text-right px-2 py-1 text-xs text-gray-400">Total</th>
-                      <th className="text-right px-2 py-1 text-xs text-gray-400">Fonct.</th>
-                      <th className="text-right px-2 py-1 text-xs text-gray-400">Total</th>
-                      <th className="text-right px-2 py-1 text-xs text-gray-400">Fonct.</th>
-                      <th className="text-right px-2 py-1 text-xs text-gray-400">Total</th>
-                      <th className="text-right px-2 py-1 text-xs text-gray-400">Fonct.</th>
-                    </tr>
-                  </thead>
+                  <thead>{districtHeaders('Service')}</thead>
                   <tbody>
-                    {equipChartData.map((row) => (
-                      <tr key={row.name} className="border-b border-gray-100">
-                        <td className="px-3 py-1.5 text-gray-700">{row.name}</td>
-                        <td className="px-2 py-1.5 text-right font-medium">{row.d1_total}</td>
-                        <td className="px-2 py-1.5 text-right text-green-600">{row.d1_fonct}</td>
-                        <td className="px-2 py-1.5 text-right font-medium">{row.d2_total}</td>
-                        <td className="px-2 py-1.5 text-right text-green-600">{row.d2_fonct}</td>
-                        <td className="px-2 py-1.5 text-right text-gray-400">{row.nat_total}</td>
-                        <td className="px-2 py-1.5 text-right text-gray-400">{row.nat_fonct}</td>
+                    {serviceRows.map((row) => (
+                      <tr key={row.label} className="border-b border-gray-100">
+                        <td className="px-3 py-1.5 text-gray-700">{row.label}</td>
+                        {row.values.map((v, i) => coloredCell(String(v), i))}
+                        <td className="text-right px-3 py-1.5 text-gray-400">{row.natVal}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -246,83 +308,122 @@ export default function Comparison() {
             </div>
           )}
 
-          {/* Commodites table */}
-          {commoditesData.length > 0 && (
+          {/* Equipements */}
+          {equipRows.length > 0 && (
             <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Commodites — % de structures</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-700">Equipements — total / fonctionnel</h3>
+                <ExportCSV
+                  filename="comparaison_equipements"
+                  columns={[
+                    { key: 'label', header: 'Equipement' },
+                    ...districts.flatMap(d => [{ key: `${d.name}_total`, header: `${d.name} Total` }, { key: `${d.name}_fonct`, header: `${d.name} Fonct` }]),
+                    { key: 'national_total', header: 'National Total' },
+                    { key: 'national_fonct', header: 'National Fonct' },
+                  ]}
+                  data={equipRows.map(r => ({
+                    label: r.label,
+                    ...Object.fromEntries(districts.flatMap((d, i) => [[`${d.name}_total`, r.totals[i]], [`${d.name}_fonct`, r.foncts[i]]])),
+                    national_total: r.natTotal, national_fonct: r.natFonct,
+                  })) as Record<string, unknown>[]}
+                />
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-gray-50">
-                      <th className="text-left px-3 py-2 font-medium text-gray-500">Indicateur</th>
-                      <th className="text-right px-3 py-2 font-medium text-blue-600">{result.district1.name}</th>
-                      <th className="text-right px-3 py-2 font-medium text-orange-600">{result.district2.name}</th>
-                      <th className="text-right px-3 py-2 font-medium text-gray-400">National</th>
-                      <th className="px-3 py-2 font-medium text-gray-500 w-48">Comparaison</th>
+                      <th className="text-left px-3 py-2 font-medium text-gray-500">Equipement</th>
+                      {districts.map((d, i) => (
+                        <th key={d.name} className={`text-center px-2 py-2 font-medium ${DISTRICT_COLORS[i].text} ${DISTRICT_COLORS[i].header}`} colSpan={2}>
+                          {d.name}
+                        </th>
+                      ))}
+                      <th className="text-center px-2 py-2 font-medium text-gray-400" colSpan={2}>National</th>
+                    </tr>
+                    <tr className="border-b bg-gray-50">
+                      <th></th>
+                      {districts.map((d) => (
+                        <>{/* eslint-disable-next-line react/jsx-key */}
+                          <th key={`${d.name}-t`} className="text-right px-1 py-1 text-[10px] text-gray-400">Tot</th>
+                          <th key={`${d.name}-f`} className="text-right px-1 py-1 text-[10px] text-gray-400">Fonc</th>
+                        </>
+                      ))}
+                      <th className="text-right px-1 py-1 text-[10px] text-gray-400">Tot</th>
+                      <th className="text-right px-1 py-1 text-[10px] text-gray-400">Fonc</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {commoditesData.map((row) => {
-                      const v1 = (row as Record<string, unknown>)[result.district1.name] as number;
-                      const v2 = (row as Record<string, unknown>)[result.district2.name] as number;
-                      const nat = row.national as number;
-                      return (
-                        <tr key={row.name} className="border-b border-gray-100">
-                          <td className="px-3 py-1.5 text-gray-700">{row.name}</td>
-                          <td className="px-3 py-1.5 text-right font-medium">{v1.toFixed(1)}%</td>
-                          <td className="px-3 py-1.5 text-right font-medium">{v2.toFixed(1)}%</td>
-                          <td className="px-3 py-1.5 text-right text-gray-400">{nat.toFixed(1)}%</td>
-                          <td className="px-3 py-1.5">
-                            <div className="flex gap-0.5 items-center h-4">
-                              <div className="h-3 rounded-sm bg-blue-500" style={{ width: `${v1 * 0.45}%` }} />
-                              <div className="h-3 rounded-sm bg-orange-500" style={{ width: `${v2 * 0.45}%` }} />
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {equipRows.map((row) => (
+                      <tr key={row.label} className="border-b border-gray-100">
+                        <td className="px-3 py-1.5 text-gray-700">{row.label}</td>
+                        {row.totals.map((t, i) => (
+                          <>{/* eslint-disable-next-line react/jsx-key */}
+                            <td key={`${row.label}-${i}-t`} className={`text-right px-1 py-1.5 font-medium ${DISTRICT_COLORS[i].bg}`}>{t}</td>
+                            <td key={`${row.label}-${i}-f`} className={`text-right px-1 py-1.5 text-green-600 ${DISTRICT_COLORS[i].bg}`}>{row.foncts[i]}</td>
+                          </>
+                        ))}
+                        <td className="text-right px-1 py-1.5 text-gray-400">{row.natTotal}</td>
+                        <td className="text-right px-1 py-1.5 text-gray-400">{row.natFonct}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
             </div>
           )}
 
-          {/* RH comparison table */}
-          {result.district1.rh.length > 0 && (
+          {/* Commodites */}
+          {commoRows.length > 0 && (
             <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Ressources humaines — effectifs par profil</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-700">Commodites — % de structures</h3>
+                <ExportCSV
+                  filename="comparaison_commodites"
+                  columns={buildCsvColumns('Indicateur', districts.map(d => d.name))}
+                  data={commoRows.map(r => ({ label: r.label, ...Object.fromEntries(districts.map((d, i) => [d.name, r.values[i].toFixed(1) + '%'])), national: r.natVal.toFixed(1) + '%' })) as Record<string, unknown>[]}
+                />
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-gray-50">
-                      <th className="text-left px-3 py-2 font-medium text-gray-500">Profil</th>
-                      <th className="text-right px-3 py-2 font-medium text-blue-600">{result.district1.name}</th>
-                      <th className="text-right px-3 py-2 font-medium text-orange-600">{result.district2.name}</th>
-                      <th className="text-right px-3 py-2 font-medium text-gray-400">National</th>
-                    </tr>
-                  </thead>
+                  <thead>{districtHeaders('Indicateur')}</thead>
                   <tbody>
-                    {(() => {
-                      const allProfiles = new Set<string>();
-                      result.district1.rh.forEach(r => allProfiles.add(r.profil_code));
-                      result.district2.rh.forEach(r => allProfiles.add(r.profil_code));
-                      const d1Map = new Map(result.district1.rh.map(r => [r.profil_code, r]));
-                      const d2Map = new Map(result.district2.rh.map(r => [r.profil_code, r]));
-                      const natMap = new Map(result.national.rh.map(r => [r.profil_code, r]));
-                      return Array.from(allProfiles).map(code => {
-                        const r1 = d1Map.get(code);
-                        const r2 = d2Map.get(code);
-                        const rn = natMap.get(code);
-                        return (
-                          <tr key={code} className="border-b border-gray-100">
-                            <td className="px-3 py-2 text-gray-700">{r1?.label || r2?.label || code}</td>
-                            <td className="px-3 py-2 text-right font-medium">{r1?.effectif_total ?? 0}</td>
-                            <td className="px-3 py-2 text-right font-medium">{r2?.effectif_total ?? 0}</td>
-                            <td className="px-3 py-2 text-right text-gray-400">{rn?.effectif_total ?? 0}</td>
-                          </tr>
-                        );
-                      });
-                    })()}
+                    {commoRows.map((row) => (
+                      <tr key={row.label} className="border-b border-gray-100">
+                        <td className="px-3 py-1.5 text-gray-700">{row.label}</td>
+                        {row.values.map((v, i) => (
+                          <td key={i} className={`text-right px-3 py-1.5 font-medium ${DISTRICT_COLORS[i].bg}`}>{v.toFixed(1)}%</td>
+                        ))}
+                        <td className="text-right px-3 py-1.5 text-gray-400">{row.natVal.toFixed(1)}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* RH */}
+          {rhRows.length > 0 && (
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-700">Ressources humaines — effectifs par profil</h3>
+                <ExportCSV
+                  filename="comparaison_rh"
+                  columns={buildCsvColumns('Profil', districts.map(d => d.name))}
+                  data={rhRows.map(r => ({ label: r.label, ...Object.fromEntries(districts.map((d, i) => [d.name, r.values[i]])), national: r.natVal })) as Record<string, unknown>[]}
+                />
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>{districtHeaders('Profil')}</thead>
+                  <tbody>
+                    {rhRows.map((row) => (
+                      <tr key={row.label} className="border-b border-gray-100">
+                        <td className="px-3 py-1.5 text-gray-700">{row.label}</td>
+                        {row.values.map((v, i) => coloredCell(String(v), i))}
+                        <td className="text-right px-3 py-1.5 text-gray-400">{row.natVal}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -332,15 +433,15 @@ export default function Comparison() {
       )}
 
       <MethodNote title="Methodologie - Comparaison de districts">
-        <p>Cet outil permet de comparer deux districts cote a cote sur l'ensemble des indicateurs ISS.</p>
+        <p>Cet outil permet de comparer jusqu'a 4 districts cote a cote sur l'ensemble des indicateurs ISS.</p>
         <p><strong>Score qualite</strong> : moyenne des scores de toutes les structures du district (0-100, penalites : -15/erreur, -5/avertissement, -1/info).</p>
         <p><strong>Taux de rapportage</strong> : structures ayant soumis / structures attendues x 100.</p>
-        <p><strong>Med./structure</strong> : nombre total de medecins (generalistes + specialistes : chirurgiens, gynecologues, pediatres, anesthesistes, urgentistes, sante publique, autres) divise par le nombre de structures du district.</p>
+        <p><strong>Med./structure</strong> : nombre total de medecins (generalistes + specialistes) divise par le nombre de structures du district.</p>
         <p><strong>Services</strong> : nombre de structures disposant de chaque service (fonctionnel).</p>
         <p><strong>Equipements</strong> : nombres bruts total et fonctionnel par type d'equipement.</p>
         <p><strong>Commodites</strong> : pourcentage de structures disposant de chaque commodite (energie, eau).</p>
-        <p><strong>Ressources humaines</strong> : effectifs par profil et statut d'emploi (fonctionnaires, contractuels, benevoles).</p>
-        <p>La <strong>moyenne nationale</strong> est affichee comme reference.</p>
+        <p><strong>Ressources humaines</strong> : effectifs par profil et statut d'emploi.</p>
+        <p>La <strong>moyenne nationale</strong> est affichee comme reference dans la derniere colonne.</p>
       </MethodNote>
     </div>
   );
