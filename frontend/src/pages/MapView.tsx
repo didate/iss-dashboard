@@ -351,6 +351,81 @@ export default function MapView() {
     };
   }, [getFeatureValue, getColor]);
 
+  const buildPopupContent = useCallback((props: MapDistrictProperties): string => {
+    const pctColor = (v: number | null) => {
+      if (v === null) return '#9ca3af';
+      if (v >= 80) return '#16a34a';
+      if (v >= 50) return '#ca8a04';
+      return '#dc2626';
+    };
+    // Top 3 services with most structures
+    const topServices = Object.values(props.services || {})
+      .sort((a, b) => b.n_oui - a.n_oui)
+      .slice(0, 3);
+
+    // Top 3 services with least (gaps)
+    const gapServices = Object.values(props.services || {})
+      .filter(s => s.n_total > 0)
+      .sort((a, b) => a.pct_fonctionnel - b.pct_fonctionnel)
+      .slice(0, 3);
+
+    // Total equipment
+    let eqTotal = 0, eqFonct = 0;
+    for (const eq of Object.values(props.equipements || {})) {
+      eqTotal += eq.sum_total;
+      eqFonct += eq.sum_fonct;
+    }
+
+    const rapPct = props.rapportage_pct;
+    const washPct = props.wash_forage_ou_reseau_pct;
+    const rhRatio = props.rh_medecins_par_structure;
+
+    return `
+      <div style="min-width:260px;font-family:system-ui,sans-serif;">
+        <div style="font-size:14px;font-weight:700;margin-bottom:8px;border-bottom:2px solid #e5e7eb;padding-bottom:6px;">${props.district_name}</div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px 12px;margin-bottom:10px;">
+          <div>
+            <div style="font-size:10px;color:#6b7280;">Rapportage</div>
+            <div style="font-size:15px;font-weight:700;color:${pctColor(rapPct)};">${rapPct !== null ? rapPct.toFixed(0) + '%' : '-'}</div>
+            <div style="font-size:9px;color:#9ca3af;">${props.rapportage_reported}/${props.rapportage_expected}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:#6b7280;">WASH (forage/reseau)</div>
+            <div style="font-size:15px;font-weight:700;color:${pctColor(washPct)};">${washPct !== null ? washPct.toFixed(0) + '%' : '-'}</div>
+            <div style="font-size:9px;color:#9ca3af;">${props.wash_forage_ou_reseau_n}/${props.wash_total}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:#6b7280;">Medecins/structure</div>
+            <div style="font-size:15px;font-weight:700;color:${rhRatio !== null && rhRatio >= 1 ? '#16a34a' : rhRatio !== null && rhRatio >= 0.5 ? '#ca8a04' : '#dc2626'};">${rhRatio !== null ? rhRatio.toFixed(2) : '-'}</div>
+            <div style="font-size:9px;color:#9ca3af;">${props.rh_medecins_total} med, ${props.rh_n_structures} struct.</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;margin-bottom:6px;">
+          <div>
+            <div style="font-size:10px;color:#6b7280;">Equipements</div>
+            <div style="font-size:12px;font-weight:600;">${eqFonct} fonct. / ${eqTotal} total</div>
+          </div>
+        </div>
+
+        ${topServices.length > 0 ? `
+          <div style="margin-top:8px;border-top:1px solid #e5e7eb;padding-top:6px;">
+            <div style="font-size:10px;font-weight:600;color:#374151;margin-bottom:3px;">Top services disponibles</div>
+            ${topServices.map(s => `<div style="font-size:10px;color:#4b5563;">• ${s.service_label} <span style="font-weight:600;">${s.n_oui}</span></div>`).join('')}
+          </div>
+        ` : ''}
+
+        ${gapServices.length > 0 ? `
+          <div style="margin-top:6px;border-top:1px solid #e5e7eb;padding-top:6px;">
+            <div style="font-size:10px;font-weight:600;color:#991b1b;margin-bottom:3px;">Services les moins couverts</div>
+            ${gapServices.map(s => `<div style="font-size:10px;color:#4b5563;">• ${s.service_label} <span style="font-weight:600;color:#dc2626;">${s.pct_fonctionnel.toFixed(0)}%</span></div>`).join('')}
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }, []);
+
   const onEachFeature = useCallback((feature: Feature<Geometry, MapDistrictProperties>, layer: Layer) => {
     const props = feature.properties;
     const { display } = getFeatureValue(props);
@@ -359,6 +434,11 @@ export default function MapView() {
       `<strong>${props.district_name}</strong><br/>${display}`,
       { sticky: true, className: 'map-tooltip' }
     );
+
+    layer.bindPopup(buildPopupContent(props), {
+      maxWidth: 320,
+      className: 'map-popup-rich',
+    });
 
     layer.on({
       mouseover: (e) => {
@@ -468,7 +548,7 @@ export default function MapView() {
           <div
             ref={insetRef}
             className="absolute z-[1000] rounded-lg overflow-hidden border-2 border-gray-400 shadow-lg hidden sm:block"
-            style={{ width: '300px', height: '250px', top: '12px', right: '12px', cursor: 'move' }}
+            style={{ width: '300px', height: '250px', bottom: '12px', left: '12px', cursor: 'move' }}
             onMouseDown={(e) => {
               const el = insetRef.current;
               if (!el) return;
@@ -528,7 +608,7 @@ export default function MapView() {
         )}
 
         {/* Legend */}
-        <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-3 z-[1000]">
+        <div className="absolute bottom-4 right-4 bg-white rounded-lg shadow-lg p-3 z-[1000]">
           <h4 className="text-xs font-semibold mb-2 text-gray-700">
             {LAYERS.find(l => l.key === activeLayer)?.label}
           </h4>

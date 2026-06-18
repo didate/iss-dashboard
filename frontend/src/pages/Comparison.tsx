@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 import { api } from '../api/client';
 import type { CompareResult, Filters } from '../types';
 import MethodNote from '../components/MethodNote';
@@ -247,23 +246,44 @@ export default function Comparison() {
             </div>
           )}
 
-          {/* Commodites chart */}
+          {/* Commodites table */}
           {commoditesData.length > 0 && (
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <h3 className="text-sm font-semibold text-gray-700 mb-3">Commodites — % de structures</h3>
-              <ResponsiveContainer width="100%" height={Math.max(200, commoditesData.length * 35)}>
-                <BarChart data={commoditesData} layout="vertical" margin={{ left: 120 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" domain={[0, 100]} unit="%" />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={110} />
-                  <Tooltip formatter={(v: number) => `${v.toFixed(1)}%`} />
-                  <Legend />
-                  <ReferenceLine x={0} stroke="transparent" />
-                  <Bar dataKey={result.district1.name} fill="#3b82f6" />
-                  <Bar dataKey={result.district2.name} fill="#f97316" />
-                  <Bar dataKey="national" fill="#d1d5db" />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-gray-50">
+                      <th className="text-left px-3 py-2 font-medium text-gray-500">Indicateur</th>
+                      <th className="text-right px-3 py-2 font-medium text-blue-600">{result.district1.name}</th>
+                      <th className="text-right px-3 py-2 font-medium text-orange-600">{result.district2.name}</th>
+                      <th className="text-right px-3 py-2 font-medium text-gray-400">National</th>
+                      <th className="px-3 py-2 font-medium text-gray-500 w-48">Comparaison</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {commoditesData.map((row) => {
+                      const v1 = (row as Record<string, unknown>)[result.district1.name] as number;
+                      const v2 = (row as Record<string, unknown>)[result.district2.name] as number;
+                      const nat = row.national as number;
+                      return (
+                        <tr key={row.name} className="border-b border-gray-100">
+                          <td className="px-3 py-1.5 text-gray-700">{row.name}</td>
+                          <td className="px-3 py-1.5 text-right font-medium">{v1.toFixed(1)}%</td>
+                          <td className="px-3 py-1.5 text-right font-medium">{v2.toFixed(1)}%</td>
+                          <td className="px-3 py-1.5 text-right text-gray-400">{nat.toFixed(1)}%</td>
+                          <td className="px-3 py-1.5">
+                            <div className="flex gap-0.5 items-center h-4">
+                              <div className="h-3 rounded-sm bg-blue-500" style={{ width: `${v1 * 0.45}%` }} />
+                              <div className="h-3 rounded-sm bg-orange-500" style={{ width: `${v2 * 0.45}%` }} />
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
