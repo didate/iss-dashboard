@@ -210,6 +210,7 @@ export interface Filters {
   districts: string[];
   regions: string[];
   district_regions: Record<string, string>;
+  district_uids: Record<string, string>;
   rules: RuleInfo[];
   services: string[];
   statuts: string[];

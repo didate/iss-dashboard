@@ -682,6 +682,7 @@ type Filters struct {
 	Districts       []string            `json:"districts"`
 	Regions         []string            `json:"regions"`
 	DistrictRegions map[string]string   `json:"district_regions"`
+	DistrictUIDs    map[string]string   `json:"district_uids"`
 	Rules           []RuleInfo          `json:"rules"`
 	Services        []string            `json:"services"`
 	Statuts         []string            `json:"statuts"`
@@ -693,6 +694,19 @@ func (s *Store) GetFilters() (*Filters, error) {
 	f.Regions = s.distinctCol(`SELECT DISTINCT name FROM org_unit WHERE level=2 ORDER BY name`)
 	f.Services = s.distinctCol(`SELECT DISTINCT service_code FROM usage_service WHERE district='all' ORDER BY service_code`)
 	f.Statuts = []string{"publique", "privée"}
+
+	// District UID → Name mapping
+	f.DistrictUIDs = make(map[string]string)
+	uidRows, err := s.db.Query(`SELECT uid, name FROM org_unit WHERE level=3 ORDER BY name`)
+	if err == nil {
+		defer uidRows.Close()
+		for uidRows.Next() {
+			var uid, name string
+			if uidRows.Scan(&uid, &name) == nil {
+				f.DistrictUIDs[uid] = name
+			}
+		}
+	}
 
 	// District → Region mapping
 	f.DistrictRegions = make(map[string]string)

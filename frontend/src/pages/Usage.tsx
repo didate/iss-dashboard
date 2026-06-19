@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FileDown } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 import { api } from '../api/client';
@@ -32,6 +33,7 @@ const tabs = [
 ];
 
 export default function Usage() {
+  const navigate = useNavigate();
   const [tab, setTab] = useState('rapportage');
   const [district, setDistrict] = useState('');
   const [filters, setFilters] = useState<Filters | null>(null);
@@ -76,11 +78,14 @@ export default function Usage() {
 
         {district && (
           <button
-            onClick={() => api.exportDistrictPDF(district)}
+            onClick={() => {
+              const uid = filters?.district_uids ? Object.entries(filters.district_uids).find(([, name]) => name === district)?.[0] : null;
+              navigate(`/rapport/${uid || encodeURIComponent(district)}`);
+            }}
             className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700"
           >
             <FileDown size={16} />
-            PDF
+            Rapport PDF
           </button>
         )}
       </div>

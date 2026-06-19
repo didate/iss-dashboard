@@ -7,6 +7,7 @@ import Usage from './pages/Usage';
 import Structures from './pages/Structures';
 import StructureDetail from './pages/StructureDetail';
 import Comparison from './pages/Comparison';
+import DistrictReport from './pages/DistrictReport';
 import MapView from './pages/MapView';
 import Admin from './pages/Admin';
 import Login from './pages/Login';
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="/structures" element={<Structures />} />
         <Route path="/structure/:uid" element={<StructureDetail />} />
         <Route path="/comparaison" element={<Comparison />} />
+        <Route path="/rapport/:district" element={<DistrictReport />} />
         <Route path="/carte" element={<MapView />} />
         <Route path="/admin" element={
           isLoggedIn ? <Admin /> : <Navigate to="/login" />

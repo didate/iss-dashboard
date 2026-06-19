@@ -2,6 +2,7 @@ package quality
 
 import (
 	"fmt"
+	"strings"
 
 	"iss-dashboard-backend/internal/models"
 )
@@ -12,6 +13,10 @@ func CheckOutliers(event *models.Event, ctx *QualityContext) []models.Issue {
 	vals := event.Values()
 
 	for _, pair := range ctx.EquipPairs {
+		// Exclude beds (lits) — hospitals legitimately have high counts
+		if strings.Contains(pair.Root, "LIT") {
+			continue
+		}
 		stat, ok := ctx.Medians[pair.TotalUID]
 		if !ok {
 			continue
