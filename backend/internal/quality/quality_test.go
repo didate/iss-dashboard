@@ -234,26 +234,12 @@ func TestR4_WaterWithoutSource(t *testing.T) {
 // --- R5 Tests ---
 
 func TestR5_Outlier(t *testing.T) {
-	// Create many events with normal values, plus one outlier
-	var events []*models.Event
-	for i := 0; i < 20; i++ {
-		events = append(events, makeEvent("normal", map[string]string{
-			"totalA": "5",
-		}))
-	}
-	outlier := makeEvent("outlier", map[string]string{
-		"totalA": "500",
-	})
-	events = append(events, outlier)
-	// Fix UIDs to be unique for org unit counting
-	for i, e := range events {
-		e.OrgUnitUID = "ou_" + string(rune('A'+i))
-	}
-
-	ctx := buildTestContext(events)
+	// R5 is disabled (no-op) — verify it returns nothing
+	outlier := makeEvent("outlier", map[string]string{"totalA": "500"})
+	ctx := buildTestContext([]*models.Event{outlier})
 	issues := CheckOutliers(outlier, ctx)
-	if len(issues) == 0 {
-		t.Fatal("expected outlier to be flagged")
+	if len(issues) != 0 {
+		t.Fatalf("R5 is disabled, expected 0 issues, got %d", len(issues))
 	}
 }
 
