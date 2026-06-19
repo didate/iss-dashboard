@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
-import { RefreshCw, CheckCircle, XCircle, Clock, UserPlus, Trash2, Download } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { RefreshCw, CheckCircle, XCircle, Clock, UserPlus, Trash2, Download, FileDown } from 'lucide-react';
 import { api } from '../api/client';
 import { getToken } from '../api/auth';
 import type { SyncStatus } from '../types';
@@ -7,6 +8,7 @@ import type { SyncStatus } from '../types';
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
 export default function Admin() {
+  const navigate = useNavigate();
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState('');
@@ -110,7 +112,16 @@ export default function Admin() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <h2 className="text-xl font-bold text-gray-900">Administration</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-900">Administration</h2>
+        <button
+          onClick={() => navigate('/rapport-national')}
+          className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+        >
+          <FileDown size={16} />
+          Rapport National
+        </button>
+      </div>
 
       {/* Sync + Export */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
