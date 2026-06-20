@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
+	"time"
 
 	"iss-dashboard-backend/internal/store"
 
@@ -53,6 +55,51 @@ func CORS() gin.HandlerFunc {
 
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+		c.Next()
+	}
+}
+
+// LoginRateLimit limits login attempts per IP (max 5 per minute).
+func LoginRateLimit() gin.HandlerFunc {
+	type attempt struct {
+		count    int
+		resetAt  time.Time
+	}
+	var mu sync.Mutex
+	attempts := make(map[string]*attempt)
+
+	// Cleanup old entries every 5 minutes
+	go func() {
+		for {
+			time.Sleep(5 * time.Minute)
+			mu.Lock()
+			now := time.Now()
+			for ip, a := range attempts {
+				if now.After(a.resetAt) {
+					delete(attempts, ip)
+				}
+			}
+			mu.Unlock()
+		}
+	}()
+
+	return func(c *gin.Context) {
+		ip := c.ClientIP()
+		mu.Lock()
+		a, ok := attempts[ip]
+		if !ok || time.Now().After(a.resetAt) {
+			a = &attempt{count: 0, resetAt: time.Now().Add(1 * time.Minute)}
+			attempts[ip] = a
+		}
+		a.count++
+		count := a.count
+		mu.Unlock()
+
+		if count > 5 {
+			log.Printf("WARN: rate limit exceeded for login from IP %s", ip)
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": "trop de tentatives, reessayez dans 1 minute"})
 			return
 		}
 		c.Next()

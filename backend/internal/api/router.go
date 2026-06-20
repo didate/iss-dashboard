@@ -27,7 +27,7 @@ func SetupRouter(cfg *config.Config, st *store.Store, client *dhis2.Client) *gin
 
 	// Auth endpoints (public)
 	auth := &AuthHandlers{Store: st, JWTSecret: jwtSecret}
-	api.POST("/auth/login", auth.Login)
+	api.POST("/auth/login", LoginRateLimit(), auth.Login)
 
 	// Public/protected read endpoints
 	read := api.Group("")
