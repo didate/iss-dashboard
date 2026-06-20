@@ -100,6 +100,7 @@ func (s *Store) GetQualityIssues(p IssueListParams) (*IssueListResult, error) {
 		p.PageSize = 20
 	}
 
+	// SECURITY: only hardcoded conditions go in where[]. User values go in args[] as parameterized placeholders (?).
 	where := []string{"1=1"}
 	args := []any{}
 
@@ -241,6 +242,7 @@ func (s *Store) GetStructuresList(p StructureListParams) (*StructureListResult, 
 		p.PageSize = 20
 	}
 
+	// SECURITY: only hardcoded conditions go in where[]. User values go in args[] as parameterized placeholders (?).
 	where := []string{"1=1"}
 	args := []any{}
 

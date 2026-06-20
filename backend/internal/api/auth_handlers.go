@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -36,6 +37,7 @@ func (h *AuthHandlers) Login(c *gin.Context) {
 		return
 	}
 	if user == nil {
+		log.Printf("[AUDIT] Failed login attempt for user '%s' from IP %s", req.Username, c.ClientIP())
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "identifiants invalides"})
 		return
 	}
@@ -101,6 +103,7 @@ func (h *AuthHandlers) CreateUser(c *gin.Context) {
 		internalError(c, err)
 		return
 	}
+	log.Printf("[AUDIT] User created: %s (role: %s) by IP %s", req.Username, req.Role, c.ClientIP())
 	c.JSON(http.StatusCreated, user)
 }
 
@@ -114,6 +117,7 @@ func (h *AuthHandlers) DeleteUser(c *gin.Context) {
 		internalError(c, err)
 		return
 	}
+	log.Printf("[AUDIT] User deleted: id=%d by IP %s", id, c.ClientIP())
 	c.JSON(http.StatusOK, gin.H{"message": "utilisateur supprimé"})
 }
 

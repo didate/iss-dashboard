@@ -20,6 +20,7 @@ func New(dbPath string) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
+	// SQLite supports only one concurrent writer; 4 conns is reasonable for WAL mode (1 writer + 3 readers)
 	db.SetMaxOpenConns(4)
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("ping sqlite: %w", err)

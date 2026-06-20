@@ -37,6 +37,7 @@ func main() {
 
 	// Setup and start HTTP server
 	router := api.SetupRouter(cfg, st, client)
+	router.MaxMultipartMemory = 8 << 20 // 8 MB max request body
 
 	log.Printf("[INIT] Starting server on :%s", cfg.Port)
 	go func() {

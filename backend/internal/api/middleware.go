@@ -114,10 +114,14 @@ func internalError(c *gin.Context, err error) {
 
 // SecurityHeaders adds common security headers.
 func SecurityHeaders() gin.HandlerFunc {
+	isProduction := os.Getenv("GIN_MODE") == "release" || os.Getenv("ENV") == "production"
 	return func(c *gin.Context) {
 		c.Header("X-Content-Type-Options", "nosniff")
 		c.Header("X-Frame-Options", "DENY")
 		c.Header("X-XSS-Protection", "1; mode=block")
+		if isProduction {
+			c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		}
 		c.Next()
 	}
 }

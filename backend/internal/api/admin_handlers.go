@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log"
 	"net/http"
 
 	"iss-dashboard-backend/internal/dhis2"
@@ -20,6 +21,8 @@ func (h *AdminHandlers) TriggerSync(c *gin.Context) {
 		c.JSON(http.StatusConflict, gin.H{"error": "sync already in progress"})
 		return
 	}
+
+	log.Printf("[AUDIT] Sync triggered by user from IP %s", c.ClientIP())
 
 	// Run sync in background
 	go func() {

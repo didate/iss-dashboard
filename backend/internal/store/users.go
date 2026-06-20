@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"log"
 	"time"
 
 	"iss-dashboard-backend/internal/models"
@@ -97,7 +98,23 @@ func (s *Store) EnsureDefaultAdmin(adminToken string) {
 	}
 	password := adminToken
 	if password == "" {
-		password = "admin"
+		password = generateRandomPassword(16)
+		log.Printf("[INIT] ============================================")
+		log.Printf("[INIT] Default admin user created")
+		log.Printf("[INIT] Username: admin")
+		log.Printf("[INIT] Password: %s", password)
+		log.Printf("[INIT] CHANGE THIS PASSWORD IMMEDIATELY")
+		log.Printf("[INIT] ============================================")
 	}
 	s.CreateUser("admin", password, "Administrateur", "admin")
+}
+
+func generateRandomPassword(length int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$"
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[time.Now().UnixNano()%int64(len(charset))]
+		time.Sleep(time.Nanosecond)
+	}
+	return string(b)
 }
