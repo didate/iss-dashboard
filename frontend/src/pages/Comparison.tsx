@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useUrlStateList } from '../hooks/useUrlState';
 import { api } from '../api/client';
 import type { CompareResult, CompareDistrictData, Filters } from '../types';
 import ExportCSV from '../components/ExportCSV';
@@ -99,7 +100,7 @@ function buildCsvColumns(label: string, districtNames: string[]) {
 
 export default function Comparison() {
   const [filters, setFilters] = useState<Filters | null>(null);
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selected, setSelected] = useUrlStateList('districts');
   const [result, setResult] = useState<CompareResult | null>(null);
   const [loading, setLoading] = useState(false);
 

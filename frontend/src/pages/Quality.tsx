@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '../api/client';
 import type { IssueListResult, IssueListItem, EventDetail, Filters } from '../types';
+import { useUrlState, useUrlStateInt } from '../hooks/useUrlState';
 import SeverityBadge from '../components/SeverityBadge';
 import ScoreBar from '../components/ScoreBar';
 import ExportCSV from '../components/ExportCSV';
@@ -12,12 +13,12 @@ export default function Quality() {
   const [detail, setDetail] = useState<EventDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Filter state
-  const [severity, setSeverity] = useState('');
-  const [rule, setRule] = useState('');
-  const [district, setDistrict] = useState('');
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
+  // Filter state synced with URL
+  const [severity, setSeverity] = useUrlState('severity');
+  const [rule, setRule] = useUrlState('rule');
+  const [district, setDistrict] = useUrlState('district');
+  const [search, setSearch] = useUrlState('search');
+  const [page, setPage] = useUrlStateInt('page', 1);
 
   const fetchData = useCallback(() => {
     setLoading(true);

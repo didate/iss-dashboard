@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileDown } from 'lucide-react';
+import { useUrlState } from '../hooks/useUrlState';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 import { api } from '../api/client';
 import type {
@@ -34,8 +35,8 @@ const tabs = [
 
 export default function Usage() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState('rapportage');
-  const [district, setDistrict] = useState('');
+  const [tab, setTab] = useUrlState('tab', 'rapportage');
+  const [district, setDistrict] = useUrlState('district');
   const [filters, setFilters] = useState<Filters | null>(null);
 
   useEffect(() => {
@@ -108,8 +109,8 @@ export default function Usage() {
 // ==================== RAPPORTAGE ====================
 
 function RapportageTab({ filters }: { filters: Filters | null }) {
-  const [by, setBy] = useState('district');
-  const [regionFilter, setRegionFilter] = useState('');
+  const [by, setBy] = useUrlState('by', 'district');
+  const [regionFilter, setRegionFilter] = useUrlState('region');
   const [data, setData] = useState<ReportingRate[]>([]);
   const [globalRate, setGlobalRate] = useState<ReportingRate | null>(null);
 
@@ -216,7 +217,7 @@ function RapportageTab({ filters }: { filters: Filters | null }) {
 // ==================== RECENSEMENT ====================
 
 function RecensementTab() {
-  const [by, setBy] = useState('district');
+  const [by, setBy] = useUrlState('by', 'district');
   const [data, setData] = useState<UsageRecensement[]>([]);
 
   useEffect(() => {
@@ -421,7 +422,7 @@ function MatriceTab() {
 // ==================== EQUIPEMENTS ====================
 
 function EquipementsTab({ district }: { district: string }) {
-  const [focus, setFocus] = useState('all');
+  const [focus, setFocus] = useUrlState('focus', 'all');
   const [data, setData] = useState<UsageEquipement[]>([]);
 
   useEffect(() => {

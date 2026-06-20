@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import type { StructureListResult, Filters } from '../types';
+import { useUrlState, useUrlStateInt } from '../hooks/useUrlState';
 import ScoreBar from '../components/ScoreBar';
 import SeverityBadge from '../components/SeverityBadge';
 
@@ -11,9 +12,9 @@ export default function Structures() {
   const [filters, setFilters] = useState<Filters | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [district, setDistrict] = useState('');
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
+  const [district, setDistrict] = useUrlState('district');
+  const [search, setSearch] = useUrlState('search');
+  const [page, setPage] = useUrlStateInt('page', 1);
 
   useEffect(() => {
     api.getFilters().then(setFilters).catch(console.error);

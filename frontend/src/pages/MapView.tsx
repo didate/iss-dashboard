@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useUrlState } from '../hooks/useUrlState';
 import { MapContainer, GeoJSON, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import type { Layer, PathOptions } from 'leaflet';
@@ -241,9 +242,10 @@ export default function MapView() {
   const [data, setData] = useState<MapDistrictCollection | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeLayer, setActiveLayer] = useState<LayerKey>('rapportage');
-  const [selectedService, setSelectedService] = useState('');
-  const [selectedEquipCategory, setSelectedEquipCategory] = useState('');
+  const [activeLayerStr, setActiveLayer] = useUrlState('layer', 'rapportage');
+  const activeLayer = activeLayerStr as LayerKey;
+  const [selectedService, setSelectedService] = useUrlState('service');
+  const [selectedEquipCategory, setSelectedEquipCategory] = useUrlState('category');
   const geoJsonRef = useRef<L.GeoJSON | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const insetRef = useRef<HTMLDivElement | null>(null);
