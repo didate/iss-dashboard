@@ -5,3 +5,4 @@ dist/
 *.xlsx
 backend/tmp/
 backend/data/
+.claude/output/
