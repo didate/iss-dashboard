@@ -1,6 +1,10 @@
 package api
 
 import (
+	"fmt"
+	"log"
+	"time"
+
 	"iss-dashboard-backend/internal/config"
 	"iss-dashboard-backend/internal/dhis2"
 	"iss-dashboard-backend/internal/store"
@@ -11,11 +15,12 @@ import (
 func SetupRouter(cfg *config.Config, st *store.Store, client *dhis2.Client) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
-	r.Use(gin.Logger(), gin.Recovery(), CORS())
+	r.Use(gin.Logger(), gin.Recovery(), CORS(), SecurityHeaders())
 
 	jwtSecret := cfg.AdminToken
 	if jwtSecret == "" {
-		jwtSecret = "iss-dashboard-secret"
+		log.Println("WARN: ADMIN_TOKEN not set, using insecure default JWT secret")
+		jwtSecret = "iss-dashboard-change-me-" + fmt.Sprintf("%d", time.Now().UnixNano())
 	}
 
 	api := r.Group("/iss/api")

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -69,7 +70,7 @@ func (h *AuthHandlers) GetMe(c *gin.Context) {
 func (h *AuthHandlers) ListUsers(c *gin.Context) {
 	users, err := h.Store.ListUsers()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, users)
@@ -97,7 +98,7 @@ func (h *AuthHandlers) CreateUser(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": "nom d'utilisateur déjà pris"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 	c.JSON(http.StatusCreated, user)
@@ -110,7 +111,7 @@ func (h *AuthHandlers) DeleteUser(c *gin.Context) {
 		return
 	}
 	if err := h.Store.DeleteUser(id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "utilisateur supprimé"})
@@ -127,6 +128,9 @@ func JWTAuth(jwtSecret string, st *store.Store) gin.HandlerFunc {
 		tokenStr := strings.TrimPrefix(auth, "Bearer ")
 
 		token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+			}
 			return []byte(jwtSecret), nil
 		})
 		if err != nil || !token.Valid {
@@ -140,7 +144,12 @@ func JWTAuth(jwtSecret string, st *store.Store) gin.HandlerFunc {
 			return
 		}
 
-		userID := int64(claims["user_id"].(float64))
+		userIDFloat, ok2 := claims["user_id"].(float64)
+		if !ok2 {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token invalide"})
+			return
+		}
+		userID := int64(userIDFloat)
 		user, err := st.GetUserByID(userID)
 		if err != nil {
 			// DB busy (e.g. during sync) — return 503 not 401

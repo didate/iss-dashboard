@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"net/http"
 	"strconv"
 	"time"
 
@@ -25,7 +24,7 @@ func (h *ExportHandlers) ExportExcel(c *gin.Context) {
 	}
 	deRows, err := db.Query("SELECT de_uid, COALESCE(code,''), COALESCE(NULLIF(form_name,''), name) FROM metadata_de ORDER BY section_prefix, COALESCE(NULLIF(form_name,''), name)")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 	defer deRows.Close()
@@ -42,7 +41,7 @@ func (h *ExportHandlers) ExportExcel(c *gin.Context) {
 	// Fetch events
 	events, err := db.Query("SELECT event_uid, org_unit_uid, org_unit_name, district, region, event_date, status FROM event ORDER BY region, district, org_unit_name")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 	defer events.Close()
@@ -60,7 +59,7 @@ func (h *ExportHandlers) ExportExcel(c *gin.Context) {
 	// Fetch all values
 	valRows, err := db.Query("SELECT event_uid, de_uid, value FROM event_value")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 	defer valRows.Close()
@@ -78,7 +77,7 @@ func (h *ExportHandlers) ExportExcel(c *gin.Context) {
 	// Fetch quality scores
 	scoreRows, err := db.Query("SELECT event_uid, score, n_error, n_warning, n_info FROM event_quality")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 	defer scoreRows.Close()

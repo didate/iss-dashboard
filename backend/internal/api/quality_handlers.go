@@ -13,7 +13,7 @@ func (h *ReadHandlers) GetQualitySummary(c *gin.Context) {
 	by := c.DefaultQuery("by", "global")
 	rows, err := h.Store.GetQualitySummary(by)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, rows)
@@ -34,7 +34,7 @@ func (h *ReadHandlers) GetQualityIssues(c *gin.Context) {
 
 	result, err := h.Store.GetQualityIssues(params)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, result)
@@ -44,7 +44,7 @@ func (h *ReadHandlers) GetEventDetail(c *gin.Context) {
 	uid := c.Param("uid")
 	detail, err := h.Store.GetEventDetail(uid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 	if detail == nil {

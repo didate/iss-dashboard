@@ -9,7 +9,7 @@ import (
 func (h *ReadHandlers) GetSummary(c *gin.Context) {
 	summary, err := h.Store.GetSummary()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, summary)

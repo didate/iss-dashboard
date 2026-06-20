@@ -133,7 +133,7 @@ func (h *PDFHandlers) ExportDistrictPDF(c *gin.Context) {
 	c.Header("Content-Type", "application/pdf")
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
 	if err := pdf.Output(c.Writer); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 	}
 }
 
@@ -141,7 +141,7 @@ func (h *PDFHandlers) ExportStructurePDF(c *gin.Context) {
 	uid := c.Param("uid")
 	detail, err := h.Store.GetEventDetail(uid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 		return
 	}
 	if detail == nil {
@@ -259,7 +259,7 @@ func (h *PDFHandlers) ExportStructurePDF(c *gin.Context) {
 	c.Header("Content-Type", "application/pdf")
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
 	if err := pdf.Output(c.Writer); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		internalError(c, err)
 	}
 }
 
