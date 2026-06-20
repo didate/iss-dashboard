@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { ArrowLeft, Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -438,23 +438,34 @@ export default function NationalReport() {
             { label: 'Glacieres', filter: (e: UsageEquipement) => e.equip_root?.includes('GLACIERE'), color: '#ef4444' },
             { label: 'Congelateurs', filter: (e: UsageEquipement) => e.equip_root?.includes('CONGELATEUR'), color: '#06b6d4' },
           ];
-          return categories.map(cat => {
-            const chartData = equipAvgByRegion(cat.filter).filter(d => d.avg > 0 || true);
-            return (
-              <div key={cat.label} data-pdf-section style={{ marginTop: '24px' }}>
-                <SubTitle>Nombre moyen de {cat.label.toLowerCase()} par structure par region</SubTitle>
-                <ResponsiveContainer width="100%" height={Math.max(180, chartData.length * 28)}>
-                  <BarChart data={chartData} layout="vertical" margin={{ left: 100 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" tick={{ fontSize: 8 }} />
-                    <YAxis type="category" dataKey="name" tick={{ fontSize: 8 }} width={90} />
-                    <Tooltip formatter={(v: number) => v.toFixed(2)} />
-                    <Bar dataKey="avg" name={cat.label} fill={cat.color} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            );
-          });
+          // Render in pairs (2 per row)
+          const pairs: typeof categories[] = [];
+          for (let i = 0; i < categories.length; i += 2) {
+            pairs.push(categories.slice(i, i + 2));
+          }
+          return pairs.map((pair, pi) => (
+            <div key={pi} data-pdf-section style={{ display: 'grid', gridTemplateColumns: `repeat(${pair.length}, 1fr)`, gap: '12px', marginTop: pi === 0 ? '12px' : '16px' }}>
+              {pair.map(cat => {
+                const chartData = equipAvgByRegion(cat.filter);
+                return (
+                  <div key={cat.label}>
+                    <div style={{ textAlign: 'center', fontSize: '10px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>
+                      Nombre moyen de {cat.label.toLowerCase()} par structure
+                    </div>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={chartData} margin={{ top: 5, right: 5, bottom: 40, left: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" tick={{ fontSize: 7 }} angle={-45} textAnchor="end" height={50} interval={0} />
+                        <YAxis tick={{ fontSize: 7 }} width={30} />
+                        <Tooltip formatter={(v: number) => v.toFixed(2)} />
+                        <Bar dataKey="avg" name={cat.label} fill={cat.color} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                );
+              })}
+            </div>
+          ));
         })()}
 
         <div data-pdf-section style={{ marginTop: '24px' }}>
@@ -477,32 +488,92 @@ export default function NationalReport() {
             </div>
           )}
 
-          <SubTitle>Nombre moyen par structure par region</SubTitle>
+          {/* Graphes verticaux 2x2 — moyenne par structure par region */}
           {(() => {
             const profiles = [
-              { label: 'Medecins', filter: (r: UsageRH) => r.profil_code?.includes('MED') },
-              { label: 'Infirmiers', filter: (r: UsageRH) => r.profil_code?.includes('INFIRMIER') },
-              { label: 'Sages-femmes', filter: (r: UsageRH) => r.profil_code?.includes('SAGE') },
-              { label: 'ATS', filter: (r: UsageRH) => r.profil_code?.includes('ATS') || r.profil_code?.includes('AGENT_TECH') },
-              { label: 'Pharmaciens', filter: (r: UsageRH) => r.profil_code?.includes('PHARMA') },
+              { label: 'Medecins', filter: (r: UsageRH) => r.profil_code?.includes('MED'), color: '#3b82f6' },
+              { label: 'Infirmiers', filter: (r: UsageRH) => r.profil_code?.includes('_INF'), color: '#f97316' },
+              { label: 'Sages-femmes', filter: (r: UsageRH) => r.profil_code?.includes('SAGEF'), color: '#10b981' },
+              { label: 'Pharmaciens', filter: (r: UsageRH) => r.profil_code?.includes('PHARM'), color: '#8b5cf6' },
             ];
-            const rows = regions.map(r => {
-              const cols = [r];
-              for (const p of profiles) {
-                const data = rhAvgByRegion(p.filter);
-                const found = data.find(d => d.name === r);
-                cols.push(found ? found.avg.toFixed(2) : '0');
-              }
-              return cols;
-            });
+            const pairs: typeof profiles[] = [];
+            for (let i = 0; i < profiles.length; i += 2) {
+              pairs.push(profiles.slice(i, i + 2));
+            }
+            return pairs.map((pair, pi) => (
+              <div key={pi} style={{ display: 'grid', gridTemplateColumns: `repeat(${pair.length}, 1fr)`, gap: '12px', marginTop: pi === 0 ? '8px' : '16px' }}>
+                {pair.map(p => {
+                  const chartData = rhAvgByRegion(p.filter);
+                  return (
+                    <div key={p.label}>
+                      <div style={{ textAlign: 'center', fontSize: '10px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>
+                        Nombre moyen de {p.label.toLowerCase()} par structure
+                      </div>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <BarChart data={chartData} margin={{ top: 5, right: 5, bottom: 40, left: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" tick={{ fontSize: 7 }} angle={-45} textAnchor="end" height={50} interval={0} />
+                          <YAxis tick={{ fontSize: 7 }} width={30} />
+                          <Tooltip formatter={(v: number) => v.toFixed(2)} />
+                          <Bar dataKey="avg" name={p.label} fill={p.color} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  );
+                })}
+              </div>
+            ));
+          })()}
+        </div>
+
+        {/* Repartition par statut d'emploi par region */}
+        <div data-pdf-section style={{ marginTop: '24px' }}>
+          <SubTitle>Repartition par statut d'emploi par region</SubTitle>
+          {(() => {
+            // Aggregate fonc/contr/benev by region
+            const regionStatut: Record<string, { fonc: number; contr: number; benev: number; total: number }> = {};
+            for (const r of rhAll) {
+              const region = districtRegions[r.district] || 'Inconnu';
+              if (!regionStatut[region]) regionStatut[region] = { fonc: 0, contr: 0, benev: 0, total: 0 };
+              regionStatut[region].fonc += r.effectif_fonc;
+              regionStatut[region].contr += r.effectif_contr;
+              regionStatut[region].benev += r.effectif_benev;
+              regionStatut[region].total += r.effectif_total;
+            }
+            const chartData = regions.map(r => ({
+              name: r,
+              Fonctionnaires: regionStatut[r]?.fonc ?? 0,
+              Contractuels: regionStatut[r]?.contr ?? 0,
+              Benevoles: regionStatut[r]?.benev ?? 0,
+            }));
             return (
-              <ReportTable
-                headers={['Region', ...profiles.map(p => p.label)]}
-                rows={rows}
-              />
+              <>
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={chartData} margin={{ top: 5, right: 10, bottom: 40, left: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" tick={{ fontSize: 7 }} angle={-45} textAnchor="end" height={50} interval={0} />
+                    <YAxis tick={{ fontSize: 7 }} width={35} />
+                    <Tooltip />
+                    <Legend wrapperStyle={{ fontSize: '9px' }} />
+                    <Bar dataKey="Fonctionnaires" stackId="a" fill="#3b82f6" />
+                    <Bar dataKey="Contractuels" stackId="a" fill="#f59e0b" />
+                    <Bar dataKey="Benevoles" stackId="a" fill="#22c55e" />
+                  </BarChart>
+                </ResponsiveContainer>
+                <ReportTable
+                  headers={['Region', 'Fonctionnaires', 'Contractuels', 'Benevoles', 'Total']}
+                  rows={regions.map(r => {
+                    const s = regionStatut[r] || { fonc: 0, contr: 0, benev: 0, total: 0 };
+                    return [r, String(s.fonc), String(s.contr), String(s.benev), String(s.total)];
+                  })}
+                />
+              </>
             );
           })()}
+        </div>
 
+        {/* Effectifs nationaux par profil */}
+        <div data-pdf-section style={{ marginTop: '24px' }}>
           <SubTitle>Effectifs nationaux par profil</SubTitle>
           <ReportTable
             headers={['Profil', 'Fonctionnaires', 'Contractuels', 'Benevoles', 'Total']}
@@ -513,9 +584,31 @@ export default function NationalReport() {
         {/* 7. Services offerts */}
         <div data-pdf-section style={{ marginTop: '24px' }}>
           <SectionTitle>6. Services offerts</SectionTitle>
+
+          {/* Top 15 chart */}
+          {nonLabServices.length > 0 && (
+            <>
+              <SubTitle>Top 15 services les plus disponibles</SubTitle>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart
+                  data={[...nonLabServices].sort((a, b) => b.n_oui - a.n_oui).slice(0, 15)}
+                  margin={{ top: 5, right: 10, bottom: 60, left: 10 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="service_label" tick={{ fontSize: 7 }} angle={-45} textAnchor="end" height={70} interval={0} />
+                  <YAxis tick={{ fontSize: 8 }} width={35} />
+                  <Tooltip />
+                  <Bar dataKey="n_oui" name="Structures" fill="#3b82f6" />
+                </BarChart>
+              </ResponsiveContainer>
+            </>
+          )}
+
+          {/* Full table */}
+          <SubTitle>Liste complete des services</SubTitle>
           <ReportTable
             headers={['Service', 'Nombre de structures']}
-            rows={nonLabServices.map(s => [s.service_label, String(s.n_oui)])}
+            rows={[...nonLabServices].sort((a, b) => b.n_oui - a.n_oui).map(s => [s.service_label, String(s.n_oui)])}
           />
         </div>
 
