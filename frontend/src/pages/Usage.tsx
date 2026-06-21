@@ -236,10 +236,10 @@ function RecensementTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
-          {['district', 'region', 'statut_juridique'].map((v) => (
+          {['district', 'region', 'statut_structure', 'statut_juridique'].map((v) => (
             <button key={v} onClick={() => setBy(v)}
               className={`px-2 py-1 text-xs rounded ${by === v ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600'}`}>
-              {v === 'statut_juridique' ? 'Statut juridique' : v.charAt(0).toUpperCase() + v.slice(1)}
+              {v === 'statut_juridique' ? 'Statut juridique' : v === 'statut_structure' ? 'Public/Privé' : v.charAt(0).toUpperCase() + v.slice(1)}
             </button>
           ))}
         </div>

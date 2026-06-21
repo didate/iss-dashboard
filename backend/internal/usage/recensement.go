@@ -58,8 +58,13 @@ func ComputeRecensement(events []*models.Event, ctx *quality.QualityContext) []m
 			inc(ensure("region", evt.Region))
 		}
 
-		// Statut juridique
+		// Statut de la structure (niveau 1 : publique/privée)
 		statutStruct := quality.GetEventValue(evt, structUID)
+		if statutStruct != "" {
+			inc(ensure("statut_structure", statutStruct))
+		}
+
+		// Statut juridique (niveau 2 : sous-type)
 		var juridique string
 		if statutStruct == "publique" {
 			juridique = quality.GetEventValue(evt, pubUID)
@@ -68,8 +73,8 @@ func ComputeRecensement(events []*models.Event, ctx *quality.QualityContext) []m
 			}
 		} else if statutStruct == "privée" {
 			juridique = quality.GetEventValue(evt, privUID)
-			if juridique == "" {
-				juridique = "privée"
+			if juridique == "" || juridique == "privélucratif" {
+				juridique = "Privé"
 			}
 		}
 		if juridique != "" {
