@@ -112,7 +112,7 @@ export default function DistrictReport() {
   const rhPieData = rhSummary ? [
     { name: 'Fonctionnaires', value: rhSummary.total_fonc, fill: '#3b82f6' },
     { name: 'Contractuels', value: rhSummary.total_contr, fill: '#f59e0b' },
-    { name: 'Benevoles', value: rhSummary.total_benev, fill: '#22c55e' },
+    { name: 'Bénévoles', value: rhSummary.total_benev, fill: '#22c55e' },
   ].filter(d => d.value > 0) : [];
 
   const pctColor = (v: number) => v >= 80 ? '#16a34a' : v >= 50 ? '#ca8a04' : '#dc2626';
@@ -141,7 +141,7 @@ export default function DistrictReport() {
           className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm font-medium"
         >
           <Download size={16} />
-          {exporting ? 'Generation...' : 'Telecharger PDF'}
+          {exporting ? 'Génération...' : 'Télécharger PDF'}
         </button>
       </div>
 
@@ -158,13 +158,13 @@ export default function DistrictReport() {
               </div>
               <div style={{ textAlign: 'right', fontSize: '11px', color: '#6b7280' }}>
                 <div>Informations des Structures Sanitaires</div>
-                <div>Genere le {new Date().toLocaleDateString('fr-FR')}</div>
+                <div>Généré le {new Date().toLocaleDateString('fr-FR')}</div>
               </div>
             </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '12px', marginBottom: '24px' }}>
-            <KpiBox label="Score qualite" value={qualitySummary ? qualitySummary.avg_score.toFixed(1) : '-'} color={pctColor(qualitySummary?.avg_score ?? 0)} sub={`${qualitySummary?.n_structures ?? 0} structures`} />
+            <KpiBox label="Score qualité" value={qualitySummary ? qualitySummary.avg_score.toFixed(1) : '-'} color={pctColor(qualitySummary?.avg_score ?? 0)} sub={`${qualitySummary?.n_structures ?? 0} structures`} />
             <KpiBox label="Rapportage" value={reporting ? `${reporting.pct.toFixed(1)}%` : '-'} color={pctColor(reporting?.pct ?? 0)} sub={`${reporting?.n_reported ?? 0} / ${reporting?.n_expected ?? 0}`} />
             <KpiBox label="Effectif RH" value={String(rhSummary?.total_effectif ?? 0)} color="#1e3a5f" sub={`${rhSummary?.ratio_med_per_structure?.toFixed(2) ?? '-'} med/struct`} />
             <KpiBox label="Structures" value={String(qualitySummary?.n_structures ?? 0)} color="#1e3a5f" sub={`${qualitySummary?.n_error ?? 0} err, ${qualitySummary?.n_warning ?? 0} avert.`} />
@@ -207,11 +207,11 @@ export default function DistrictReport() {
             </div>
 
             <div>
-              <SectionTitle>Commodites (WASH / Energie)</SectionTitle>
+              <SectionTitle>Commodités (WASH / Énergie)</SectionTitle>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 {mainCommodites.map(c => (
                   <div key={c.indicator} style={{ background: '#f9fafb', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '10px', color: '#6b7280' }}>{c.indicator === 'energie' ? 'Energie' : 'Eau pts critiques'}</div>
+                    <div style={{ fontSize: '10px', color: '#6b7280' }}>{c.indicator === 'energie' ? 'Énergie' : 'Eau pts critiques'}</div>
                     <div style={{ fontSize: '22px', fontWeight: 700, color: pctColor(c.pct) }}>{c.pct.toFixed(0)}%</div>
                     <div style={{ fontSize: '9px', color: '#9ca3af' }}>{c.n_oui}/{c.n_total}</div>
                   </div>
@@ -244,7 +244,7 @@ export default function DistrictReport() {
                 <XAxis type="number" domain={[0, 100]} unit="%" tick={{ fontSize: 9 }} />
                 <YAxis type="category" dataKey="service_label" tick={{ fontSize: 9 }} width={130} />
                 <Tooltip formatter={(v: number) => `${v.toFixed(1)}%`} />
-                <Bar dataKey="pct" name="% disponibilite">
+                <Bar dataKey="pct" name="% disponibilité">
                   {plateau.map((d, i) => (
                     <Cell key={i} fill={d.pct >= 75 ? '#22c55e' : d.pct >= 50 ? '#eab308' : d.pct >= 25 ? '#f97316' : '#ef4444'} />
                   ))}
@@ -268,9 +268,9 @@ export default function DistrictReport() {
         {/* Section: Equipements */}
         {equipements.length > 0 && (
           <div data-pdf-section style={{ marginBottom: '24px' }}>
-            <SectionTitle>Equipements</SectionTitle>
+            <SectionTitle>Équipements</SectionTitle>
             <ReportTable
-              headers={['Equipement', 'Total', 'Fonctionnel', '%']}
+              headers={['Équipement', 'Total', 'Fonctionnel', '%']}
               rows={equipements.map(e => [e.label, String(e.sum_total), String(e.sum_fonct), `${e.pct_fonct.toFixed(1)}%`])}
             />
           </div>
@@ -295,7 +295,7 @@ export default function DistrictReport() {
                 </ResponsiveContainer>
               )}
               <ReportTable
-                headers={['Profil', 'Fonc.', 'Contr.', 'Benev.', 'Total']}
+                headers={['Profil', 'Fonc.', 'Contr.', 'Bénév.', 'Total']}
                 rows={rh.map(r => [r.label, String(r.effectif_fonc), String(r.effectif_contr), String(r.effectif_benev), String(r.effectif_total)])}
               />
             </div>
@@ -305,7 +305,7 @@ export default function DistrictReport() {
         {/* Section: Issues */}
         {issues && issues.data.length > 0 && (
           <div data-pdf-section style={{ marginBottom: '24px' }}>
-            <SectionTitle>Problemes qualite ({issues.total} structures)</SectionTitle>
+            <SectionTitle>Problèmes qualité ({issues.total} structures)</SectionTitle>
             <ReportTable
               headers={['Structure', 'Severite', 'Score', 'E/W/I']}
               rows={issues.data.map(item => [

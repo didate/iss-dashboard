@@ -12,11 +12,11 @@ type LayerKey = 'rapportage' | 'qualite' | 'services' | 'equipements' | 'wash' |
 
 const LAYERS: { key: LayerKey; label: string }[] = [
   { key: 'rapportage', label: 'Taux de rapportage' },
-  { key: 'qualite', label: 'Score qualite' },
+  { key: 'qualite', label: 'Score qualité' },
   { key: 'services', label: 'Couverture services' },
-  { key: 'equipements', label: 'Equipements' },
-  { key: 'wash', label: 'WASH (Forage/Reseau)' },
-  { key: 'rh', label: 'Densite RH' },
+  { key: 'equipements', label: 'Équipements' },
+  { key: 'wash', label: 'WASH (Forage/Réseau)' },
+  { key: 'rh', label: 'Densité RH' },
 ];
 
 function getColorPct(value: number | null): string {
@@ -75,7 +75,7 @@ function getLegendItems(layer: LayerKey, breaks?: number[]): LegendItem[] {
       { color: '#f97316', label: '30-50%' },
       { color: '#eab308', label: '50-80%' },
       { color: '#22c55e', label: '> 80%' },
-      { color: '#d1d5db', label: 'Pas de donnees' },
+      { color: '#d1d5db', label: 'Pas de données' },
     ];
   }
   if (layer === 'qualite') {
@@ -84,7 +84,7 @@ function getLegendItems(layer: LayerKey, breaks?: number[]): LegendItem[] {
       { color: '#f97316', label: '50-65' },
       { color: '#eab308', label: '65-80' },
       { color: '#22c55e', label: '> 80' },
-      { color: '#d1d5db', label: 'Pas de donnees' },
+      { color: '#d1d5db', label: 'Pas de données' },
     ];
   }
   if (layer === 'rh') {
@@ -93,7 +93,7 @@ function getLegendItems(layer: LayerKey, breaks?: number[]): LegendItem[] {
       { color: '#f97316', label: '0.2 - 0.5' },
       { color: '#eab308', label: '0.5 - 1' },
       { color: '#22c55e', label: '> 1' },
-      { color: '#d1d5db', label: 'Pas de donnees' },
+      { color: '#d1d5db', label: 'Pas de données' },
     ];
   }
   if ((layer === 'equipements' || layer === 'services') && breaks && breaks.length > 0) {
@@ -104,10 +104,10 @@ function getLegendItems(layer: LayerKey, breaks?: number[]): LegendItem[] {
     labels.push(`> ${breaks[breaks.length - 1]}`);
     const colors = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'];
     const items = labels.map((l, i) => ({ color: colors[i] || '#22c55e', label: l }));
-    items.push({ color: '#d1d5db', label: 'Pas de donnees' });
+    items.push({ color: '#d1d5db', label: 'Pas de données' });
     return items;
   }
-  return [{ color: '#d1d5db', label: 'Pas de donnees' }];
+  return [{ color: '#d1d5db', label: 'Pas de données' }];
 }
 
 function getShortValue(props: MapDistrictProperties, layer: LayerKey, selectedService: string, selectedEquipCategory: string): string {
@@ -432,12 +432,12 @@ export default function MapView() {
             <div style="font-size:9px;color:#9ca3af;">${props.rapportage_reported}/${props.rapportage_expected}</div>
           </div>
           <div>
-            <div style="font-size:10px;color:#6b7280;">Medecins/structure</div>
+            <div style="font-size:10px;color:#6b7280;">Médecins/structure</div>
             <div style="font-size:15px;font-weight:700;color:${rhRatio !== null && rhRatio >= 1 ? '#16a34a' : rhRatio !== null && rhRatio >= 0.5 ? '#ca8a04' : '#dc2626'};">${rhRatio !== null ? rhRatio.toFixed(2) : '-'}</div>
             <div style="font-size:9px;color:#9ca3af;">${props.rh_medecins_total} med, ${props.rh_n_structures} struct.</div>
           </div>
           <div>
-            <div style="font-size:10px;color:#6b7280;">Eau (forage/reseau)</div>
+            <div style="font-size:10px;color:#6b7280;">Eau (forage/réseau)</div>
             <div style="font-size:15px;font-weight:700;color:${pctColor(washPct)};">${washPct !== null ? washPct.toFixed(0) + '%' : '-'}</div>
             <div style="font-size:9px;color:#9ca3af;">${props.wash_forage_ou_reseau_n}/${props.wash_total}</div>
           </div>
@@ -450,7 +450,7 @@ export default function MapView() {
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;margin-bottom:6px;">
           <div>
-            <div style="font-size:10px;color:#6b7280;">Equipements</div>
+            <div style="font-size:10px;color:#6b7280;">Équipements</div>
             <div style="font-size:12px;font-weight:600;">${eqFonct} fonct. / ${eqTotal} total</div>
           </div>
         </div>
@@ -517,7 +517,7 @@ export default function MapView() {
   if (loading) return <div className="p-6 text-gray-500">Chargement de la carte...</div>;
   if (error) return <div className="p-6 text-red-500">Erreur : {error}</div>;
   if (!data || data.features.length === 0) {
-    return <div className="p-6 text-gray-500">Aucune donnee geographique disponible. Lancez une synchronisation pour recuperer les contours des districts.</div>;
+    return <div className="p-6 text-gray-500">Aucune donnée géographique disponible. Lancez une synchronisation pour récupérer les contours des districts.</div>;
   }
 
   const legendItems = getLegendItems(activeLayer, activeLayer === 'services' ? serviceBreaks : equipBreaks);
@@ -672,15 +672,15 @@ export default function MapView() {
       </div>
 
       {/* Methodologie */}
-      <MethodNote title="Methodologie - Carte thematique">
-        <p>La carte affiche les districts avec un code couleur selon l'indicateur selectionne. Les contours sont recuperes depuis DHIS2 (geometry des org units niveau 3).</p>
+      <MethodNote title="Méthodologie - Carte thématique">
+        <p>La carte affiche les districts avec un code couleur selon l'indicateur sélectionné. Les contours sont récupérés depuis DHIS2 (geometry des org units niveau 3).</p>
         <ul className="list-disc ml-4 mt-1 space-y-1">
-          <li><strong>Taux de rapportage</strong> : % de structures attendues ayant soumis des donnees. Vert (&gt;80%), jaune (50-80%), orange (30-50%), rouge (&lt;30%).</li>
-          <li><strong>Score qualite</strong> : score moyen (0-100) des structures du district. Penalites : -15/erreur, -5/avertissement, -1/info.</li>
-          <li><strong>Couverture services</strong> : nombre de structures disposant du service selectionne. Echelle a quantiles dynamiques.</li>
-          <li><strong>Equipements</strong> : nombres bruts (fonctionnels / total) par categorie. Echelle a quantiles dynamiques.</li>
-          <li><strong>WASH</strong> : % de structures alimentees par forage (FMH/FME) ou reseau public.</li>
-          <li><strong>Densite RH</strong> : ratio medecins par structure dans le district.</li>
+          <li><strong>Taux de rapportage</strong> : % de structures attendues ayant soumis des données. Vert (&gt;80%), jaune (50-80%), orange (30-50%), rouge (&lt;30%).</li>
+          <li><strong>Score qualité</strong> : score moyen (0-100) des structures du district. Pénalités : -15/erreur, -5/avertissement, -1/info.</li>
+          <li><strong>Couverture services</strong> : nombre de structures disposant du service sélectionné. Échelle à quantiles dynamiques.</li>
+          <li><strong>Équipements</strong> : nombres bruts (fonctionnels / total) par catégorie. Échelle à quantiles dynamiques.</li>
+          <li><strong>WASH</strong> : % de structures alimentées par forage (FMH/FME) ou réseau public.</li>
+          <li><strong>Densité RH</strong> : ratio médecins par structure dans le district.</li>
         </ul>
       </MethodNote>
     </div>

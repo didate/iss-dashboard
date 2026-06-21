@@ -5,7 +5,7 @@ import type { AuthUser } from '../api/auth';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Vue d\'ensemble' },
-  { to: '/quality', icon: ShieldAlert, label: 'Qualite' },
+  { to: '/quality', icon: ShieldAlert, label: 'Qualité' },
   { to: '/usage', icon: BarChart3, label: 'Utilisation' },
   { to: '/structures', icon: Building2, label: 'Structures' },
   { to: '/comparaison', icon: ArrowLeftRight, label: 'Comparaison' },
@@ -29,7 +29,7 @@ export default function Layout({ user, onLogout }: Props) {
           {/* Logo */}
           <NavLink to="/" className="flex items-center gap-2">
             <h1 className="text-white font-bold text-lg">ISS Dashboard</h1>
-            <span className="text-[10px] text-gray-500 hidden sm:inline">Qualite & Utilisation</span>
+            <span className="text-[10px] text-gray-500 hidden sm:inline">Qualité & Utilisation</span>
           </NavLink>
 
           {/* Desktop nav */}
@@ -59,7 +59,7 @@ export default function Layout({ user, onLogout }: Props) {
               <div className="hidden sm:flex items-center gap-2 text-xs text-gray-400">
                 <User size={14} />
                 <span>{user.name || user.username}</span>
-                <button onClick={onLogout} className="text-gray-500 hover:text-gray-300 ml-1" title="Deconnexion">
+                <button onClick={onLogout} className="text-gray-500 hover:text-gray-300 ml-1" title="Déconnexion">
                   <LogOut size={14} />
                 </button>
               </div>
@@ -101,7 +101,7 @@ export default function Layout({ user, onLogout }: Props) {
               {user ? (
                 <button onClick={() => { onLogout(); setMenuOpen(false); }} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-white w-full">
                   <LogOut size={16} />
-                  Deconnexion ({user.name || user.username})
+                  Déconnexion ({user.name || user.username})
                 </button>
               ) : (
                 <NavLink to="/login" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-white">

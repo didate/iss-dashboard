@@ -284,11 +284,11 @@ export default function NationalReport() {
   const waterIndicators = ['source_eau_FMH', 'source_eau_FME', 'source_eau_FEM', 'source_eau_réseau', 'source_eau_puit', 'source_eau_aucune'];
   const waterLabels: Record<string, string> = {
     source_eau_FMH: 'Forage (FMH)', source_eau_FME: 'Forage (FME)', source_eau_FEM: 'Forage (FME)',
-    'source_eau_réseau': 'Reseau public', source_eau_puit: 'Puit/Puit ameliore', source_eau_aucune: 'Aucune',
+    'source_eau_réseau': 'Réseau public', source_eau_puit: 'Puit/Puit amélioré', source_eau_aucune: 'Aucune',
   };
   const energyIndicators = ['energie_solaire', 'energie_reseau', 'energie_generateur'];
   const energyLabels: Record<string, string> = {
-    energie_solaire: 'Solaire', energie_reseau: 'Reseau electrique', energie_generateur: 'Generateur',
+    energie_solaire: 'Solaire', energie_reseau: 'Réseau électrique', energie_generateur: 'Générateur',
   };
 
   // Water data by region (raw numbers)
@@ -344,11 +344,11 @@ export default function NationalReport() {
             <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#1e3a5f', margin: '20px 0 8px' }}>Rapport sur les Informations</h1>
             <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#1e3a5f', margin: '0 0 8px' }}>des Structures Sanitaires</h1>
             <div style={{ fontSize: '13px', color: '#374151', marginTop: '12px' }}>Programme ISS — DHIS2</div>
-            <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '8px' }}>Genere le {new Date().toLocaleDateString('fr-FR')}</div>
+            <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '8px' }}>Généré le {new Date().toLocaleDateString('fr-FR')}</div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginTop: '24px' }}>
-            <KpiBox label="Structures analysees" value={String(summary?.n_structures ?? 0)} sub="dans le programme ISS" />
-            <KpiBox label="Structures operationnelles" value={String(summary?.n_operationnel ?? 0)} sub={`sur ${summary?.n_structures ?? 0}`} />
+            <KpiBox label="Structures analysées" value={String(summary?.n_structures ?? 0)} sub="dans le programme ISS" />
+            <KpiBox label="Structures opérationnelles" value={String(summary?.n_operationnel ?? 0)} sub={`sur ${summary?.n_structures ?? 0}`} />
             <KpiBox label="Taux de rapportage" value={reportingGlobal ? `${reportingGlobal.pct.toFixed(1)}%` : '-'} color={pctColor(reportingGlobal?.pct ?? 0)} sub={`${reportingGlobal?.n_reported ?? 0} / ${reportingGlobal?.n_expected ?? 0}`} />
           </div>
         </div>
@@ -359,7 +359,7 @@ export default function NationalReport() {
             <SectionTitle>1. Synthese par region</SectionTitle>
 
             <ReportTable
-              headers={['Region', 'Structures', 'Operationnel', 'Rapportage', 'Energie', 'Eau pts crit.', 'Med./struct']}
+              headers={['Region', 'Structures', 'Opérationnel', 'Rapportage', 'Energie', 'Eau pts crit.', 'Med./struct']}
               rows={regionalSummary.map(r => [
                 r.region,
                 String(r.structures),
@@ -375,10 +375,10 @@ export default function NationalReport() {
 
         {/* 2. Repartition des structures */}
         <div data-pdf-section style={{ marginTop: '24px' }}>
-          <SectionTitle>2. Repartition des structures sanitaires</SectionTitle>
+          <SectionTitle>2. Répartition des structures sanitaires</SectionTitle>
           <SubTitle>Par district</SubTitle>
           <ReportTable
-            headers={['District', 'Total', 'Operationnel', 'Non operationnel', 'Ferme temp.']}
+            headers={['District', 'Total', 'Opérationnel', 'Non opérationnel', 'Ferme temp.']}
             rows={recensement.map(r => [r.label, String(r.n_structures), String(r.n_operationnel), String(r.n_non_operationnel), String(r.n_ferme_temp)])}
           />
         </div>
@@ -387,7 +387,7 @@ export default function NationalReport() {
           <div data-pdf-section style={{ marginTop: '24px' }}>
             <SubTitle>Par statut juridique</SubTitle>
             <ReportTable
-              headers={['Statut', 'Total', 'Operationnel', 'Non operationnel', 'Ferme temp.']}
+              headers={['Statut', 'Total', 'Opérationnel', 'Non opérationnel', 'Ferme temp.']}
               rows={recensementStatut.map(r => [r.label, String(r.n_structures), String(r.n_operationnel), String(r.n_non_operationnel), String(r.n_ferme_temp)])}
             />
           </div>
@@ -414,12 +414,12 @@ export default function NationalReport() {
           <SubTitle>Sources d'energie par region (nombre de structures)</SubTitle>
           {energyChartData.length > 0 && (
             <ReportTable
-              headers={['Region', 'Solaire', 'Reseau electrique', 'Generateur']}
+              headers={['Region', 'Solaire', 'Réseau électrique', 'Générateur']}
               rows={energyChartData.map(row => [
                 row.name as string,
                 String(row['Solaire'] as number ?? 0),
-                String(row['Reseau electrique'] as number ?? 0),
-                String(row['Generateur'] as number ?? 0),
+                String(row['Réseau électrique'] as number ?? 0),
+                String(row['Générateur'] as number ?? 0),
               ])}
             />
           )}
@@ -450,7 +450,7 @@ export default function NationalReport() {
                 return (
                   <div key={cat.label}>
                     <div style={{ textAlign: 'center', fontSize: '10px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>
-                      Nombre moyen de {cat.label.toLowerCase()} par structure
+                      Nbre moyen de {cat.label.toLowerCase()} par structure
                     </div>
                     <ResponsiveContainer width="100%" height={220}>
                       <BarChart data={chartData} margin={{ top: 5, right: 5, bottom: 40, left: 5 }}>
@@ -491,7 +491,7 @@ export default function NationalReport() {
           {/* Graphes verticaux 2x2 — moyenne par structure par region */}
           {(() => {
             const profiles = [
-              { label: 'Medecins', filter: (r: UsageRH) => r.profil_code?.includes('MED'), color: '#3b82f6' },
+              { label: 'Médecins', filter: (r: UsageRH) => r.profil_code?.includes('MED'), color: '#3b82f6' },
               { label: 'Infirmiers', filter: (r: UsageRH) => r.profil_code?.includes('_INF'), color: '#f97316' },
               { label: 'Sages-femmes', filter: (r: UsageRH) => r.profil_code?.includes('SAGEF'), color: '#10b981' },
               { label: 'Pharmaciens', filter: (r: UsageRH) => r.profil_code?.includes('PHARM'), color: '#8b5cf6' },
@@ -507,7 +507,7 @@ export default function NationalReport() {
                   return (
                     <div key={p.label}>
                       <div style={{ textAlign: 'center', fontSize: '10px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>
-                        Nombre moyen de {p.label.toLowerCase()} par structure
+                        Nbre moyen de {p.label.toLowerCase()} par structure
                       </div>
                       <ResponsiveContainer width="100%" height={220}>
                         <BarChart data={chartData} margin={{ top: 5, right: 5, bottom: 40, left: 5 }}>
@@ -526,9 +526,9 @@ export default function NationalReport() {
           })()}
         </div>
 
-        {/* Repartition par statut d'emploi par region */}
+        {/* Répartition par statut d'emploi par région */}
         <div data-pdf-section style={{ marginTop: '24px' }}>
-          <SubTitle>Repartition par statut d'emploi par region</SubTitle>
+          <SubTitle>Répartition par statut d'emploi par région</SubTitle>
           {(() => {
             // Aggregate fonc/contr/benev by region
             const regionStatut: Record<string, { fonc: number; contr: number; benev: number; total: number }> = {};
