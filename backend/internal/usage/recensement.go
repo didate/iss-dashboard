@@ -74,8 +74,8 @@ func ComputeRecensement(events []*models.Event, ctx *quality.QualityContext) []m
 			}
 		} else if statutStruct == "privée" {
 			juridique = quality.GetEventValue(evt, privUID)
-			if juridique == "" || juridique == "privélucratif" {
-				juridique = "Privé"
+			if juridique == "" {
+				juridique = "Privé lucratif"
 			}
 		}
 		if juridique != "" {
