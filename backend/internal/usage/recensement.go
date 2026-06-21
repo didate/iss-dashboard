@@ -13,10 +13,11 @@ func ComputeRecensement(events []*models.Event, ctx *quality.QualityContext) []m
 
 	// Accumulators per dimension
 	dims := map[string]map[string]*counter{
-		"global":          {"all": {}},
-		"district":        {},
-		"region":          {},
-		"statut_juridique": {},
+		"global":            {"all": {}},
+		"district":          {},
+		"region":            {},
+		"statut_structure":  {},
+		"statut_juridique":  {},
 	}
 
 	ensure := func(dim, key string) *counter {
