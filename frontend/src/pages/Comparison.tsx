@@ -46,7 +46,7 @@ function MultiSelect({ options, selected, onChange, max }: {
         className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white min-w-[200px] text-left flex items-center justify-between gap-2"
       >
         <span className="truncate">
-          {selected.length === 0 ? 'Selectionner des districts...' : `${selected.length} district${selected.length > 1 ? 's' : ''}`}
+          {selected.length === 0 ? 'Sélectionner des districts...' : `${selected.length} district${selected.length > 1 ? 's' : ''}`}
         </span>
         <span className="text-gray-400 text-xs">{selected.length}/{max}</span>
       </button>
@@ -153,8 +153,8 @@ export default function Comparison() {
   // Build commodites comparison data
   const commoRows = result ? (() => {
     const labels: Record<string, string> = {
-      energie: 'Energie', eau_pts_critiques: 'Eau pts critiques',
-      energie_solaire: 'Solaire', energie_reseau: 'Reseau elec.', energie_generateur: 'Generateur',
+      energie: 'Énergie', eau_pts_critiques: 'Eau pts critiques',
+      energie_solaire: 'Solaire', energie_reseau: 'Réseau élec.', energie_generateur: 'Générateur',
     };
     const allInds = new Set<string>();
     districts.forEach(d => d.commodites.filter(c => !c.indicator.startsWith('source_eau_')).forEach(c => allInds.add(c.indicator)));
@@ -204,7 +204,7 @@ export default function Comparison() {
       {/* Selectors */}
       <div className="flex flex-wrap gap-3 bg-white p-4 rounded-lg border border-gray-200 items-end">
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Districts (2 a 4)</label>
+          <label className="block text-xs text-gray-500 mb-1">Districts (2 à 4)</label>
           <MultiSelect
             options={filters?.districts ?? []}
             selected={selected}
@@ -226,12 +226,12 @@ export default function Comparison() {
           {/* KPIs table */}
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-700">Indicateurs cles</h3>
+              <h3 className="text-sm font-semibold text-gray-700">Indicateurs clés</h3>
               <ExportCSV
                 filename="comparaison_kpis"
                 columns={buildCsvColumns('Indicateur', districts.map(d => d.name))}
                 data={[
-                  { label: 'Score qualite', ...Object.fromEntries(districts.map(d => [d.name, d.avg_score.toFixed(1)])), national: nat!.avg_score.toFixed(1) },
+                  { label: 'Score qualité', ...Object.fromEntries(districts.map(d => [d.name, d.avg_score.toFixed(1)])), national: nat!.avg_score.toFixed(1) },
                   { label: 'Taux rapportage', ...Object.fromEntries(districts.map(d => [d.name, d.reporting_pct.toFixed(1) + '%'])), national: nat!.reporting_pct.toFixed(1) + '%' },
                   { label: 'Structures', ...Object.fromEntries(districts.map(d => [d.name, d.n_structures])), national: nat!.n_structures },
                   { label: 'Med./structure', ...Object.fromEntries(districts.map(d => [d.name, d.rh_summary?.ratio_med_per_structure?.toFixed(2) ?? '-'])), national: nat!.rh_summary?.ratio_med_per_structure?.toFixed(2) ?? '-' },
@@ -244,7 +244,7 @@ export default function Comparison() {
                 <thead>{districtHeaders('Indicateur')}</thead>
                 <tbody>
                   <tr className="border-b border-gray-100">
-                    <td className="px-3 py-1.5 text-gray-700">Score qualite</td>
+                    <td className="px-3 py-1.5 text-gray-700">Score qualité</td>
                     {districts.map((d, i) => (
                       <td key={d.name} className={`text-right px-3 py-1.5 font-bold ${pctColor(d.avg_score)} ${DISTRICT_COLORS[i].bg}`}>
                         {d.avg_score.toFixed(1)}
@@ -313,11 +313,11 @@ export default function Comparison() {
           {equipRows.length > 0 && (
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-700">Equipements — total / fonctionnel</h3>
+                <h3 className="text-sm font-semibold text-gray-700">Équipements — total / fonctionnel</h3>
                 <ExportCSV
                   filename="comparaison_equipements"
                   columns={[
-                    { key: 'label', header: 'Equipement' },
+                    { key: 'label', header: 'Équipement' },
                     ...districts.flatMap(d => [{ key: `${d.name}_total`, header: `${d.name} Total` }, { key: `${d.name}_fonct`, header: `${d.name} Fonct` }]),
                     { key: 'national_total', header: 'National Total' },
                     { key: 'national_fonct', header: 'National Fonct' },
@@ -333,7 +333,7 @@ export default function Comparison() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-gray-50">
-                      <th className="text-left px-3 py-2 font-medium text-gray-500">Equipement</th>
+                      <th className="text-left px-3 py-2 font-medium text-gray-500">Équipement</th>
                       {districts.map((d, i) => (
                         <th key={d.name} className={`text-center px-2 py-2 font-medium ${DISTRICT_COLORS[i].text} ${DISTRICT_COLORS[i].header}`} colSpan={2}>
                           {d.name}
@@ -377,7 +377,7 @@ export default function Comparison() {
           {commoRows.length > 0 && (
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-700">Commodites — % de structures</h3>
+                <h3 className="text-sm font-semibold text-gray-700">Commodités — % de structures</h3>
                 <ExportCSV
                   filename="comparaison_commodites"
                   columns={buildCsvColumns('Indicateur', districts.map(d => d.name))}
@@ -433,16 +433,16 @@ export default function Comparison() {
         </>
       )}
 
-      <MethodNote title="Methodologie - Comparaison de districts">
-        <p>Cet outil permet de comparer jusqu'a 4 districts cote a cote sur l'ensemble des indicateurs ISS.</p>
-        <p><strong>Score qualite</strong> : moyenne des scores de toutes les structures du district (0-100, penalites : -15/erreur, -5/avertissement, -1/info).</p>
+      <MethodNote title="Méthodologie - Comparaison de districts">
+        <p>Cet outil permet de comparer jusqu'à 4 districts côte à côte sur l'ensemble des indicateurs ISS.</p>
+        <p><strong>Score qualité</strong> : moyenne des scores de toutes les structures du district (0-100, pénalités : -15/erreur, -5/avertissement, -1/info).</p>
         <p><strong>Taux de rapportage</strong> : structures ayant soumis / structures attendues x 100.</p>
-        <p><strong>Med./structure</strong> : nombre total de medecins (generalistes + specialistes) divise par le nombre de structures du district.</p>
+        <p><strong>Méd./structure</strong> : nombre total de médecins (généralistes + spécialistes) divisé par le nombre de structures du district.</p>
         <p><strong>Services</strong> : nombre de structures disposant de chaque service (fonctionnel).</p>
-        <p><strong>Equipements</strong> : nombres bruts total et fonctionnel par type d'equipement.</p>
-        <p><strong>Commodites</strong> : pourcentage de structures disposant de chaque commodite (energie, eau).</p>
+        <p><strong>Équipements</strong> : nombres bruts total et fonctionnel par type d'équipement.</p>
+        <p><strong>Commodités</strong> : pourcentage de structures disposant de chaque commodité (énergie, eau).</p>
         <p><strong>Ressources humaines</strong> : effectifs par profil et statut d'emploi.</p>
-        <p>La <strong>moyenne nationale</strong> est affichee comme reference dans la derniere colonne.</p>
+        <p>La <strong>moyenne nationale</strong> est affichée comme référence dans la dernière colonne.</p>
       </MethodNote>
     </div>
   );

@@ -85,7 +85,7 @@ export default function Structures() {
                     <th className="text-left px-3 py-2 font-medium text-gray-500 hidden sm:table-cell">Region</th>
                     <th className="text-left px-3 py-2 font-medium text-gray-500 hidden md:table-cell">Date</th>
                     <th className="text-left px-3 py-2 font-medium text-gray-500">Score</th>
-                    <th className="text-left px-3 py-2 font-medium text-gray-500">Severite</th>
+                    <th className="text-left px-3 py-2 font-medium text-gray-500">Sévérité</th>
                     <th className="text-left px-3 py-2 font-medium text-gray-500 hidden sm:table-cell">E/W/I</th>
                   </tr>
                 </thead>
@@ -116,7 +116,7 @@ export default function Structures() {
                   {items.length === 0 && (
                     <tr>
                       <td colSpan={7} className="px-3 py-8 text-center text-gray-400">
-                        Aucune structure trouvee
+                        Aucune structure trouvée
                       </td>
                     </tr>
                   )}
@@ -127,14 +127,14 @@ export default function Structures() {
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-3 py-2 border-t">
                 <span className="text-xs text-gray-500">
-                  {result?.total} resultats — page {page}/{totalPages}
+                  {result?.total} résultats — page {page}/{totalPages}
                 </span>
                 <div className="flex gap-1">
                   <button
                     className="px-2 py-1 text-xs border rounded disabled:opacity-40"
                     disabled={page <= 1}
                     onClick={() => setPage(page - 1)}
-                  >Prec.</button>
+                  >Préc.</button>
                   <button
                     className="px-2 py-1 text-xs border rounded disabled:opacity-40"
                     disabled={page >= totalPages}

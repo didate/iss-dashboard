@@ -57,12 +57,12 @@ export default function Quality() {
               { key: 'org_unit_name', header: 'Structure' },
               { key: 'district', header: 'District' },
               { key: 'region', header: 'Region' },
-              { key: 'worst_severity', header: 'Severite' },
+              { key: 'worst_severity', header: 'Sévérité' },
               { key: 'score', header: 'Score' },
               { key: 'n_error', header: 'Erreurs' },
               { key: 'n_warning', header: 'Avertissements' },
               { key: 'n_info', header: 'Infos' },
-              { key: 'issues', header: 'Problemes' },
+              { key: 'issues', header: 'Problèmes' },
             ]}
             filename="qualite_issues"
           />
@@ -83,7 +83,7 @@ export default function Quality() {
           value={rule}
           onChange={(e) => { setRule(e.target.value); setPage(1); }}
         >
-          <option value="">Toutes regles</option>
+          <option value="">Toutes règles</option>
           {(filters?.rules ?? []).map((r) => (
             <option key={r.code} value={r.code}>{r.code} — {r.name}</option>
           ))}
@@ -239,14 +239,14 @@ export default function Quality() {
         )}
       </div>
 
-      <MethodNote title="Methodologie - Regles qualite">
-        <p><strong>R1 - Champs obligatoires</strong> : date absente (erreur), statut operationnel ou nom du responsable manquant (avertissement).</p>
-        <p><strong>R2 - Coherence total/fonctionnel</strong> : pour les 36 couples d'equipements, fonctionnel &gt; total (erreur) ou fonctionnel renseigne mais total manquant (avertissement).</p>
-        <p><strong>R3 - Service sans support</strong> : service declare fonctionnel mais equipement/infrastructure de support absent (labo sans microscope, maternite sans table d'accouchement, chirurgie sans table operatoire).</p>
-        <p><strong>R4 - Coherence commodites</strong> : energie declaree sans source cochee (avertissement), eau aux points critiques sans source d'eau (info).</p>
-        <p><strong>R5 - Valeurs aberrantes</strong> : valeur &gt; mediane + 5xMAD et &gt; 50 en absolu (info).</p>
-        <p><strong>R6 - Doublons</strong> : plusieurs evenements actifs sur la meme org unit (avertissement).</p>
-        <p><strong>R7 - Completude</strong> : structure « coquille vide » sans aucun equipement ni RH renseigne (info).</p>
+      <MethodNote title="Méthodologie - Règles qualité">
+        <p><strong>R1 - Champs obligatoires</strong> : date absente (erreur), statut opérationnel ou nom du responsable manquant (avertissement).</p>
+        <p><strong>R2 - Cohérence total/fonctionnel</strong> : pour les 36 couples d'équipements, fonctionnel &gt; total (erreur) ou fonctionnel renseigné mais total manquant (avertissement).</p>
+        <p><strong>R3 - Service sans support</strong> : service déclaré fonctionnel mais équipement/infrastructure de support absent (labo sans microscope, maternité sans table d'accouchement, chirurgie sans table opératoire).</p>
+        <p><strong>R4 - Cohérence commodités</strong> : énergie déclarée sans source cochée (avertissement), eau aux points critiques sans source d'eau (info).</p>
+        <p><strong>R5 - Valeurs aberrantes</strong> : valeur &gt; médiane + 5xMAD et &gt; 50 en absolu (info).</p>
+        <p><strong>R6 - Doublons</strong> : plusieurs événements actifs sur la même org unit (avertissement).</p>
+        <p><strong>R7 - Complétude</strong> : structure « coquille vide » sans aucun équipement ni RH renseigné (info).</p>
       </MethodNote>
     </div>
   );

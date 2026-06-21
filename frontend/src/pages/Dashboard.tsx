@@ -46,7 +46,7 @@ export default function Dashboard() {
   }, []);
 
   if (loading) return <div className="text-gray-400 p-8">Chargement...</div>;
-  if (!summary) return <div className="text-gray-400 p-8">Aucune donnee. Lancez une synchronisation.</div>;
+  if (!summary) return <div className="text-gray-400 p-8">Aucune donnée. Lancez une synchronisation.</div>;
 
   const lastSyncDate = summary.last_sync?.finished_at
     ? new Date(summary.last_sync.finished_at).toLocaleString('fr-FR')
@@ -79,11 +79,11 @@ export default function Dashboard() {
   const statutLabelMap: Record<string, string> = {
     publique: 'Publique',
     parapublique: 'Parapublique',
-    'privélucratif': 'Prive lucratif',
+    'privélucratif': 'Privé lucratif',
     confessionnel: 'Confessionnel',
     associatif: 'Associatif',
     'non lucratif': 'Non lucratif',
-    'privée': 'Prive (non precise)',
+    'privée': 'Privé (non précisé)',
   };
   const statutData = recensementStatut
     .filter(r => r.n_structures > 0)
@@ -99,14 +99,14 @@ export default function Dashboard() {
         <h2 className="text-xl font-bold text-gray-900">Vue d'ensemble</h2>
         <div className="flex items-center gap-1 text-xs text-gray-400">
           <Clock size={12} />
-          Derniere synchro : {lastSyncDate}
+          Dernière synchro : {lastSyncDate}
         </div>
       </div>
 
       {/* Row 1: Main KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard
-          title="Structures analysees"
+          title="Structures analysées"
           value={summary.n_structures}
           icon={<Activity size={20} />}
         />
@@ -118,14 +118,14 @@ export default function Dashboard() {
           icon={<Activity size={20} />}
         />
         <KpiCard
-          title="Score qualite moyen"
+          title="Score qualité moyen"
           value={summary.avg_score.toFixed(1)}
           subtitle={`${summary.n_error} err, ${summary.n_warning} avert.`}
           color={summary.avg_score >= 80 ? 'text-green-600' : summary.avg_score >= 50 ? 'text-yellow-600' : 'text-red-600'}
           icon={<AlertCircle size={20} />}
         />
         <KpiCard
-          title="Structures operationnelles"
+          title="Structures opérationnelles"
           value={`${pctOper.toFixed(0)}%`}
           subtitle={`${summary.n_operationnel.toLocaleString('fr-FR')} sur ${summary.n_structures.toLocaleString('fr-FR')}`}
           color={pctOper >= 90 ? 'text-green-600' : pctOper >= 70 ? 'text-yellow-600' : 'text-red-600'}
@@ -136,9 +136,9 @@ export default function Dashboard() {
       {/* Row 2: RH + WASH KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard
-          title="Medecins / structure"
+          title="Médecins / structure"
           value={rhSummary?.ratio_med_per_structure?.toFixed(2) ?? '-'}
-          subtitle={`${rhSummary?.n_structures_sans_medecin ?? 0} structures sans medecin`}
+          subtitle={`${rhSummary?.n_structures_sans_medecin ?? 0} structures sans médecin`}
           color={rhSummary && rhSummary.ratio_med_per_structure >= 1 ? 'text-green-600' : 'text-red-600'}
           icon={<Users size={20} />}
         />
@@ -149,7 +149,7 @@ export default function Dashboard() {
           icon={<Users size={20} />}
         />
         <KpiCard
-          title="Structures avec energie"
+          title="Structures avec énergie"
           value={energie ? `${energie.pct.toFixed(0)}%` : '-'}
           subtitle={energie ? `${energie.n_oui} / ${energie.n_total}` : ''}
           color={energie && energie.pct >= 80 ? 'text-green-600' : 'text-yellow-600'}
@@ -205,7 +205,7 @@ export default function Dashboard() {
         {/* Statut juridique */}
         {(nPublic > 0 || nPrivate > 0) && (
           <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Repartition par statut</h3>
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Répartition par statut</h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Public: KPI + detail */}
@@ -224,7 +224,7 @@ export default function Dashboard() {
               {/* Private: KPI + detail */}
               <div>
                 <div className="bg-red-50 rounded-lg p-3 text-center mb-2">
-                  <div className="text-xs text-gray-500">Privee</div>
+                  <div className="text-xs text-gray-500">Privée</div>
                   <div className="text-xl font-bold text-red-600">{nPrivate.toLocaleString('fr-FR')}</div>
                 </div>
                 {statutData.filter(s => !['Publique', 'Parapublique'].includes(s.name)).sort((a, b) => b.value - a.value).map(s => (
@@ -272,7 +272,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Top 5 / Bottom 5 by quality score */}
         <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Districts — score qualite</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Districts — score qualité</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <div className="flex items-center gap-1 text-xs font-medium text-green-700 mb-2">
@@ -301,7 +301,7 @@ export default function Dashboard() {
 
         {/* Issues summary */}
         <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Problemes qualite</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Problèmes qualité</h3>
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div className="text-center">
               <div className="flex items-center justify-center gap-1">
@@ -331,13 +331,13 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <MethodNote title="Methodologie - Score qualite">
-        <p><strong>Score qualite</strong> = 100 - (15 x erreurs) - (5 x avertissements) - (1 x infos), plancher a 0.</p>
-        <p><strong>Erreurs</strong> (-15 pts) : date absente, fonctionnel &gt; total pour un equipement.</p>
-        <p><strong>Avertissements</strong> (-5 pts) : champ obligatoire manquant, service sans support, energie sans source, doublons.</p>
+      <MethodNote title="Méthodologie - Score qualité">
+        <p><strong>Score qualité</strong> = 100 - (15 x erreurs) - (5 x avertissements) - (1 x infos), plancher à 0.</p>
+        <p><strong>Erreurs</strong> (-15 pts) : date absente, fonctionnel &gt; total pour un équipement.</p>
+        <p><strong>Avertissements</strong> (-5 pts) : champ obligatoire manquant, service sans support, énergie sans source, doublons.</p>
         <p><strong>Infos</strong> (-1 pt) : eau sans source, structure coquille vide.</p>
-        <p><strong>Taux de rapportage</strong> = structures ayant soumis / structures assignees au programme (hors fermees).</p>
-        <p><strong>Medecins / structure</strong> = total medecins (generalistes + specialistes) / nombre de structures.</p>
+        <p><strong>Taux de rapportage</strong> = structures ayant soumis / structures assignées au programme (hors fermées).</p>
+        <p><strong>Médecins / structure</strong> = total médecins (généralistes + spécialistes) / nombre de structures.</p>
       </MethodNote>
     </div>
   );

@@ -8,13 +8,13 @@ import SeverityBadge from '../components/SeverityBadge';
 import MethodNote from '../components/MethodNote';
 
 const SECTION_LABELS: Record<string, string> = {
-  ISS_GEN: 'Informations generales',
+  ISS_GEN: 'Informations générales',
   ISS_SVC: 'Services',
-  ISS_EQ: 'Equipements',
-  ISS_EQUI: 'Equipements',
+  ISS_EQ: 'Équipements',
+  ISS_EQUI: 'Équipements',
   ISS_RH: 'Ressources humaines',
-  ISS_RH_SPE: 'Ressources humaines (specialistes)',
-  ISS_COMMO: 'Commodites',
+  ISS_RH_SPE: 'Ressources humaines (spécialistes)',
+  ISS_COMMO: 'Commodités',
   ISS_INFRA: 'Infrastructure',
   ISS_LAB: 'Laboratoire',
 };
@@ -132,7 +132,7 @@ export default function StructureDetail() {
       {/* Quality issues */}
       {detail.issues && detail.issues.length > 0 && (
         <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <h3 className="font-semibold text-gray-800 mb-3">Problemes qualite ({detail.issues.length})</h3>
+          <h3 className="font-semibold text-gray-800 mb-3">Problèmes qualité ({detail.issues.length})</h3>
           <div className="space-y-2">
             {detail.issues.map((iss, i) => (
               <div key={i} className="flex gap-2 items-start text-sm">
@@ -179,10 +179,10 @@ export default function StructureDetail() {
         );
       })}
 
-      <MethodNote title="Methodologie - Fiche structure">
-        <p>Cette fiche presente l'ensemble des donnees saisies pour une structure sanitaire dans le programme ISS DHIS2.</p>
-        <p>Les donnees sont groupees par section : informations generales, services, equipements, ressources humaines, commodites, infrastructure, laboratoire.</p>
-        <p>Le <strong>score qualite</strong> (0-100) est calcule selon les regles : -15/erreur, -5/avertissement, -1/info.</p>
+      <MethodNote title="Méthodologie - Fiche structure">
+        <p>Cette fiche présente l'ensemble des données saisies pour une structure sanitaire dans le programme ISS DHIS2.</p>
+        <p>Les données sont groupées par section : informations générales, services, équipements, ressources humaines, commodités, infrastructure, laboratoire.</p>
+        <p>Le <strong>score qualité</strong> (0-100) est calculé selon les règles : -15/erreur, -5/avertissement, -1/info.</p>
       </MethodNote>
     </div>
   );

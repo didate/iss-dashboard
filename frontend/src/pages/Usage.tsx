@@ -27,10 +27,10 @@ const tabs = [
   { key: 'plateau', label: 'Plateau technique' },
   { key: 'services', label: 'Services' },
   { key: 'matrice', label: 'Matrice' },
-  { key: 'equipements', label: 'Equipements' },
+  { key: 'equipements', label: 'Équipements' },
   { key: 'rh', label: 'Ressources humaines' },
-  { key: 'commodites', label: 'Commodites' },
-  { key: 'fermees', label: 'Structures fermees' },
+  { key: 'commodites', label: 'Commodités' },
+  { key: 'fermees', label: 'Structures fermées' },
 ];
 
 export default function Usage() {
@@ -142,7 +142,7 @@ function RapportageTab({ filters }: { filters: Filters | null }) {
           <div className="bg-gray-50 rounded-lg p-3 sm:p-5 text-center">
             <p className="text-xs sm:text-sm text-gray-500">Rapports attendus</p>
             <p className="text-xl sm:text-3xl font-bold text-gray-900 mt-1 sm:mt-2">{globalRate.n_expected.toLocaleString('fr-FR')}</p>
-            <p className="text-xs text-gray-400">structures assignees au programme</p>
+            <p className="text-xs text-gray-400">structures assignées au programme</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-3 sm:p-5 text-center">
             <p className="text-xs sm:text-sm text-gray-500">Rapports soumis</p>
@@ -176,7 +176,7 @@ function RapportageTab({ filters }: { filters: Filters | null }) {
               value={regionFilter}
               onChange={(e) => setRegionFilter(e.target.value)}
             >
-              <option value="">Toutes les regions</option>
+              <option value="">Toutes les régions</option>
               {filters.regions.map((r) => (
                 <option key={r} value={r}>{r}</option>
               ))}
@@ -205,9 +205,9 @@ function RapportageTab({ filters }: { filters: Filters | null }) {
 
       <DataTable columns={columns} data={filteredData as unknown as Record<string, unknown>[]} />
 
-      <MethodNote title="Methodologie - Taux de rapportage">
-        <p><strong>Attendu</strong> = nombre d'unites organisationnelles assignees au programme ISS dans DHIS2.</p>
-        <p><strong>Soumis</strong> = nombre d'unites organisationnelles distinctes ayant au moins un evenement soumis.</p>
+      <MethodNote title="Méthodologie - Taux de rapportage">
+        <p><strong>Attendu</strong> = nombre d'unités organisationnelles assignées au programme ISS dans DHIS2.</p>
+        <p><strong>Soumis</strong> = nombre d'unités organisationnelles distinctes ayant au moins un événement soumis.</p>
         <p><strong>Taux de rapportage</strong> = (soumis / attendu) x 100.</p>
       </MethodNote>
     </div>
@@ -227,9 +227,9 @@ function RecensementTab() {
   const columns = [
     { key: 'label', header: by.charAt(0).toUpperCase() + by.slice(1) },
     { key: 'n_structures', header: 'Total' },
-    { key: 'n_operationnel', header: 'Operationnel' },
-    { key: 'n_non_operationnel', header: 'Non operationnel' },
-    { key: 'n_ferme_temp', header: 'Ferme temp.' },
+    { key: 'n_operationnel', header: 'Opérationnel' },
+    { key: 'n_non_operationnel', header: 'Non opérationnel' },
+    { key: 'n_ferme_temp', header: 'Fermé temp.' },
   ];
 
   return (
@@ -246,10 +246,10 @@ function RecensementTab() {
         <ExportCSV data={data as unknown as Record<string, unknown>[]} columns={columns} filename={`recensement_${by}`} />
       </div>
       <DataTable columns={columns} data={data as unknown as Record<string, unknown>[]} />
-      <MethodNote title="Methodologie - Recensement">
-        <p>Nombre de structures sanitaires par dimension geographique ou administrative, extraites du programme DHIS2 ISS.</p>
-        <p><strong>Operationnel</strong> : statut operationnel = "operationnel". <strong>Non operationnel</strong> : statut = "non_operationnel". <strong>Ferme temporairement</strong> : statut = "ferme_temporairement".</p>
-        <p>Le rattachement district/region est deduit de la hierarchie des org units DHIS2.</p>
+      <MethodNote title="Méthodologie - Recensement">
+        <p>Nombre de structures sanitaires par dimension géographique ou administrative, extraites du programme DHIS2 ISS.</p>
+        <p><strong>Opérationnel</strong> : statut opérationnel = "operationnel". <strong>Non opérationnel</strong> : statut = "non_operationnel". <strong>Fermé temporairement</strong> : statut = "ferme_temporairement".</p>
+        <p>Le rattachement district/région est déduit de la hiérarchie des org units DHIS2.</p>
       </MethodNote>
     </div>
   );
@@ -268,7 +268,7 @@ function PlateauTab({ district }: { district: string }) {
     { key: 'service_label', header: 'Service' },
     { key: 'n_oui', header: 'Fonctionnel' },
     { key: 'n_total', header: 'Total' },
-    { key: 'pct', header: '% Disponibilite', render: (row: Record<string, unknown>) => `${(row.pct as number).toFixed(1)}%` },
+    { key: 'pct', header: '% Disponibilité', render: (row: Record<string, unknown>) => `${(row.pct as number).toFixed(1)}%` },
   ];
 
   return (
@@ -283,7 +283,7 @@ function PlateauTab({ district }: { district: string }) {
           <XAxis type="number" domain={[0, 100]} unit="%" />
           <YAxis type="category" dataKey="service_label" tick={{ fontSize: 10 }} width={110} />
           <Tooltip formatter={(v: number) => `${v.toFixed(1)}%`} />
-          <Bar dataKey="pct" name="% disponibilite">
+          <Bar dataKey="pct" name="% disponibilité">
             {data.map((d, i) => (
               <Cell key={i} fill={d.pct >= 75 ? '#22c55e' : d.pct >= 50 ? '#eab308' : d.pct >= 25 ? '#f97316' : '#ef4444'} />
             ))}
@@ -293,11 +293,11 @@ function PlateauTab({ district }: { district: string }) {
 
       <DataTable columns={columns} data={data as unknown as Record<string, unknown>[]} />
 
-      <MethodNote title="Methodologie - Plateau technique">
-        <p>Le plateau technique mesure la disponibilite des services cles dans les structures sanitaires.</p>
-        <p>Un service est considere <strong>disponible</strong> quand sa valeur dans le formulaire ISS est "oui" (fonctionnel).</p>
-        <p>Les services affiches sont : laboratoire, maternite, chirurgie, imagerie, pharmacie, urgences, pediatrie, medecine generale, hemodialyse, neonatologie, dentaire, anesthesie-reanimation.</p>
-        <p><strong>% Disponibilite</strong> = nombre de structures ou le service est fonctionnel / nombre total de structures ayant renseigne ce champ x 100.</p>
+      <MethodNote title="Méthodologie - Plateau technique">
+        <p>Le plateau technique mesure la disponibilité des services clés dans les structures sanitaires.</p>
+        <p>Un service est considéré <strong>disponible</strong> quand sa valeur dans le formulaire ISS est "oui" (fonctionnel).</p>
+        <p>Les services affichés sont : laboratoire, maternité, chirurgie, imagerie, pharmacie, urgences, pédiatrie, médecine générale, hémodialyse, néonatologie, dentaire, anesthésie-réanimation.</p>
+        <p><strong>% Disponibilité</strong> = nombre de structures où le service est fonctionnel / nombre total de structures ayant renseigné ce champ x 100.</p>
       </MethodNote>
     </div>
   );
@@ -341,10 +341,10 @@ function ServicesTab({ district }: { district: string }) {
 
       <DataTable columns={columns} data={data as unknown as Record<string, unknown>[]} />
 
-      <MethodNote title="Methodologie - Services">
-        <p>Disponibilite de chaque service offert par les structures sanitaires.</p>
-        <p>Les valeurs possibles sont : <strong>Oui, fonctionnel</strong> (code "oui"), <strong>Prevu mais non fonctionnel</strong> (code "oui_pas_fonctionnel"), <strong>Non</strong> (code "non").</p>
-        <p><strong>% Fonctionnel</strong> = nombre de structures ayant repondu "oui" / nombre total de structures ayant renseigne ce service x 100.</p>
+      <MethodNote title="Méthodologie - Services">
+        <p>Disponibilité de chaque service offert par les structures sanitaires.</p>
+        <p>Les valeurs possibles sont : <strong>Oui, fonctionnel</strong> (code "oui"), <strong>Prévu mais non fonctionnel</strong> (code "oui_pas_fonctionnel"), <strong>Non</strong> (code "non").</p>
+        <p><strong>% Fonctionnel</strong> = nombre de structures ayant répondu "oui" / nombre total de structures ayant renseigné ce service x 100.</p>
       </MethodNote>
     </div>
   );
@@ -376,7 +376,7 @@ function MatriceTab() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-500">% de structures ou le service est fonctionnel, par district. Survolez pour voir la valeur.</p>
+      <p className="text-sm text-gray-500">% de structures où le service est fonctionnel, par district. Survolez pour voir la valeur.</p>
       <div className="overflow-x-auto">
         <table className="text-xs border-collapse">
           <thead>
@@ -411,8 +411,8 @@ function MatriceTab() {
         </table>
       </div>
 
-      <MethodNote title="Methodologie - Matrice services x district">
-        <p>Tableau croise montrant le pourcentage de structures ou chaque service est declare fonctionnel, ventile par district.</p>
+      <MethodNote title="Méthodologie - Matrice services x district">
+        <p>Tableau croisé montrant le pourcentage de structures où chaque service est déclaré fonctionnel, ventilé par district.</p>
         <p>Code couleur : <span className="text-green-700">vert (&ge;75%)</span>, <span className="text-yellow-700">jaune (50-74%)</span>, <span className="text-orange-700">orange (25-49%)</span>, <span className="text-red-700">rouge (&lt;25%)</span>.</p>
       </MethodNote>
     </div>
@@ -430,8 +430,8 @@ function EquipementsTab({ district }: { district: string }) {
   }, [focus, district]);
 
   const columns = [
-    { key: 'label', header: 'Equipement' },
-    { key: 'category', header: 'Categorie' },
+    { key: 'label', header: 'Équipement' },
+    { key: 'category', header: 'Catégorie' },
     { key: 'sum_total', header: 'Total' },
     { key: 'sum_fonct', header: 'Fonctionnel' },
     { key: 'pct_fonct', header: '% Fonctionnel', render: (row: Record<string, unknown>) => `${(row.pct_fonct as number).toFixed(1)}%` },
@@ -475,11 +475,11 @@ function EquipementsTab({ district }: { district: string }) {
 
       <DataTable columns={columns} data={data as unknown as Record<string, unknown>[]} />
 
-      <MethodNote title="Methodologie - Equipements">
-        <p>Fonctionnalite des equipements par categorie.</p>
-        <p><strong>Total</strong> = somme des quantites totales declarees. <strong>Fonctionnel</strong> = somme des quantites fonctionnelles (en service).</p>
-        <p><strong>% Fonctionnel</strong> = total fonctionnel / total x 100. Un taux &gt;100% indique une incoherence dans les donnees (fonctionnel &gt; total).</p>
-        <p>Categories : <strong>Chaine du froid</strong> (refrigerateurs, congelateurs, porte-vaccins, glacieres), <strong>Imagerie</strong> (echographes, radio, scanner, IRM), <strong>Transport</strong> (ambulances, motos, vehicules, tricycles), <strong>Hospitalisation</strong> (lits), <strong>Laboratoire</strong> (microscopes).</p>
+      <MethodNote title="Méthodologie - Équipements">
+        <p>Fonctionnalité des équipements par catégorie.</p>
+        <p><strong>Total</strong> = somme des quantités totales déclarées. <strong>Fonctionnel</strong> = somme des quantités fonctionnelles (en service).</p>
+        <p><strong>% Fonctionnel</strong> = total fonctionnel / total x 100. Un taux &gt;100% indique une incohérence dans les données (fonctionnel &gt; total).</p>
+        <p>Catégories : <strong>Chaîne du froid</strong> (réfrigérateurs, congélateurs, porte-vaccins, glacières), <strong>Imagerie</strong> (échographes, radio, scanner, IRM), <strong>Transport</strong> (ambulances, motos, véhicules, tricycles), <strong>Hospitalisation</strong> (lits), <strong>Laboratoire</strong> (microscopes).</p>
       </MethodNote>
     </div>
   );
@@ -500,14 +500,14 @@ function RHTab({ district }: { district: string }) {
     { key: 'label', header: 'Profil' },
     { key: 'effectif_fonc', header: 'Fonctionnaires' },
     { key: 'effectif_contr', header: 'Contractuels' },
-    { key: 'effectif_benev', header: 'Benevoles' },
+    { key: 'effectif_benev', header: 'Bénévoles' },
     { key: 'effectif_total', header: 'Total' },
   ];
 
   const pieData = summary ? [
     { name: 'Fonctionnaires', value: summary.total_fonc, fill: '#3b82f6' },
     { name: 'Contractuels', value: summary.total_contr, fill: '#f59e0b' },
-    { name: 'Benevoles', value: summary.total_benev, fill: '#22c55e' },
+    { name: 'Bénévoles', value: summary.total_benev, fill: '#22c55e' },
   ].filter((d) => d.value > 0) : [];
 
   return (
@@ -520,16 +520,16 @@ function RHTab({ district }: { district: string }) {
             <p className="text-xl sm:text-2xl font-bold text-gray-900 mt-1">{summary.total_effectif.toLocaleString()}</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-3 sm:p-4 text-center">
-            <p className="text-xs sm:text-sm text-gray-500">Medecins / structure</p>
+            <p className="text-xs sm:text-sm text-gray-500">Médecins / structure</p>
             <p className="text-xl sm:text-2xl font-bold text-gray-900 mt-1">{summary.ratio_med_per_structure.toFixed(2)}</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-3 sm:p-4 text-center">
-            <p className="text-xs sm:text-sm text-gray-500">Structures avec medecin</p>
+            <p className="text-xs sm:text-sm text-gray-500">Structures avec médecin</p>
             <p className="text-xl sm:text-2xl font-bold text-blue-600 mt-1">{(summary.n_structures - summary.n_structures_sans_medecin).toLocaleString('fr-FR')}</p>
             <p className="text-xs text-gray-400">{(100 - summary.pct_structures_sans_medecin).toFixed(1)}% des structures</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-3 sm:p-4 text-center">
-            <p className="text-xs sm:text-sm text-gray-500">Structures analysees</p>
+            <p className="text-xs sm:text-sm text-gray-500">Structures analysées</p>
             <p className="text-xl sm:text-2xl font-bold text-gray-900 mt-1">{summary.n_structures.toLocaleString('fr-FR')}</p>
           </div>
         </div>
@@ -539,7 +539,7 @@ function RHTab({ district }: { district: string }) {
         {/* Donut chart */}
         {pieData.length > 0 && (
           <div>
-            <h4 className="text-sm font-medium text-gray-500 mb-3">Repartition par statut</h4>
+            <h4 className="text-sm font-medium text-gray-500 mb-3">Répartition par statut</h4>
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
                 <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={90}>
@@ -563,11 +563,11 @@ function RHTab({ district }: { district: string }) {
         </div>
       </div>
 
-      <MethodNote title="Methodologie - Ressources humaines">
-        <p>Effectifs du personnel de sante par profil et statut d'emploi.</p>
-        <p><strong>Fonctionnaires</strong> = agents de la fonction publique. <strong>Contractuels</strong> = personnel sous contrat. <strong>Benevoles</strong> = personnel benevole.</p>
-        <p><strong>Medecins / structure</strong> = nombre total de medecins (generalistes + specialistes) / nombre de structures.</p>
-        <p><strong>Structures sans medecin</strong> = structures ou aucun data element medecin (generaliste, chirurgien, gynecologue, pediatre, anesthesiste, urgentiste, sante publique, autre specialiste) n'a une valeur &gt; 0.</p>
+      <MethodNote title="Méthodologie - Ressources humaines">
+        <p>Effectifs du personnel de santé par profil et statut d'emploi.</p>
+        <p><strong>Fonctionnaires</strong> = agents de la fonction publique. <strong>Contractuels</strong> = personnel sous contrat. <strong>Bénévoles</strong> = personnel bénévole.</p>
+        <p><strong>Médecins / structure</strong> = nombre total de médecins (généralistes + spécialistes) / nombre de structures.</p>
+        <p><strong>Structures sans médecin</strong> = structures où aucun data element médecin (généraliste, chirurgien, gynécologue, pédiatre, anesthésiste, urgentiste, santé publique, autre spécialiste) n'a une valeur &gt; 0.</p>
       </MethodNote>
     </div>
   );
@@ -583,15 +583,15 @@ function CommoditesTab({ district }: { district: string }) {
   }, [district]);
 
   const labels: Record<string, string> = {
-    energie: 'Dispose d\'une source d\'energie',
+    energie: 'Dispose d\'une source d\'énergie',
     eau_pts_critiques: 'Eau aux points critiques',
     energie_solaire: 'Solaire',
-    energie_reseau: 'Reseau electrique',
-    energie_generateur: 'Generateur',
-    source_eau_réseau: 'Reseau public',
-    source_eau_puit: 'Puits / puits ameliore',
-    source_eau_FMH: 'Forage motricite humaine',
-    source_eau_FEM: 'Forage motricite electrique/solaire',
+    energie_reseau: 'Réseau électrique',
+    energie_generateur: 'Générateur',
+    source_eau_réseau: 'Réseau public',
+    source_eau_puit: 'Puits / puits amélioré',
+    source_eau_FMH: 'Forage motricité humaine',
+    source_eau_FEM: 'Forage motricité électrique/solaire',
     source_eau_aucune: 'Aucune source d\'eau',
     source_eau_total: 'Total structures (eau)',
   };
@@ -621,7 +621,7 @@ function CommoditesTab({ district }: { district: string }) {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div>
-          <h4 className="text-sm font-semibold text-gray-700 mb-3">Sources d'energie (par type)</h4>
+          <h4 className="text-sm font-semibold text-gray-700 mb-3">Sources d'énergie (par type)</h4>
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <table className="w-full text-sm">
               <thead><tr className="border-b bg-gray-50">
@@ -641,7 +641,7 @@ function CommoditesTab({ district }: { district: string }) {
                     <td className="px-3 py-2"><div className="w-full bg-gray-200 rounded-full h-2"><div className="h-2 rounded-full bg-amber-500" style={{ width: `${Math.min(c.pct, 100)}%` }} /></div></td>
                   </tr>
                 ))}
-                {energyTypes.length === 0 && <tr><td colSpan={5} className="px-3 py-4 text-center text-gray-400">Aucune donnee</td></tr>}
+                {energyTypes.length === 0 && <tr><td colSpan={5} className="px-3 py-4 text-center text-gray-400">Aucune donnée</td></tr>}
               </tbody>
             </table>
           </div>
@@ -673,18 +673,18 @@ function CommoditesTab({ district }: { district: string }) {
                     </tr>
                   );
                 })}
-                {waterTypes.length === 0 && <tr><td colSpan={4} className="px-3 py-4 text-center text-gray-400">Aucune donnee</td></tr>}
+                {waterTypes.length === 0 && <tr><td colSpan={4} className="px-3 py-4 text-center text-gray-400">Aucune donnée</td></tr>}
               </tbody>
             </table>
           </div>
         </div>
       </div>
 
-      <MethodNote title="Methodologie - Commodites (WASH / Energie)">
-        <p><strong>Dispose d'une source d'energie</strong> : champ booleen ISS_ENERGIE_OUI_NON_DE = true.</p>
-        <p><strong>Types de source d'energie</strong> : champs booleens independants (multi-choix possible). Une structure peut avoir reseau + solaire + generateur.</p>
-        <p><strong>Eau aux points critiques</strong> : champ booleen ISS_EAU_DISPO_PTS_CRITIQUES = true.</p>
-        <p><strong>Source d'eau principale</strong> : champ a choix unique (optionSet). Les pourcentages sont calcules sur le nombre total de structures ayant renseigne ce champ.</p>
+      <MethodNote title="Méthodologie - Commodités (WASH / Énergie)">
+        <p><strong>Dispose d'une source d'énergie</strong> : champ booléen ISS_ENERGIE_OUI_NON_DE = true.</p>
+        <p><strong>Types de source d'énergie</strong> : champs booléens indépendants (multi-choix possible). Une structure peut avoir réseau + solaire + générateur.</p>
+        <p><strong>Eau aux points critiques</strong> : champ booléen ISS_EAU_DISPO_PTS_CRITIQUES = true.</p>
+        <p><strong>Source d'eau principale</strong> : champ à choix unique (optionSet). Les pourcentages sont calculés sur le nombre total de structures ayant renseigné ce champ.</p>
       </MethodNote>
     </div>
   );
@@ -709,10 +709,10 @@ function ClosedOUsTab({ district }: { district: string }) {
     { key: 'closed_date', header: 'Date de fermeture' },
     {
       key: 'has_data',
-      header: 'Donnees',
+      header: 'Données',
       render: (row: Record<string, unknown>) =>
         row.has_data
-          ? <span className="text-red-600 font-medium">Oui (apres fermeture)</span>
+          ? <span className="text-red-600 font-medium">Oui (après fermeture)</span>
           : <span className="text-gray-400">Non</span>,
     },
   ];
@@ -722,19 +722,19 @@ function ClosedOUsTab({ district }: { district: string }) {
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <div className="bg-gray-50 rounded-lg p-3 sm:p-5 text-center">
-          <p className="text-xs sm:text-sm text-gray-500">Structures fermees</p>
+          <p className="text-xs sm:text-sm text-gray-500">Structures fermées</p>
           <p className="text-xl sm:text-3xl font-bold text-gray-900 mt-1 sm:mt-2">{data.length.toLocaleString('fr-FR')}</p>
-          <p className="text-xs text-gray-400">assignees au programme ISS</p>
+          <p className="text-xs text-gray-400">assignées au programme ISS</p>
         </div>
         <div className="bg-gray-50 rounded-lg p-3 sm:p-5 text-center">
-          <p className="text-xs sm:text-sm text-gray-500">Avec donnees soumises</p>
+          <p className="text-xs sm:text-sm text-gray-500">Avec données soumises</p>
           <p className="text-xl sm:text-3xl font-bold text-red-600 mt-1 sm:mt-2">{withData.length}</p>
-          <p className="text-xs text-gray-400">ont rapporte apres fermeture</p>
+          <p className="text-xs text-gray-400">ont rapporté après fermeture</p>
         </div>
         <div className="bg-gray-50 rounded-lg p-3 sm:p-5 text-center">
-          <p className="text-xs sm:text-sm text-gray-500">Sans donnees</p>
+          <p className="text-xs sm:text-sm text-gray-500">Sans données</p>
           <p className="text-xl sm:text-3xl font-bold text-gray-600 mt-1 sm:mt-2">{withoutData.length}</p>
-          <p className="text-xs text-gray-400">fermees, pas de soumission</p>
+          <p className="text-xs text-gray-400">fermées, pas de soumission</p>
         </div>
       </div>
 
@@ -747,7 +747,7 @@ function ClosedOUsTab({ district }: { district: string }) {
             { key: 'district', header: 'District' },
             { key: 'region', header: 'Region' },
             { key: 'closed_date', header: 'Date de fermeture' },
-            { key: 'has_data', header: 'Donnees apres fermeture' },
+            { key: 'has_data', header: 'Données après fermeture' },
           ]}
           filename="structures_fermees"
         />
@@ -756,22 +756,22 @@ function ClosedOUsTab({ district }: { district: string }) {
       {/* Table with data (problematic) */}
       {withData.length > 0 && (
         <div>
-          <h4 className="text-sm font-semibold text-red-700 mb-2">Structures fermees ayant soumis des donnees</h4>
+          <h4 className="text-sm font-semibold text-red-700 mb-2">Structures fermées ayant soumis des données</h4>
           <DataTable columns={columns} data={withData as unknown as Record<string, unknown>[]} />
         </div>
       )}
 
       {/* Full table */}
       <div>
-        <h4 className="text-sm font-semibold text-gray-700 mb-2">Toutes les structures fermees ({data.length})</h4>
+        <h4 className="text-sm font-semibold text-gray-700 mb-2">Toutes les structures fermées ({data.length})</h4>
         <DataTable columns={columns} data={data as unknown as Record<string, unknown>[]} />
       </div>
 
-      <MethodNote title="Methodologie - Structures fermees">
-        <p>Liste des unites organisationnelles ayant une <strong>closedDate</strong> renseignee dans DHIS2 et etant assignees au programme ISS.</p>
-        <p><strong>Avec donnees</strong> : la structure a soumis au moins un formulaire ISS dont la date est posterieure a sa date de fermeture.</p>
-        <p><strong>Sans donnees</strong> : la structure est fermee et n'a aucun formulaire ISS actif (soit jamais soumis, soit les donnees ont ete supprimees).</p>
-        <p>Ces structures devraient idealement etre desassignees du programme ISS dans DHIS2 pour ne plus etre comptees dans le taux de rapportage.</p>
+      <MethodNote title="Méthodologie - Structures fermées">
+        <p>Liste des unités organisationnelles ayant une <strong>closedDate</strong> renseignée dans DHIS2 et étant assignées au programme ISS.</p>
+        <p><strong>Avec données</strong> : la structure a soumis au moins un formulaire ISS dont la date est postérieure à sa date de fermeture.</p>
+        <p><strong>Sans données</strong> : la structure est fermée et n'a aucun formulaire ISS actif (soit jamais soumis, soit les données ont été supprimées).</p>
+        <p>Ces structures devraient idéalement être désassignées du programme ISS dans DHIS2 pour ne plus être comptées dans le taux de rapportage.</p>
       </MethodNote>
     </div>
   );
