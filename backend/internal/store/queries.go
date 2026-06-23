@@ -724,7 +724,7 @@ func (s *Store) GetFilters() (*Filters, error) {
 	}
 
 	// Rules with names
-	rows, err := s.db.Query(`SELECT DISTINCT rule_code, rule_name FROM quality_issue ORDER BY rule_code`)
+	rows, err := s.db.Query(`SELECT DISTINCT rule_code, rule_name FROM quality_issue ORDER BY CAST(SUBSTR(rule_code, 2) AS INTEGER)`)
 	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
