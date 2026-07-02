@@ -982,6 +982,27 @@ func (s *Store) GetMapData() (*models.MapDistrictCollection, error) {
 			}
 		}
 	}
+	// 7b. Load usage_rh effectifs par profil et district (pour le sélecteur de densité par type de RH)
+	type rhProfil struct {
+		label string
+		eff   int
+	}
+	rhProfils := map[string]map[string]*rhProfil{} // district -> profil_code -> data
+	prRows, err := s.db.Query(`SELECT district, profil_code, label, effectif_total FROM usage_rh WHERE district != 'all'`)
+	if err == nil {
+		defer prRows.Close()
+		for prRows.Next() {
+			var dist, code, label string
+			var eff int
+			if prRows.Scan(&dist, &code, &label, &eff) == nil {
+				if rhProfils[dist] == nil {
+					rhProfils[dist] = map[string]*rhProfil{}
+				}
+				rhProfils[dist][code] = &rhProfil{label: label, eff: eff}
+			}
+		}
+	}
+
 	// Get structure counts per district
 	nRows, err := s.db.Query(`SELECT district, COUNT(*) FROM event GROUP BY district`)
 	if err == nil {
@@ -1006,6 +1027,7 @@ func (s *Store) GetMapData() (*models.MapDistrictCollection, error) {
 			DistrictName: d.name,
 			Services:     map[string]models.ServiceMapData{},
 			Equipements:  map[string]models.EquipMapData{},
+			Rh:           map[string]models.RhMapData{},
 		}
 
 		// Reporting
@@ -1072,6 +1094,16 @@ func (s *Store) GetMapData() (*models.MapDistrictCollection, error) {
 			if r.nStructures > 0 {
 				ratio := float64(r.medTotal) / float64(r.nStructures)
 				props.RhMedecinsParStruct = &ratio
+			}
+		}
+
+		// RH par profil
+		if pMap, ok := rhProfils[d.name]; ok {
+			for code, p := range pMap {
+				props.Rh[code] = models.RhMapData{
+					Label:         p.label,
+					EffectifTotal: p.eff,
+				}
 			}
 		}
 

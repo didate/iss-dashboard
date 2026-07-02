@@ -277,6 +277,11 @@ type EquipMapData struct {
 	SumFonct int    `json:"sum_fonct"`
 }
 
+type RhMapData struct {
+	Label         string `json:"label"`
+	EffectifTotal int    `json:"effectif_total"`
+}
+
 type MapDistrictProperties struct {
 	DistrictUID  string `json:"district_uid"`
 	DistrictName string `json:"district_name"`
@@ -301,6 +306,8 @@ type MapDistrictProperties struct {
 	RhMedecinsTotal     int      `json:"rh_medecins_total"`
 	RhNStructures       int      `json:"rh_n_structures"`
 	RhMedecinsParStruct *float64 `json:"rh_medecins_par_structure"`
+	// Effectifs par profil RH (pour le sélecteur de densité par type de RH)
+	Rh map[string]RhMapData `json:"rh"`
 }
 
 type MapDistrictFeature struct {

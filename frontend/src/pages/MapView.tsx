@@ -35,14 +35,6 @@ function getColorScore(value: number | null): string {
   return '#22c55e';
 }
 
-function getColorRH(value: number | null): string {
-  if (value === null || value === undefined) return '#d1d5db';
-  if (value < 0.2) return '#ef4444';
-  if (value < 0.5) return '#f97316';
-  if (value < 1) return '#eab308';
-  return '#22c55e';
-}
-
 function computeQuantileBreaks(values: number[], n: number): number[] {
   const sorted = [...values].filter(v => v > 0).sort((a, b) => a - b);
   if (sorted.length === 0) return [];
@@ -87,14 +79,17 @@ function getLegendItems(layer: LayerKey, breaks?: number[]): LegendItem[] {
       { color: '#d1d5db', label: 'Pas de données' },
     ];
   }
-  if (layer === 'rh') {
-    return [
-      { color: '#ef4444', label: '< 0.2 med/struct' },
-      { color: '#f97316', label: '0.2 - 0.5' },
-      { color: '#eab308', label: '0.5 - 1' },
-      { color: '#22c55e', label: '> 1' },
-      { color: '#d1d5db', label: 'Pas de données' },
-    ];
+  if (layer === 'rh' && breaks && breaks.length > 0) {
+    const fmt = (v: number) => v.toFixed(2);
+    const labels = [`<= ${fmt(breaks[0])} /struct`];
+    for (let i = 1; i < breaks.length; i++) {
+      labels.push(`${fmt(breaks[i - 1])} - ${fmt(breaks[i])}`);
+    }
+    labels.push(`> ${fmt(breaks[breaks.length - 1])}`);
+    const colors = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'];
+    const items = labels.map((l, i) => ({ color: colors[i] || '#22c55e', label: l }));
+    items.push({ color: '#d1d5db', label: 'Pas de données' });
+    return items;
   }
   if ((layer === 'equipements' || layer === 'services') && breaks && breaks.length > 0) {
     const labels = [`<= ${breaks[0]}`];
@@ -110,7 +105,33 @@ function getLegendItems(layer: LayerKey, breaks?: number[]): LegendItem[] {
   return [{ color: '#d1d5db', label: 'Pas de données' }];
 }
 
-function getShortValue(props: MapDistrictProperties, layer: LayerKey, selectedService: string, selectedEquipCategory: string): string {
+// Valeur sentinelle pour le cumul de tous les profils RH
+const RH_ALL = '__all__';
+
+// Effectif du profil sélectionné (ou cumul de tous les profils) pour un district
+function getRhEffectif(props: MapDistrictProperties, selectedRhProfil: string): number {
+  if (selectedRhProfil === RH_ALL) {
+    let sum = 0;
+    for (const rh of Object.values(props.rh || {})) sum += rh.effectif_total;
+    return sum;
+  }
+  return props.rh?.[selectedRhProfil]?.effectif_total ?? 0;
+}
+
+// Libellé du profil sélectionné (ou cumul)
+function getRhLabel(props: MapDistrictProperties, selectedRhProfil: string): string {
+  if (selectedRhProfil === RH_ALL) return 'Tous les RH';
+  return props.rh?.[selectedRhProfil]?.label || 'agents';
+}
+
+// Densité du profil RH sélectionné : effectif / nombre de structures du district
+function getRhRatio(props: MapDistrictProperties, selectedRhProfil: string): number | null {
+  if (props.rh_n_structures <= 0) return null;
+  if (selectedRhProfil !== RH_ALL && !props.rh?.[selectedRhProfil]) return null;
+  return getRhEffectif(props, selectedRhProfil) / props.rh_n_structures;
+}
+
+function getShortValue(props: MapDistrictProperties, layer: LayerKey, selectedService: string, selectedEquipCategory: string, selectedRhProfil: string): string {
   switch (layer) {
     case 'rapportage':
       return props.rapportage_pct !== null ? `${props.rapportage_pct.toFixed(0)}%` : '-';
@@ -132,8 +153,10 @@ function getShortValue(props: MapDistrictProperties, layer: LayerKey, selectedSe
     }
     case 'wash':
       return props.wash_forage_ou_reseau_pct !== null ? `${props.wash_forage_ou_reseau_pct.toFixed(0)}%` : '-';
-    case 'rh':
-      return props.rh_medecins_par_structure !== null ? `${props.rh_medecins_par_structure.toFixed(1)}` : '-';
+    case 'rh': {
+      const ratio = getRhRatio(props, selectedRhProfil);
+      return ratio !== null ? `${ratio.toFixed(1)}` : '-';
+    }
     default:
       return '-';
   }
@@ -178,11 +201,12 @@ function MapControls() {
 }
 
 // Component that renders district labels inside a MapContainer
-function DistrictLabels({ features, activeLayer, selectedService, selectedEquipCategory, fontSize = 'normal' }: {
+function DistrictLabels({ features, activeLayer, selectedService, selectedEquipCategory, selectedRhProfil, fontSize = 'normal' }: {
   features: MapDistrictCollection['features'];
   activeLayer: LayerKey;
   selectedService: string;
   selectedEquipCategory: string;
+  selectedRhProfil: string;
   fontSize?: 'normal' | 'small';
 }) {
   const map = useMap();
@@ -198,7 +222,7 @@ function DistrictLabels({ features, activeLayer, selectedService, selectedEquipC
 
     for (const feature of features) {
       const props = feature.properties;
-      const shortVal = getShortValue(props, activeLayer, selectedService, selectedEquipCategory);
+      const shortVal = getShortValue(props, activeLayer, selectedService, selectedEquipCategory, selectedRhProfil);
 
       try {
         const geoLayer = L.geoJSON(feature as unknown as GeoJSON.Feature);
@@ -233,7 +257,7 @@ function DistrictLabels({ features, activeLayer, selectedService, selectedEquipC
         map.removeLayer(labelsRef.current);
       }
     };
-  }, [map, features, activeLayer, selectedService, selectedEquipCategory, fontSize]);
+  }, [map, features, activeLayer, selectedService, selectedEquipCategory, selectedRhProfil, fontSize]);
 
   return null;
 }
@@ -246,6 +270,7 @@ export default function MapView() {
   const activeLayer = activeLayerStr as LayerKey;
   const [selectedService, setSelectedService] = useUrlState('service');
   const [selectedEquipCategory, setSelectedEquipCategory] = useUrlState('category');
+  const [selectedRhProfil, setSelectedRhProfil] = useUrlState('profil');
   const geoJsonRef = useRef<L.GeoJSON | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const insetRef = useRef<HTMLDivElement | null>(null);
@@ -280,6 +305,19 @@ export default function MapView() {
     return Array.from(cats).sort();
   }, [data]);
 
+  const rhProfilOptions = useMemo(() => {
+    if (!data) return [];
+    const allProfils = new Map<string, string>();
+    for (const f of data.features) {
+      for (const [code, rh] of Object.entries(f.properties.rh || {})) {
+        if (!allProfils.has(code)) allProfils.set(code, rh.label);
+      }
+    }
+    const sorted = Array.from(allProfils.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+    if (sorted.length === 0) return sorted;
+    return [[RH_ALL, 'Tous les RH (cumul)'] as [string, string], ...sorted];
+  }, [data]);
+
   useEffect(() => {
     if (serviceOptions.length > 0 && !selectedService) {
       setSelectedService(serviceOptions[0][0]);
@@ -291,6 +329,12 @@ export default function MapView() {
       setSelectedEquipCategory(equipCategories[0]);
     }
   }, [equipCategories, selectedEquipCategory]);
+
+  useEffect(() => {
+    if (rhProfilOptions.length > 0 && !selectedRhProfil) {
+      setSelectedRhProfil(rhProfilOptions[0][0]);
+    }
+  }, [rhProfilOptions, selectedRhProfil]);
 
   const equipBreaks = useMemo(() => {
     if (!data || activeLayer !== 'equipements' || !selectedEquipCategory) return [];
@@ -314,6 +358,16 @@ export default function MapView() {
     }
     return computeQuantileBreaks(values, 5);
   }, [data, activeLayer, selectedService]);
+
+  const rhBreaks = useMemo(() => {
+    if (!data || activeLayer !== 'rh' || !selectedRhProfil) return [];
+    const values: number[] = [];
+    for (const f of data.features) {
+      const ratio = getRhRatio(f.properties, selectedRhProfil);
+      if (ratio !== null) values.push(ratio);
+    }
+    return computeQuantileBreaks(values, 5);
+  }, [data, activeLayer, selectedRhProfil]);
 
   const getFeatureValue = useCallback((props: MapDistrictProperties): { value: number | null; display: string } => {
     switch (activeLayer) {
@@ -350,17 +404,20 @@ export default function MapView() {
             ? `${props.wash_forage_ou_reseau_pct.toFixed(1)}% (${props.wash_forage_ou_reseau_n}/${props.wash_total})`
             : 'N/A',
         };
-      case 'rh':
+      case 'rh': {
+        const ratio = getRhRatio(props, selectedRhProfil);
+        if (ratio === null) return { value: null, display: 'N/A' };
+        const label = getRhLabel(props, selectedRhProfil);
+        const eff = getRhEffectif(props, selectedRhProfil);
         return {
-          value: props.rh_medecins_par_structure,
-          display: props.rh_medecins_par_structure !== null
-            ? `${props.rh_medecins_par_structure.toFixed(2)} med/struct (${props.rh_medecins_total} med, ${props.rh_n_structures} struct.)`
-            : 'N/A',
+          value: ratio,
+          display: `${ratio.toFixed(2)} ${label}/struct (${eff} ${label.toLowerCase()}, ${props.rh_n_structures} struct.)`,
         };
+      }
       default:
         return { value: null, display: 'N/A' };
     }
-  }, [activeLayer, selectedService, selectedEquipCategory]);
+  }, [activeLayer, selectedService, selectedEquipCategory, selectedRhProfil]);
 
   const getColor = useCallback((value: number | null): string => {
     switch (activeLayer) {
@@ -372,13 +429,13 @@ export default function MapView() {
       case 'qualite':
         return getColorScore(value);
       case 'rh':
-        return getColorRH(value);
+        return getColorQuantile(value, rhBreaks);
       case 'equipements':
         return getColorQuantile(value, equipBreaks);
       default:
         return '#d1d5db';
     }
-  }, [activeLayer, equipBreaks, serviceBreaks]);
+  }, [activeLayer, equipBreaks, serviceBreaks, rhBreaks]);
 
   const style = useCallback((feature: Feature<Geometry, MapDistrictProperties> | undefined): PathOptions => {
     if (!feature) return { fillColor: '#d1d5db', weight: 1, color: '#6b7280', fillOpacity: 0.7 };
@@ -419,7 +476,11 @@ export default function MapView() {
     const rapPct = props.rapportage_pct;
     const washPct = props.wash_forage_ou_reseau_pct;
     const eauPct = props.wash_eau_pts_critiques_pct;
-    const rhRatio = props.rh_medecins_par_structure;
+    // Densité du profil RH sélectionné (ou cumul ; fallback sur médecins si aucun profil choisi)
+    const hasRhSel = selectedRhProfil === RH_ALL || !!props.rh?.[selectedRhProfil];
+    const rhRatio = hasRhSel ? getRhRatio(props, selectedRhProfil) : props.rh_medecins_par_structure;
+    const rhLabel = hasRhSel ? getRhLabel(props, selectedRhProfil) : 'Médecins';
+    const rhEffectif = hasRhSel ? getRhEffectif(props, selectedRhProfil) : props.rh_medecins_total;
 
     return `
       <div style="min-width:260px;font-family:system-ui,sans-serif;">
@@ -432,9 +493,9 @@ export default function MapView() {
             <div style="font-size:9px;color:#9ca3af;">${props.rapportage_reported}/${props.rapportage_expected}</div>
           </div>
           <div>
-            <div style="font-size:10px;color:#6b7280;">Médecins/structure</div>
+            <div style="font-size:10px;color:#6b7280;">${rhLabel}/structure</div>
             <div style="font-size:15px;font-weight:700;color:${rhRatio !== null && rhRatio >= 1 ? '#16a34a' : rhRatio !== null && rhRatio >= 0.5 ? '#ca8a04' : '#dc2626'};">${rhRatio !== null ? rhRatio.toFixed(2) : '-'}</div>
-            <div style="font-size:9px;color:#9ca3af;">${props.rh_medecins_total} med, ${props.rh_n_structures} struct.</div>
+            <div style="font-size:9px;color:#9ca3af;">${rhEffectif} ${rhLabel.toLowerCase()}, ${props.rh_n_structures} struct.</div>
           </div>
           <div>
             <div style="font-size:10px;color:#6b7280;">Eau (forage/réseau)</div>
@@ -470,7 +531,7 @@ export default function MapView() {
         ` : ''}
       </div>
     `;
-  }, []);
+  }, [selectedRhProfil]);
 
   const onEachFeature = useCallback((feature: Feature<Geometry, MapDistrictProperties>, layer: Layer) => {
     const props = feature.properties;
@@ -512,7 +573,7 @@ export default function MapView() {
   }, [data]);
 
 
-  const geoJsonKey = `${activeLayer}-${selectedService}-${selectedEquipCategory}`;
+  const geoJsonKey = `${activeLayer}-${selectedService}-${selectedEquipCategory}-${selectedRhProfil}`;
 
   if (loading) return <div className="p-6 text-gray-500">Chargement de la carte...</div>;
   if (error) return <div className="p-6 text-red-500">Erreur : {error}</div>;
@@ -520,7 +581,10 @@ export default function MapView() {
     return <div className="p-6 text-gray-500">Aucune donnée géographique disponible. Lancez une synchronisation pour récupérer les contours des districts.</div>;
   }
 
-  const legendItems = getLegendItems(activeLayer, activeLayer === 'services' ? serviceBreaks : equipBreaks);
+  const legendItems = getLegendItems(
+    activeLayer,
+    activeLayer === 'services' ? serviceBreaks : activeLayer === 'rh' ? rhBreaks : equipBreaks
+  );
 
   return (
     <div className="space-y-4">
@@ -564,6 +628,17 @@ export default function MapView() {
           ))}
         </select>
       )}
+      {activeLayer === 'rh' && rhProfilOptions.length > 0 && (
+        <select
+          value={selectedRhProfil}
+          onChange={e => setSelectedRhProfil(e.target.value)}
+          className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white"
+        >
+          {rhProfilOptions.map(([code, label]) => (
+            <option key={code} value={code}>{label}</option>
+          ))}
+        </select>
+      )}
 
       {/* Map + Legend + Inset */}
       <div className="relative rounded-lg overflow-hidden border border-gray-200 bg-white" style={{ height: 'calc(100vh - 200px)', minHeight: '400px' }}>
@@ -586,6 +661,7 @@ export default function MapView() {
             activeLayer={activeLayer}
             selectedService={selectedService}
             selectedEquipCategory={selectedEquipCategory}
+            selectedRhProfil={selectedRhProfil}
           />
           <MapControls />
         </MapContainer>
@@ -648,6 +724,7 @@ export default function MapView() {
                 activeLayer={activeLayer}
                 selectedService={selectedService}
                 selectedEquipCategory={selectedEquipCategory}
+                selectedRhProfil={selectedRhProfil}
                 fontSize="small"
               />
             </MapContainer>
@@ -680,7 +757,7 @@ export default function MapView() {
           <li><strong>Couverture services</strong> : nombre de structures disposant du service sélectionné. Échelle à quantiles dynamiques.</li>
           <li><strong>Équipements</strong> : nombres bruts (fonctionnels / total) par catégorie. Échelle à quantiles dynamiques.</li>
           <li><strong>WASH</strong> : % de structures alimentées par forage (FMH/FME) ou réseau public.</li>
-          <li><strong>Densité RH</strong> : ratio médecins par structure dans le district.</li>
+          <li><strong>Densité RH</strong> : ratio d'effectif du profil RH sélectionné (médecins, infirmiers, ATS, etc.) par structure dans le district. Échelle à quantiles dynamiques.</li>
         </ul>
       </MethodNote>
     </div>

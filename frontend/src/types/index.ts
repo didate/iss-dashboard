@@ -259,6 +259,11 @@ export interface EquipMapData {
   sum_fonct: number;
 }
 
+export interface RhMapData {
+  label: string;
+  effectif_total: number;
+}
+
 export interface MapDistrictProperties {
   district_uid: string;
   district_name: string;
@@ -277,6 +282,7 @@ export interface MapDistrictProperties {
   rh_medecins_total: number;
   rh_n_structures: number;
   rh_medecins_par_structure: number | null;
+  rh: Record<string, RhMapData>;
 }
 
 export interface MapDistrictFeature {
