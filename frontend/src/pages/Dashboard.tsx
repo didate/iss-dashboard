@@ -58,7 +58,7 @@ export default function Dashboard() {
 
   // Top 5 / Bottom 5 districts by reporting
   const sortedDistricts = [...reportingDistrict].sort((a, b) => a.pct - b.pct);
-  const bottom5 = sortedDistricts.slice(0, 5);
+  const bottom5 = sortedDistricts.filter(d => d.pct < 100).slice(0, 5);
   const top5 = sortedDistricts.slice(-5).reverse();
 
   // Statut juridique — group into publique/privee then sub-categories
@@ -249,19 +249,19 @@ export default function Dashboard() {
             {top5.map((d, i) => (
               <div key={d.key} className="flex items-center justify-between text-xs py-1 border-b border-gray-50">
                 <span className="text-gray-700">{i + 1}. {d.label}</span>
-                <span className="font-semibold text-green-600">{d.pct.toFixed(0)}%</span>
+                <span className={`font-semibold ${d.pct >= 80 ? 'text-green-600' : d.pct >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>{d.pct.toFixed(0)}%</span>
               </div>
             ))}
           </div>
 
           <div>
-            <div className="flex items-center gap-1 text-xs font-medium text-red-700 mb-2">
+            <div className="flex items-center gap-1 text-xs font-medium text-gray-500 mb-2">
               <TrendingDown size={14} /> Bottom 5
             </div>
             {bottom5.map((d, i) => (
               <div key={d.key} className="flex items-center justify-between text-xs py-1 border-b border-gray-50">
                 <span className="text-gray-700">{i + 1}. {d.label}</span>
-                <span className="font-semibold text-red-600">{d.pct.toFixed(0)}%</span>
+                <span className={`font-semibold ${d.pct >= 80 ? 'text-green-600' : d.pct >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>{d.pct.toFixed(0)}%</span>
               </div>
             ))}
           </div>
@@ -281,18 +281,18 @@ export default function Dashboard() {
               {[...districtScores].sort((a, b) => b.avg_score - a.avg_score).slice(0, 5).map((d, i) => (
                 <div key={d.key} className="flex items-center justify-between text-xs py-1 border-b border-gray-50">
                   <span className="text-gray-700">{i + 1}. {d.label}</span>
-                  <span className="font-semibold text-green-600">{d.avg_score.toFixed(0)}</span>
+                  <span className={`font-semibold ${d.avg_score >= 80 ? 'text-green-600' : d.avg_score >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>{d.avg_score.toFixed(0)}</span>
                 </div>
               ))}
             </div>
             <div>
-              <div className="flex items-center gap-1 text-xs font-medium text-red-700 mb-2">
+              <div className="flex items-center gap-1 text-xs font-medium text-gray-500 mb-2">
                 <TrendingDown size={14} /> Scores les plus bas
               </div>
-              {[...districtScores].sort((a, b) => a.avg_score - b.avg_score).slice(0, 5).map((d, i) => (
+              {[...districtScores].filter(d => d.avg_score < 100).sort((a, b) => a.avg_score - b.avg_score).slice(0, 5).map((d, i) => (
                 <div key={d.key} className="flex items-center justify-between text-xs py-1 border-b border-gray-50">
                   <span className="text-gray-700">{i + 1}. {d.label}</span>
-                  <span className="font-semibold text-red-600">{d.avg_score.toFixed(0)}</span>
+                  <span className={`font-semibold ${d.avg_score >= 80 ? 'text-green-600' : d.avg_score >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>{d.avg_score.toFixed(0)}</span>
                 </div>
               ))}
             </div>
