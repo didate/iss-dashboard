@@ -70,7 +70,7 @@ func (h *PDFHandlers) ExportDistrictPDF(c *gin.Context) {
 		pdfKPITable(pdf, [][]string{
 			{"Effectif total RH", fmt.Sprintf("%d", rhSummary.TotalEffectif)},
 			{"Medecins / structure", fmt.Sprintf("%.2f", rhSummary.RatioMedPerStr)},
-			{"Structures sans medecin", fmt.Sprintf("%d (%.1f%%)", rhSummary.NStrSansMed, rhSummary.PctStrSansMed)},
+			{"Structures sans aucun medecin", fmt.Sprintf("%d (%.1f%%)", rhSummary.NStrSansMed, rhSummary.PctStrSansMed)},
 		})
 	}
 	pdf.Ln(6)

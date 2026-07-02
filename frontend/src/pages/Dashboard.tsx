@@ -138,7 +138,7 @@ export default function Dashboard() {
         <KpiCard
           title="Médecins / structure"
           value={rhSummary?.ratio_med_per_structure?.toFixed(2) ?? '-'}
-          subtitle={`${rhSummary?.n_structures_sans_medecin ?? 0} structures sans médecin`}
+          subtitle={`${rhSummary?.n_structures_sans_medecin ?? 0} structures sans aucun médecin`}
           color={rhSummary && rhSummary.ratio_med_per_structure >= 1 ? 'text-green-600' : 'text-red-600'}
           icon={<Users size={20} />}
         />
@@ -338,6 +338,7 @@ export default function Dashboard() {
         <p><strong>Infos</strong> (-1 pt) : eau sans source, structure coquille vide.</p>
         <p><strong>Taux de rapportage</strong> = structures ayant soumis / structures assignées au programme (hors fermées).</p>
         <p><strong>Médecins / structure</strong> = total médecins (généralistes + spécialistes) / nombre de structures.</p>
+        <p><strong>Structures sans aucun médecin</strong> = structures n'ayant déclaré aucun médecin, ni généraliste ni spécialiste (effectif &gt; 0 pour aucun profil médecin).</p>
       </MethodNote>
     </div>
   );

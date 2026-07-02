@@ -524,7 +524,7 @@ function RHTab({ district }: { district: string }) {
             <p className="text-xl sm:text-2xl font-bold text-gray-900 mt-1">{summary.ratio_med_per_structure.toFixed(2)}</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-3 sm:p-4 text-center">
-            <p className="text-xs sm:text-sm text-gray-500">Structures avec médecin</p>
+            <p className="text-xs sm:text-sm text-gray-500">Structures avec au moins un médecin</p>
             <p className="text-xl sm:text-2xl font-bold text-blue-600 mt-1">{(summary.n_structures - summary.n_structures_sans_medecin).toLocaleString('fr-FR')}</p>
             <p className="text-xs text-gray-400">{(100 - summary.pct_structures_sans_medecin).toFixed(1)}% des structures</p>
           </div>
