@@ -289,7 +289,7 @@ export default function Dashboard() {
               <div className="flex items-center gap-1 text-xs font-medium text-gray-500 mb-2">
                 <TrendingDown size={14} /> Scores les plus bas
               </div>
-              {[...districtScores].filter(d => d.avg_score < 100).sort((a, b) => a.avg_score - b.avg_score).slice(0, 5).map((d, i) => (
+              {[...districtScores].filter(d => d.avg_score < 80).sort((a, b) => a.avg_score - b.avg_score).slice(0, 5).map((d, i) => (
                 <div key={d.key} className="flex items-center justify-between text-xs py-1 border-b border-gray-50">
                   <span className="text-gray-700">{i + 1}. {d.label}</span>
                   <span className={`font-semibold ${d.avg_score >= 80 ? 'text-green-600' : d.avg_score >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>{d.avg_score.toFixed(0)}</span>
