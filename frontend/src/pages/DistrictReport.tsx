@@ -113,6 +113,8 @@ export default function DistrictReport() {
     { name: 'Fonctionnaires', value: rhSummary.total_fonc, fill: '#3b82f6' },
     { name: 'Contractuels', value: rhSummary.total_contr, fill: '#f59e0b' },
     { name: 'Bénévoles', value: rhSummary.total_benev, fill: '#22c55e' },
+    { name: 'ASC', value: rhSummary.total_asc, fill: '#8b5cf6' },
+    { name: 'RECO', value: rhSummary.total_reco, fill: '#ec4899' },
   ].filter(d => d.value > 0) : [];
 
   const pctColor = (v: number) => v >= 80 ? '#16a34a' : v >= 50 ? '#ca8a04' : '#dc2626';
@@ -295,8 +297,8 @@ export default function DistrictReport() {
                 </ResponsiveContainer>
               )}
               <ReportTable
-                headers={['Profil', 'Fonc.', 'Contr.', 'Bénév.', 'Total']}
-                rows={rh.map(r => [r.label, String(r.effectif_fonc), String(r.effectif_contr), String(r.effectif_benev), String(r.effectif_total)])}
+                headers={['Profil', 'Fonc.', 'Contr.', 'Bénév.', 'ASC', 'RECO', 'Total']}
+                rows={rh.map(r => [r.label, String(r.effectif_fonc), String(r.effectif_contr), String(r.effectif_benev), String(r.effectif_asc), String(r.effectif_reco), String(r.effectif_total)])}
               />
             </div>
           </div>

@@ -417,7 +417,7 @@ func (s *Store) GetUsageRH(district string) ([]models.UsageRH, error) {
 	if district != "" {
 		d = district
 	}
-	rows, err := s.db.Query(`SELECT profil_code, label, district, effectif_fonc, effectif_contr, effectif_benev, effectif_total FROM usage_rh WHERE district=? ORDER BY effectif_total DESC`, d)
+	rows, err := s.db.Query(`SELECT profil_code, label, district, effectif_fonc, effectif_contr, effectif_benev, effectif_asc, effectif_reco, effectif_total FROM usage_rh WHERE district=? ORDER BY effectif_total DESC`, d)
 	if err != nil {
 		return nil, err
 	}
@@ -425,7 +425,7 @@ func (s *Store) GetUsageRH(district string) ([]models.UsageRH, error) {
 	var out []models.UsageRH
 	for rows.Next() {
 		var r models.UsageRH
-		if err := rows.Scan(&r.ProfilCode, &r.Label, &r.District, &r.EffectifFonc, &r.EffectifContr, &r.EffectifBenev, &r.EffectifTotal); err != nil {
+		if err := rows.Scan(&r.ProfilCode, &r.Label, &r.District, &r.EffectifFonc, &r.EffectifContr, &r.EffectifBenev, &r.EffectifASC, &r.EffectifRECO, &r.EffectifTotal); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
@@ -570,6 +570,8 @@ type RHSummaryResult struct {
 	TotalFonc      int     `json:"total_fonc"`
 	TotalContr     int     `json:"total_contr"`
 	TotalBenev     int     `json:"total_benev"`
+	TotalASC       int     `json:"total_asc"`
+	TotalRECO      int     `json:"total_reco"`
 	NStructures    int     `json:"n_structures"`
 	RatioMedPerStr float64 `json:"ratio_med_per_structure"`
 	NStrSansMed    int     `json:"n_structures_sans_medecin"`
@@ -583,8 +585,8 @@ func (s *Store) GetRHSummary(district string) (*RHSummaryResult, error) {
 		d = district
 	}
 
-	row := s.db.QueryRow(`SELECT COALESCE(SUM(effectif_fonc),0), COALESCE(SUM(effectif_contr),0), COALESCE(SUM(effectif_benev),0), COALESCE(SUM(effectif_total),0) FROM usage_rh WHERE district=?`, d)
-	row.Scan(&r.TotalFonc, &r.TotalContr, &r.TotalBenev, &r.TotalEffectif)
+	row := s.db.QueryRow(`SELECT COALESCE(SUM(effectif_fonc),0), COALESCE(SUM(effectif_contr),0), COALESCE(SUM(effectif_benev),0), COALESCE(SUM(effectif_asc),0), COALESCE(SUM(effectif_reco),0), COALESCE(SUM(effectif_total),0) FROM usage_rh WHERE district=?`, d)
+	row.Scan(&r.TotalFonc, &r.TotalContr, &r.TotalBenev, &r.TotalASC, &r.TotalRECO, &r.TotalEffectif)
 
 	s.db.QueryRow(`SELECT COUNT(*) FROM event`).Scan(&r.NStructures)
 

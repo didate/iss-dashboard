@@ -146,6 +146,8 @@ export interface UsageRH {
   effectif_fonc: number;
   effectif_contr: number;
   effectif_benev: number;
+  effectif_asc: number;
+  effectif_reco: number;
   effectif_total: number;
 }
 
@@ -186,6 +188,8 @@ export interface RHSummaryResult {
   total_fonc: number;
   total_contr: number;
   total_benev: number;
+  total_asc: number;
+  total_reco: number;
   n_structures: number;
   ratio_med_per_structure: number;
   n_structures_sans_medecin: number;

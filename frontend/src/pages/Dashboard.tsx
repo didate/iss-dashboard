@@ -145,7 +145,7 @@ export default function Dashboard() {
         <KpiCard
           title="Effectif RH total"
           value={rhSummary?.total_effectif?.toLocaleString('fr-FR') ?? '0'}
-          subtitle={`${rhSummary?.total_fonc ?? 0} fonc. / ${rhSummary?.total_contr ?? 0} contr. / ${rhSummary?.total_benev ?? 0} benev.`}
+          subtitle={`${rhSummary?.total_fonc ?? 0} fonc. / ${rhSummary?.total_contr ?? 0} contr. / ${rhSummary?.total_benev ?? 0} benev. / ${rhSummary?.total_asc ?? 0} ASC / ${rhSummary?.total_reco ?? 0} RECO`}
           icon={<Users size={20} />}
         />
         <KpiCard

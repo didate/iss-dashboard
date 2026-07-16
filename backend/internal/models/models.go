@@ -177,6 +177,8 @@ type UsageRH struct {
 	EffectifFonc  int    `json:"effectif_fonc"`
 	EffectifContr int    `json:"effectif_contr"`
 	EffectifBenev int    `json:"effectif_benev"`
+	EffectifASC   int    `json:"effectif_asc"`  // Agents de santé communautaire
+	EffectifRECO  int    `json:"effectif_reco"` // Relais communautaires
 	EffectifTotal int    `json:"effectif_total"`
 }
 

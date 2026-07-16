@@ -42,6 +42,8 @@ func (s *Store) migrate() error {
 	s.db.Exec(`ALTER TABLE org_unit ADD COLUMN closed_date TEXT DEFAULT ''`)
 	s.db.Exec(`ALTER TABLE org_unit ADD COLUMN geometry TEXT DEFAULT ''`)
 	s.db.Exec(`ALTER TABLE metadata_de ADD COLUMN form_name TEXT DEFAULT ''`)
+	s.db.Exec(`ALTER TABLE usage_rh ADD COLUMN effectif_asc INTEGER DEFAULT 0`)
+	s.db.Exec(`ALTER TABLE usage_rh ADD COLUMN effectif_reco INTEGER DEFAULT 0`)
 	// Clean up orphan "running" sync_runs from previous crashes
 	s.db.Exec(`UPDATE sync_run SET status='error', error_text='interrupted by restart' WHERE status='running'`)
 	return nil
@@ -402,13 +404,13 @@ func (s *Store) PersistSyncData(syncRunID int64, data *SyncData) error {
 	}
 
 	// Usage RH
-	rhStmt, err := tx.Prepare(`INSERT INTO usage_rh (profil_code, label, district, effectif_fonc, effectif_contr, effectif_benev, effectif_total) VALUES (?,?,?,?,?,?,?)`)
+	rhStmt, err := tx.Prepare(`INSERT INTO usage_rh (profil_code, label, district, effectif_fonc, effectif_contr, effectif_benev, effectif_asc, effectif_reco, effectif_total) VALUES (?,?,?,?,?,?,?,?,?)`)
 	if err != nil {
 		return err
 	}
 	defer rhStmt.Close()
 	for _, rh := range data.UsageRH {
-		if _, err := rhStmt.Exec(rh.ProfilCode, rh.Label, rh.District, rh.EffectifFonc, rh.EffectifContr, rh.EffectifBenev, rh.EffectifTotal); err != nil {
+		if _, err := rhStmt.Exec(rh.ProfilCode, rh.Label, rh.District, rh.EffectifFonc, rh.EffectifContr, rh.EffectifBenev, rh.EffectifASC, rh.EffectifRECO, rh.EffectifTotal); err != nil {
 			log.Printf("WARN: insert usage_rh: %v", err)
 		}
 	}

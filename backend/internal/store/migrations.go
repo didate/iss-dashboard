@@ -140,6 +140,8 @@ CREATE TABLE IF NOT EXISTS usage_rh (
     effectif_fonc   INTEGER DEFAULT 0,
     effectif_contr  INTEGER DEFAULT 0,
     effectif_benev  INTEGER DEFAULT 0,
+    effectif_asc    INTEGER DEFAULT 0,
+    effectif_reco   INTEGER DEFAULT 0,
     effectif_total  INTEGER DEFAULT 0,
     PRIMARY KEY (profil_code, district)
 );

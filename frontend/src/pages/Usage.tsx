@@ -501,6 +501,8 @@ function RHTab({ district }: { district: string }) {
     { key: 'effectif_fonc', header: 'Fonctionnaires' },
     { key: 'effectif_contr', header: 'Contractuels' },
     { key: 'effectif_benev', header: 'Bénévoles' },
+    { key: 'effectif_asc', header: 'ASC' },
+    { key: 'effectif_reco', header: 'RECO' },
     { key: 'effectif_total', header: 'Total' },
   ];
 
@@ -508,6 +510,8 @@ function RHTab({ district }: { district: string }) {
     { name: 'Fonctionnaires', value: summary.total_fonc, fill: '#3b82f6' },
     { name: 'Contractuels', value: summary.total_contr, fill: '#f59e0b' },
     { name: 'Bénévoles', value: summary.total_benev, fill: '#22c55e' },
+    { name: 'ASC', value: summary.total_asc, fill: '#8b5cf6' },
+    { name: 'RECO', value: summary.total_reco, fill: '#ec4899' },
   ].filter((d) => d.value > 0) : [];
 
   return (

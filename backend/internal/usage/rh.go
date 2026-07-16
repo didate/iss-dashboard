@@ -23,7 +23,7 @@ func ComputeRH(events []*models.Event, ctx *quality.QualityContext) []models.Usa
 	type rhDE struct {
 		uid    string
 		root   string
-		statut string // fonc, contr, benev, other
+		statut string // fonc, contr, benev, asc, reco, other
 		label  string
 	}
 
@@ -42,6 +42,15 @@ func ComputeRH(events []*models.Event, ctx *quality.QualityContext) []models.Usa
 		var root, statut string
 
 		switch {
+		// Community health workers have no employment-status suffix; they are NOT
+		// fonctionnaires. Give each its own statut so they never fall into the
+		// default (fonc) bucket.
+		case code == "ISS_RH_AGENT_COMM_DE":
+			root = "ISS_RH_AGENT_COMM"
+			statut = "asc"
+		case code == "ISS_RH_RELAIS_COMM_DE":
+			root = "ISS_RH_RELAIS_COMM"
+			statut = "reco"
 		case strings.HasSuffix(code, "_FN_DE"):
 			root = strings.TrimSuffix(code, "_FN_DE")
 			statut = "fonc"
@@ -81,7 +90,7 @@ func ComputeRH(events []*models.Event, ctx *quality.QualityContext) []models.Usa
 	}
 
 	type counter struct {
-		fonc, contr, benev int
+		fonc, contr, benev, asc, reco int
 	}
 	accum := make(map[string]*counter) // root|district → counter
 	ensure := func(root, district string) *counter {
@@ -109,6 +118,10 @@ func ComputeRH(events []*models.Event, ctx *quality.QualityContext) []models.Usa
 					c.contr += iv
 				case "benev":
 					c.benev += iv
+				case "asc":
+					c.asc += iv
+				case "reco":
+					c.reco += iv
 				default:
 					c.fonc += iv // lump "other" into fonc
 				}
@@ -142,7 +155,9 @@ func ComputeRH(events []*models.Event, ctx *quality.QualityContext) []models.Usa
 			EffectifFonc:  c.fonc,
 			EffectifContr: c.contr,
 			EffectifBenev: c.benev,
-			EffectifTotal: c.fonc + c.contr + c.benev,
+			EffectifASC:   c.asc,
+			EffectifRECO:  c.reco,
+			EffectifTotal: c.fonc + c.contr + c.benev + c.asc + c.reco,
 		})
 	}
 	return result

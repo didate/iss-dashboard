@@ -480,11 +480,13 @@ export default function NationalReport() {
         <div data-pdf-section style={{ marginTop: '24px' }}>
           <SectionTitle>5. Ressources humaines</SectionTitle>
           {rhSummary && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px', marginBottom: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '16px' }}>
               <KpiBox label="Effectif total" value={rhSummary.total_effectif.toLocaleString('fr-FR')} />
               <KpiBox label="Fonctionnaires" value={rhSummary.total_fonc.toLocaleString('fr-FR')} color="#3b82f6" />
               <KpiBox label="Contractuels" value={rhSummary.total_contr.toLocaleString('fr-FR')} color="#f59e0b" />
               <KpiBox label="Benevoles" value={rhSummary.total_benev.toLocaleString('fr-FR')} color="#22c55e" />
+              <KpiBox label="ASC" value={rhSummary.total_asc.toLocaleString('fr-FR')} color="#8b5cf6" />
+              <KpiBox label="RECO" value={rhSummary.total_reco.toLocaleString('fr-FR')} color="#ec4899" />
             </div>
           )}
 
@@ -531,13 +533,15 @@ export default function NationalReport() {
           <SubTitle>Répartition par statut d'emploi par région</SubTitle>
           {(() => {
             // Aggregate fonc/contr/benev by region
-            const regionStatut: Record<string, { fonc: number; contr: number; benev: number; total: number }> = {};
+            const regionStatut: Record<string, { fonc: number; contr: number; benev: number; asc: number; reco: number; total: number }> = {};
             for (const r of rhAll) {
               const region = districtRegions[r.district] || 'Inconnu';
-              if (!regionStatut[region]) regionStatut[region] = { fonc: 0, contr: 0, benev: 0, total: 0 };
+              if (!regionStatut[region]) regionStatut[region] = { fonc: 0, contr: 0, benev: 0, asc: 0, reco: 0, total: 0 };
               regionStatut[region].fonc += r.effectif_fonc;
               regionStatut[region].contr += r.effectif_contr;
               regionStatut[region].benev += r.effectif_benev;
+              regionStatut[region].asc += r.effectif_asc;
+              regionStatut[region].reco += r.effectif_reco;
               regionStatut[region].total += r.effectif_total;
             }
             const chartData = regions.map(r => ({
@@ -545,6 +549,8 @@ export default function NationalReport() {
               Fonctionnaires: regionStatut[r]?.fonc ?? 0,
               Contractuels: regionStatut[r]?.contr ?? 0,
               Benevoles: regionStatut[r]?.benev ?? 0,
+              ASC: regionStatut[r]?.asc ?? 0,
+              RECO: regionStatut[r]?.reco ?? 0,
             }));
             return (
               <>
@@ -558,13 +564,15 @@ export default function NationalReport() {
                     <Bar dataKey="Fonctionnaires" stackId="a" fill="#3b82f6" />
                     <Bar dataKey="Contractuels" stackId="a" fill="#f59e0b" />
                     <Bar dataKey="Benevoles" stackId="a" fill="#22c55e" />
+                    <Bar dataKey="ASC" stackId="a" fill="#8b5cf6" />
+                    <Bar dataKey="RECO" stackId="a" fill="#ec4899" />
                   </BarChart>
                 </ResponsiveContainer>
                 <ReportTable
-                  headers={['Region', 'Fonctionnaires', 'Contractuels', 'Benevoles', 'Total']}
+                  headers={['Region', 'Fonctionnaires', 'Contractuels', 'Benevoles', 'ASC', 'RECO', 'Total']}
                   rows={regions.map(r => {
-                    const s = regionStatut[r] || { fonc: 0, contr: 0, benev: 0, total: 0 };
-                    return [r, String(s.fonc), String(s.contr), String(s.benev), String(s.total)];
+                    const s = regionStatut[r] || { fonc: 0, contr: 0, benev: 0, asc: 0, reco: 0, total: 0 };
+                    return [r, String(s.fonc), String(s.contr), String(s.benev), String(s.asc), String(s.reco), String(s.total)];
                   })}
                 />
               </>
@@ -576,8 +584,8 @@ export default function NationalReport() {
         <div data-pdf-section style={{ marginTop: '24px' }}>
           <SubTitle>Effectifs nationaux par profil</SubTitle>
           <ReportTable
-            headers={['Profil', 'Fonctionnaires', 'Contractuels', 'Benevoles', 'Total']}
-            rows={rh.map(r => [r.label, String(r.effectif_fonc), String(r.effectif_contr), String(r.effectif_benev), String(r.effectif_total)])}
+            headers={['Profil', 'Fonctionnaires', 'Contractuels', 'Benevoles', 'ASC', 'RECO', 'Total']}
+            rows={rh.map(r => [r.label, String(r.effectif_fonc), String(r.effectif_contr), String(r.effectif_benev), String(r.effectif_asc), String(r.effectif_reco), String(r.effectif_total)])}
           />
         </div>
 
