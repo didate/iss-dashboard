@@ -61,8 +61,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build backend image
-        run: docker build -t iss-backend ./backend
-
-      - name: Build frontend image
-        run: docker build -t iss-frontend ./frontend
+      # Single image: frontend is built and embedded into the Go binary.
+      - name: Build image
+        run: docker build -t iss-dashboard .
