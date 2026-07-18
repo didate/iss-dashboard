@@ -8,6 +8,7 @@ import (
 	"iss-dashboard-backend/internal/config"
 	"iss-dashboard-backend/internal/dhis2"
 	"iss-dashboard-backend/internal/store"
+	"iss-dashboard-backend/internal/webui"
 
 	"github.com/gin-gonic/gin"
 )
@@ -78,6 +79,11 @@ func SetupRouter(cfg *config.Config, st *store.Store, client *dhis2.Client) *gin
 		admin.POST("/users", auth.CreateUser)
 		admin.DELETE("/users/:id", auth.DeleteUser)
 	}
+
+	// Serve the embedded React SPA (built Vite output) under the same base path.
+	// Must be registered last: it uses gin's NoRoute fallback for the UI while
+	// leaving all API routes above untouched.
+	webui.Register(r, "/iss")
 
 	return r
 }

@@ -1,5 +1,10 @@
 node_modules/
 dist/
+# Keep the embed placeholder so `go build` works without a frontend build.
+# The real Vite output overwrites this dir at Docker build time (not committed).
+!backend/internal/webui/dist/
+backend/internal/webui/dist/*
+!backend/internal/webui/dist/index.html
 .env
 *.db
 *.xlsx

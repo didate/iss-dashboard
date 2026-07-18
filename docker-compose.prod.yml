@@ -1,6 +1,6 @@
 services:
-  backend:
-    image: ghcr.io/didate/iss-dashboard/backend:latest
+  app:
+    image: ghcr.io/didate/iss-dashboard:latest
     volumes:
       - iss-data:/data
     env_file: .env
@@ -9,25 +9,11 @@ services:
       - "8080"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.iss-api.rule=Host(`apps.sante.gov.gn`) && PathPrefix(`/iss/api`)"
-      - "traefik.http.routers.iss-api.entrypoints=didate_secure"
-      - "traefik.http.routers.iss-api.tls.certresolver=didate"
-      - "traefik.http.routers.iss-api.priority=100"
-      - "traefik.http.services.iss-api.loadbalancer.server.port=8080"
-    networks:
-      - traefik-netw
-
-  frontend:
-    image: ghcr.io/didate/iss-dashboard/frontend:latest
-    restart: unless-stopped
-    expose:
-      - "80"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.iss-front.rule=Host(`apps.sante.gov.gn`) && PathPrefix(`/iss`)"
-      - "traefik.http.routers.iss-front.entrypoints=didate_secure"
-      - "traefik.http.routers.iss-front.tls.certresolver=didate"
-      - "traefik.http.services.iss-front.loadbalancer.server.port=80"
+      # One router serves both the UI (/iss) and the API (/iss/api).
+      - "traefik.http.routers.iss.rule=Host(`apps.sante.gov.gn`) && PathPrefix(`/iss`)"
+      - "traefik.http.routers.iss.entrypoints=didate_secure"
+      - "traefik.http.routers.iss.tls.certresolver=didate"
+      - "traefik.http.services.iss.loadbalancer.server.port=8080"
     networks:
       - traefik-netw
 
