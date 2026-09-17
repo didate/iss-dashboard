@@ -11,6 +11,7 @@ import (
 	"iss-dashboard-backend/internal/dhis2"
 	"iss-dashboard-backend/internal/scheduler"
 	"iss-dashboard-backend/internal/store"
+	syncer "iss-dashboard-backend/internal/sync"
 )
 
 func main() {
@@ -29,7 +30,7 @@ func main() {
 	st.EnsureDefaultAdmin(cfg.AdminToken)
 
 	// Start scheduler
-	sched := scheduler.New(st, client)
+	sched := scheduler.New(st, client, syncer.OptionsFromConfig(cfg))
 	if err := sched.Start(cfg.SyncCron); err != nil {
 		log.Printf("[WARN] Failed to start scheduler: %v", err)
 	}

@@ -6,12 +6,42 @@ import (
 	"sync/atomic"
 	"time"
 
+	"encoding/json"
+
+	"iss-dashboard-backend/internal/config"
 	"iss-dashboard-backend/internal/dhis2"
 	"iss-dashboard-backend/internal/models"
 	"iss-dashboard-backend/internal/quality"
 	"iss-dashboard-backend/internal/store"
+	"iss-dashboard-backend/internal/typologie"
 	"iss-dashboard-backend/internal/usage"
 )
+
+// Options carries the instance-specific settings the pipeline needs (population
+// data elements, org unit group set names). Zero value = no population, default set names.
+type Options struct {
+	Population        []dhis2.PopulationSpec
+	PopulationLevels  []int
+	PopulationFactor  float64
+	TypologyGroupSet  string
+	HospitalGroupSet  string
+	OwnershipGroupSet string
+}
+
+// OptionsFromConfig maps the loaded configuration to sync options.
+func OptionsFromConfig(cfg *config.Config) Options {
+	opts := Options{
+		PopulationLevels:  cfg.PopulationLevels,
+		PopulationFactor:  cfg.PopulationFactor,
+		TypologyGroupSet:  cfg.TypologyGroupSet,
+		HospitalGroupSet:  cfg.HospitalGroupSet,
+		OwnershipGroupSet: cfg.OwnershipGroupSet,
+	}
+	for _, sp := range cfg.PopulationDX {
+		opts.Population = append(opts.Population, dhis2.PopulationSpec{Indicator: sp.Indicator, UIDs: sp.UIDs})
+	}
+	return opts
+}
 
 var running int32
 
@@ -23,11 +53,11 @@ func IsRunning() bool {
 // RunSync executes the full sync pipeline:
 // 1. Pull metadata from DHIS2
 // 2. Pull events (paginated)
-// 3. Enrich events with org unit hierarchy (district/region)
+// 3. Enrich events with org unit hierarchy (district/region/sous-préfecture), GPS and type
 // 4. Run quality rules
 // 5. Compute usage aggregates
 // 6. Persist everything atomically
-func RunSync(st *store.Store, client *dhis2.Client) (*models.SyncRun, error) {
+func RunSync(st *store.Store, client *dhis2.Client, opts Options) (*models.SyncRun, error) {
 	if !atomic.CompareAndSwapInt32(&running, 0, 1) {
 		return nil, fmt.Errorf("sync already in progress")
 	}
@@ -83,6 +113,32 @@ func RunSync(st *store.Store, client *dhis2.Client) (*models.SyncRun, error) {
 	}
 	log.Printf("[SYNC] Program has %d assigned org units", len(programOrgUnits))
 
+	// Org unit groups → typology and ownership. Failure is not fatal: types fall
+	// back to name prefixes and R15/R16 will flag it.
+	var typoIndex *typologie.Index
+	if groups, err := client.FetchOrgUnitGroups(); err != nil {
+		log.Printf("[SYNC] WARN: fetch org unit groups: %v (typologie déduite des noms uniquement)", err)
+	} else {
+		if err := st.UpsertOrgUnitGroups(groups); err != nil {
+			return finishErr(fmt.Sprintf("upsert org unit groups: %v", err))
+		}
+		typoIndex = typologie.NewIndex(groups, opts.TypologyGroupSet, opts.HospitalGroupSet, opts.OwnershipGroupSet)
+	}
+
+	// Population (analytics). Not fatal either: ratios stay NULL without it.
+	var population []models.PopulationRow
+	if len(opts.Population) == 0 {
+		log.Println("[SYNC] Population: DHIS2_POPULATION_DX non configuré, ratios démographiques désactivés")
+	} else {
+		rows, err := client.FetchPopulation(opts.Population, opts.PopulationLevels, rootOrgUnit(orgUnits), opts.PopulationFactor)
+		if err != nil {
+			log.Printf("[SYNC] WARN: fetch population: %v (ratios démographiques indisponibles)", err)
+		} else {
+			population = rows
+			log.Printf("[SYNC] Population: %d valeurs (org unit × indicateur)", len(population))
+		}
+	}
+
 	// Step 2: Pull events
 	log.Println("[SYNC] Pulling events...")
 	events, err := client.FetchAllEvents()
@@ -91,11 +147,17 @@ func RunSync(st *store.Store, client *dhis2.Client) (*models.SyncRun, error) {
 	}
 	log.Printf("[SYNC] Got %d events", len(events))
 
-	// Step 3: Enrich events with district/region from org unit hierarchy
+	// Step 3: Enrich events with district/region/sous-préfecture, GPS and type
 	orgMap := buildOrgUnitMap(orgUnits)
+	nGPS, typeSources := 0, map[string]int{}
 	for i := range events {
-		enrichEvent(&events[i], orgMap)
+		enrichEvent(&events[i], orgMap, typoIndex)
+		if events[i].HasGPS() {
+			nGPS++
+		}
+		typeSources[events[i].TypeSource]++
 	}
+	log.Printf("[SYNC] Geo: %d/%d events avec GPS ; typologie par source : %v", nGPS, len(events), typeSources)
 
 	// Build event pointers for quality context
 	eventPtrs := make([]*models.Event, len(events))
@@ -108,6 +170,7 @@ func RunSync(st *store.Store, client *dhis2.Client) (*models.SyncRun, error) {
 	metadata, _ := st.GetAllMetadataDE()
 	options, _ := st.GetAllOptionEntries()
 	ctx := quality.BuildContext(metadata, options, eventPtrs, orgUnits)
+	ctx.Typologie = typoIndex
 
 	log.Printf("[SYNC] Discovered %d equipment pairs", len(ctx.EquipPairs))
 
@@ -141,6 +204,9 @@ func RunSync(st *store.Store, client *dhis2.Client) (*models.SyncRun, error) {
 	usageRH := usage.ComputeRH(eventPtrs, ctx)
 	usageCommodites := usage.ComputeCommodites(eventPtrs, ctx)
 	reportingRates := usage.ComputeReportingRate(eventPtrs, programOrgUnits, orgUnits)
+	popIndex := usage.BuildPopulationIndex(population)
+	usageGeo := usage.ComputeGeo(eventPtrs, orgUnits, eventQualities, popIndex)
+	usageCouverture := usage.ComputeCouverture(eventPtrs, orgUnits, usageRH, usageEquipements, popIndex)
 
 	// Step 7: Persist atomically
 	log.Println("[SYNC] Persisting data...")
@@ -155,6 +221,9 @@ func RunSync(st *store.Store, client *dhis2.Client) (*models.SyncRun, error) {
 		UsageRH:          usageRH,
 		UsageCommodites:  usageCommodites,
 		ReportingRates:   reportingRates,
+		Population:       population,
+		UsageGeo:         usageGeo,
+		UsageCouverture:  usageCouverture,
 	}
 
 	if err := st.PersistSyncData(syncRunID, data); err != nil {
@@ -177,6 +246,7 @@ type orgNode struct {
 	level      int
 	parentUID  string
 	parentName string
+	geometry   string
 }
 
 func buildOrgUnitMap(units []models.OrgUnit) map[string]orgNode {
@@ -188,19 +258,54 @@ func buildOrgUnitMap(units []models.OrgUnit) map[string]orgNode {
 			level:      ou.Level,
 			parentUID:  ou.ParentUID,
 			parentName: ou.ParentName,
+			geometry:   ou.Geometry,
 		}
 	}
 	return m
 }
 
-// enrichEvent sets district and region by walking up the org unit hierarchy.
-// Typical DHIS2 Guinea hierarchy: Level 1 = country, Level 2 = region, Level 3 = district, Level 4+ = facility.
-func enrichEvent(evt *models.Event, orgMap map[string]orgNode) {
+// rootOrgUnit returns the UID of the level-1 org unit (scopes analytics LEVEL-n queries).
+func rootOrgUnit(units []models.OrgUnit) string {
+	for _, ou := range units {
+		if ou.Level == 1 {
+			return ou.UID
+		}
+	}
+	return ""
+}
+
+// pointCoordinates extracts lat/lng from a GeoJSON Point geometry ([lng, lat] order).
+func pointCoordinates(geometry string) (lat, lng *float64) {
+	if geometry == "" {
+		return nil, nil
+	}
+	var g struct {
+		Type        string    `json:"type"`
+		Coordinates []float64 `json:"coordinates"`
+	}
+	if err := json.Unmarshal([]byte(geometry), &g); err != nil || g.Type != "Point" || len(g.Coordinates) < 2 {
+		return nil, nil
+	}
+	x, y := g.Coordinates[0], g.Coordinates[1]
+	if x < -180 || x > 180 || y < -90 || y > 90 || (x == 0 && y == 0) {
+		return nil, nil
+	}
+	return &y, &x
+}
+
+// enrichEvent sets district, region and sous-préfecture by walking up the org
+// unit hierarchy, then copies the structure's GPS point and resolves its type.
+// DHIS2 Guinea hierarchy: 1 = national, 2 = région, 3 = préfecture (district),
+// 4 = sous-préfecture, 5-6 = structures.
+func enrichEvent(evt *models.Event, orgMap map[string]orgNode, typo *typologie.Index) {
 	// Walk up from the event's org unit to find district (level 3) and region (level 2)
 	current, ok := orgMap[evt.OrgUnitUID]
 	if !ok {
 		return
 	}
+	evt.Lat, evt.Lng = pointCoordinates(current.geometry)
+	res := typo.Resolve(models.OrgUnit{UID: current.uid, Name: current.name})
+	evt.TypeCode, evt.TypeSource = res.Code, res.Source
 
 	// Collect ancestors
 	ancestors := []orgNode{current}
@@ -221,6 +326,10 @@ func enrichEvent(evt *models.Event, orgMap map[string]orgNode) {
 			evt.Region = a.name
 		case 3:
 			evt.District = a.name
+			evt.DistrictUID = a.uid
+		case 4:
+			evt.SousPrefecture = a.name
+			evt.SousPrefectureUID = a.uid
 		}
 	}
 }
@@ -239,6 +348,7 @@ func computeQualitySummaries(events []*models.Event, qualities []models.EventQua
 		"district": {},
 		"region":   {},
 		"statut":   {},
+		"type":     {},
 	}
 
 	ensure := func(dim, key string) *accum {
@@ -284,6 +394,9 @@ func computeQualitySummaries(events []*models.Event, qualities []models.EventQua
 				add(ensure("statut", statut))
 			}
 		}
+		if evt.TypeCode != "" {
+			add(ensure("type", evt.TypeCode))
+		}
 	}
 
 	var result []models.QualitySummaryRow
@@ -293,10 +406,14 @@ func computeQualitySummaries(events []*models.Event, qualities []models.EventQua
 			if a.nStructures > 0 {
 				avg = a.sumScore / float64(a.nStructures)
 			}
+			label := key
+			if dim == "type" {
+				label = typologie.Label(key)
+			}
 			result = append(result, models.QualitySummaryRow{
 				Dimension:   dim,
 				Key:         key,
-				Label:       key,
+				Label:       label,
 				AvgScore:    avg,
 				NError:      a.nError,
 				NWarning:    a.nWarning,

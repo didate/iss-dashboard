@@ -173,4 +173,60 @@ CREATE TABLE IF NOT EXISTS user (
     role            TEXT NOT NULL DEFAULT 'viewer',
     created_at      TEXT NOT NULL
 );
+
+-- Carte sanitaire ---------------------------------------------------------
+
+-- Appartenance aux groupes d'OU (brut DHIS2, pour traçabilité et règles)
+CREATE TABLE IF NOT EXISTS org_unit_group (
+    group_uid       TEXT NOT NULL,
+    group_name      TEXT NOT NULL,
+    set_name        TEXT DEFAULT '',
+    ou_uid          TEXT NOT NULL,
+    PRIMARY KEY (group_uid, set_name, ou_uid)
+);
+CREATE INDEX IF NOT EXISTS idx_oug_ou ON org_unit_group(ou_uid);
+
+-- Population par org unit (dernière période mensuelle renseignée)
+CREATE TABLE IF NOT EXISTS population (
+    ou_uid          TEXT NOT NULL,
+    indicator       TEXT NOT NULL,
+    period          TEXT NOT NULL,
+    value           REAL NOT NULL,
+    PRIMARY KEY (ou_uid, indicator)
+);
+
+-- Couverture géographique / démographique par unité administrative (niveaux 3 et 4)
+CREATE TABLE IF NOT EXISTS usage_geo (
+    level           INTEGER NOT NULL,
+    ou_uid          TEXT NOT NULL,
+    name            TEXT NOT NULL,
+    parent_name     TEXT DEFAULT '',
+    n_structures    INTEGER DEFAULT 0,
+    n_gps           INTEGER DEFAULT 0,
+    pct_gps         REAL,
+    avg_score       REAL,
+    population      REAL,
+    n_par_type      TEXT DEFAULT '{}',
+    PRIMARY KEY (level, ou_uid)
+);
+
+-- Ratios démographiques (format long)
+CREATE TABLE IF NOT EXISTS usage_couverture (
+    dimension       TEXT NOT NULL,
+    key             TEXT NOT NULL,
+    label           TEXT DEFAULT '',
+    indicator       TEXT NOT NULL,
+    numerator       REAL DEFAULT 0,
+    population      REAL,
+    ratio_10k       REAL,
+    PRIMARY KEY (dimension, key, indicator)
+);
+
+-- Projections pré-calculées servies telles quelles (JSON)
+CREATE TABLE IF NOT EXISTS snapshot_blob (
+    key             TEXT PRIMARY KEY,
+    etag            TEXT NOT NULL,
+    json            BLOB NOT NULL,
+    built_at        TEXT NOT NULL
+);
 `

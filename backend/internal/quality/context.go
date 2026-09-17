@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"iss-dashboard-backend/internal/models"
+	"iss-dashboard-backend/internal/typologie"
 )
 
 // QualityContext carries metadata and precomputed stats needed by rules.
@@ -39,6 +40,10 @@ type QualityContext struct {
 
 	// All events (for global rules)
 	AllEvents []*models.Event
+
+	// Carte sanitaire : typologie et statut juridique issus des groupes d'OU.
+	// Nil when groups were not loaded (tests, old snapshots) — rules must tolerate it.
+	Typologie *typologie.Index
 }
 
 type MedianStat struct {
@@ -48,9 +53,9 @@ type MedianStat struct {
 
 // ServiceSupportSpec defines a service field and its required support fields.
 type ServiceSupportSpec struct {
-	ServiceUID    string
-	SupportUIDs   []string
-	Message       string
+	ServiceUID  string
+	SupportUIDs []string
+	Message     string
 }
 
 // BuildContext constructs a QualityContext from metadata, events and org units.
@@ -193,7 +198,7 @@ func cleanLabel(name string) string {
 
 func buildServiceSpecs(ctx *QualityContext) []ServiceSupportSpec {
 	laboUID := "Zq34u53MgeI"
-	microscopeUID := "bWGkmx4RfoE"    // microscope fonctionnel
+	microscopeUID := "bWGkmx4RfoE" // microscope fonctionnel
 	laboInfraUID := ctx.CodeToUID["ISS_INFRA_LABO_DE"]
 
 	specs := []ServiceSupportSpec{

@@ -12,8 +12,9 @@ import (
 )
 
 type AdminHandlers struct {
-	Store  *store.Store
-	Client *dhis2.Client
+	Store       *store.Store
+	Client      *dhis2.Client
+	SyncOptions syncer.Options
 }
 
 func (h *AdminHandlers) TriggerSync(c *gin.Context) {
@@ -26,7 +27,7 @@ func (h *AdminHandlers) TriggerSync(c *gin.Context) {
 
 	// Run sync in background
 	go func() {
-		syncer.RunSync(h.Store, h.Client)
+		syncer.RunSync(h.Store, h.Client, h.SyncOptions)
 	}()
 
 	c.JSON(http.StatusAccepted, gin.H{"status": "running", "message": "sync started"})

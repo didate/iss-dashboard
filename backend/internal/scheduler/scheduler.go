@@ -14,20 +14,22 @@ type Scheduler struct {
 	cron   *cron.Cron
 	store  *store.Store
 	client *dhis2.Client
+	opts   syncer.Options
 }
 
-func New(st *store.Store, client *dhis2.Client) *Scheduler {
+func New(st *store.Store, client *dhis2.Client, opts syncer.Options) *Scheduler {
 	return &Scheduler{
 		cron:   cron.New(),
 		store:  st,
 		client: client,
+		opts:   opts,
 	}
 }
 
 func (s *Scheduler) Start(cronExpr string) error {
 	_, err := s.cron.AddFunc(cronExpr, func() {
 		log.Println("[SCHEDULER] Starting scheduled sync...")
-		sr, err := syncer.RunSync(s.store, s.client)
+		sr, err := syncer.RunSync(s.store, s.client, s.opts)
 		if err != nil {
 			log.Printf("[SCHEDULER] Sync failed: %v", err)
 			return

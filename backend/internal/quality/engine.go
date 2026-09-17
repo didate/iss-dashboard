@@ -15,25 +15,36 @@ type Rule struct {
 var Registry []Rule
 
 func init() {
+	// Les codes ci-dessous sont ceux réellement émis par chaque fonction (les
+	// règles les fixent elles-mêmes sur l'issue) ; ils sont persistés dans
+	// quality_issue.rule_code et servent de clé de filtre dans le front.
+	// Ajouter une règle = ajouter une fonction ET une entrée ici avec un code libre.
 	Registry = []Rule{
 		// Complétude
 		{Code: "R1", Name: "Champs obligatoires", Fn: CheckRequiredFields},
-		{Code: "R2", Name: "Complétude", Fn: CheckCompleteness},
+		{Code: "R7", Name: "Complétude", Fn: CheckCompleteness},
 		// Cohérence
-		{Code: "R3", Name: "Cohérence total/fonctionnel", Fn: CheckTotalFonctionnel},
-		{Code: "R4", Name: "Service sans support", Fn: CheckServiceSupport},
-		{Code: "R5", Name: "Cohérence commodités", Fn: CheckCommodites},
-		{Code: "R6", Name: "Valeur invalide", Fn: CheckInvalidOptions},
+		{Code: "R2", Name: "Cohérence total/fonctionnel", Fn: CheckTotalFonctionnel},
+		{Code: "R3", Name: "Service sans support", Fn: CheckServiceSupport},
+		{Code: "R4", Name: "Cohérence commodités", Fn: CheckCommodites},
+		{Code: "R5", Name: "Valeurs aberrantes", Fn: CheckOutliers}, // désactivée, voir r5_outliers.go
+		{Code: "R9", Name: "Valeur invalide", Fn: CheckInvalidOptions},
 		// Services et RH
-		{Code: "R7", Name: "Maternité sans sage-femme", Fn: CheckMaternityStaff},
-		{Code: "R8", Name: "Laboratoire sans technicien", Fn: CheckLabStaff},
-		{Code: "R9", Name: "Aucun service déclaré", Fn: CheckNoServices},
+		{Code: "R10", Name: "Maternité sans sage-femme", Fn: CheckMaternityStaff},
+		{Code: "R11", Name: "Laboratoire sans technicien", Fn: CheckLabStaff},
+		// R12 "Pharmacie sans pharmacien" (CheckPharmacyStaff) volontairement non
+		// enregistrée : elle signalerait ~2 300 postes de santé, qui n'ont pas de pharmacien par norme.
+		{Code: "R13", Name: "Aucun service déclaré", Fn: CheckNoServices},
 		// WASH
-		{Code: "R10", Name: "Source d'eau non renseignée", Fn: CheckMissingWaterSource},
-		{Code: "R11", Name: "Source d'énergie non renseignée", Fn: CheckMissingEnergy},
+		{Code: "R15", Name: "Source d'eau non renseignée", Fn: CheckMissingWaterSource},
+		{Code: "R16", Name: "Source d'énergie non renseignée", Fn: CheckMissingEnergy},
 		// Doublons et fermeture
-		{Code: "R12", Name: "Soumissions multiples", Fn: CheckDuplicates},
-		{Code: "R13", Name: "Rapport après fermeture", Fn: CheckClosedReporting},
+		{Code: "R6", Name: "Soumissions multiples", Fn: CheckDuplicates},
+		{Code: "R8", Name: "Rapport après fermeture", Fn: CheckClosedReporting},
+		// Carte sanitaire : référentiel géographique et typologie
+		{Code: "R14", Name: "Coordonnées GPS manquantes", Fn: CheckMissingGPS},
+		{Code: "R17", Name: "Type de structure indéterminé", Fn: CheckTypologie},
+		{Code: "R18", Name: "Statut juridique incohérent", Fn: CheckOwnership},
 	}
 }
 

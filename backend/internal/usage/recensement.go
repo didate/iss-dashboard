@@ -3,6 +3,7 @@ package usage
 import (
 	"iss-dashboard-backend/internal/models"
 	"iss-dashboard-backend/internal/quality"
+	"iss-dashboard-backend/internal/typologie"
 )
 
 // ComputeRecensement aggregates structure counts by dimension.
@@ -13,11 +14,12 @@ func ComputeRecensement(events []*models.Event, ctx *quality.QualityContext) []m
 
 	// Accumulators per dimension
 	dims := map[string]map[string]*counter{
-		"global":            {"all": {}},
-		"district":          {},
-		"region":            {},
-		"statut_structure":  {},
-		"statut_juridique":  {},
+		"global":           {"all": {}},
+		"district":         {},
+		"region":           {},
+		"statut_structure": {},
+		"statut_juridique": {},
+		"type":             {},
 	}
 
 	ensure := func(dim, key string) *counter {
@@ -58,6 +60,9 @@ func ComputeRecensement(events []*models.Event, ctx *quality.QualityContext) []m
 		if evt.Region != "" {
 			inc(ensure("region", evt.Region))
 		}
+		if evt.TypeCode != "" {
+			inc(ensure("type", evt.TypeCode))
+		}
 
 		// Statut de la structure (niveau 1 : publique/privée)
 		statutStruct := quality.GetEventValue(evt, structUID)
@@ -86,10 +91,14 @@ func ComputeRecensement(events []*models.Event, ctx *quality.QualityContext) []m
 	var result []models.UsageRecensement
 	for dim, m := range dims {
 		for key, c := range m {
+			label := key
+			if dim == "type" {
+				label = typologie.Label(key)
+			}
 			result = append(result, models.UsageRecensement{
 				Dimension:        dim,
 				Key:              key,
-				Label:            key,
+				Label:            label,
 				NStructures:      c.total,
 				NOperationnel:    c.oper,
 				NNonOperationnel: c.nonOper,

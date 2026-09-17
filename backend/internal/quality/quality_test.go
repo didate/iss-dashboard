@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"iss-dashboard-backend/internal/models"
+	"iss-dashboard-backend/internal/typologie"
 )
 
 func makeEvent(uid string, dataValues map[string]string) *models.Event {
@@ -444,5 +445,97 @@ func TestRunAll_Integration(t *testing.T) {
 	}
 	if eq.NWarning < 2 {
 		t.Error("expected at least 2 warnings")
+	}
+}
+
+// --- R14, R17, R18 Tests (carte sanitaire) ---
+
+func f64(v float64) *float64 { return &v }
+
+func TestR14_MissingGPS(t *testing.T) {
+	evt := makeEvent("e1", nil)
+	issues := CheckMissingGPS(evt, buildTestContext([]*models.Event{evt}))
+	if len(issues) != 1 || issues[0].Severity != "warning" {
+		t.Fatalf("expected 1 warning, got %+v", issues)
+	}
+}
+
+func TestR14_WithGPS(t *testing.T) {
+	evt := makeEvent("e1", nil)
+	evt.Lat, evt.Lng = f64(9.5), f64(-13.7)
+	if issues := CheckMissingGPS(evt, buildTestContext([]*models.Event{evt})); len(issues) != 0 {
+		t.Fatalf("expected no issue, got %+v", issues)
+	}
+}
+
+func TestR17_TypologySources(t *testing.T) {
+	ctx := buildTestContext(nil)
+	cases := map[string]int{
+		typologie.SourceGroup:         0,
+		typologie.SourceGroupMultiple: 1,
+		typologie.SourceName:          1,
+		typologie.SourceNone:          1,
+		"":                            1,
+	}
+	for src, want := range cases {
+		evt := makeEvent("e", nil)
+		evt.TypeCode, evt.TypeSource = typologie.CS, src
+		issues := CheckTypologie(evt, ctx)
+		if len(issues) != want {
+			t.Errorf("source %q: got %d issues want %d", src, len(issues), want)
+		}
+		for _, is := range issues {
+			if is.Severity != "info" {
+				t.Errorf("source %q: severity %s, want info", src, is.Severity)
+			}
+		}
+	}
+}
+
+func ownershipCtx(events []*models.Event, groups ...models.OrgUnitGroup) *QualityContext {
+	ctx := buildTestContext(events)
+	ctx.CodeToUID["ISS_STATUT_STRUCT_DE"] = "statStruct"
+	ctx.Typologie = typologie.NewIndex(groups, "01 TYPO", "07 HOP", "02 PUBLIC PRIVEE")
+	return ctx
+}
+
+func TestR18_NoContext_Silent(t *testing.T) {
+	evt := makeEvent("e1", nil)
+	if issues := CheckOwnership(evt, buildTestContext([]*models.Event{evt})); len(issues) != 0 {
+		t.Fatalf("expected silence without groups, got %+v", issues)
+	}
+}
+
+func TestR18_AbsentFromGroups(t *testing.T) {
+	evt := makeEvent("e1", map[string]string{"statStruct": "publique"})
+	ctx := ownershipCtx([]*models.Event{evt}) // no membership at all
+	issues := CheckOwnership(evt, ctx)
+	if len(issues) != 1 || issues[0].Severity != "info" {
+		t.Fatalf("expected 1 info, got %+v", issues)
+	}
+}
+
+func TestR18_Mismatch(t *testing.T) {
+	evt := makeEvent("e1", map[string]string{"statStruct": "privée"})
+	ctx := ownershipCtx([]*models.Event{evt}, models.OrgUnitGroup{GroupUID: "g", GroupName: "Public", SetName: "02 PUBLIC PRIVEE", OrgUnit: "ou1"})
+	issues := CheckOwnership(evt, ctx)
+	if len(issues) != 1 {
+		t.Fatalf("expected mismatch issue, got %+v", issues)
+	}
+}
+
+func TestR18_Consistent(t *testing.T) {
+	evt := makeEvent("e1", map[string]string{"statStruct": "privée"})
+	ctx := ownershipCtx([]*models.Event{evt}, models.OrgUnitGroup{GroupUID: "g", GroupName: "Privé", SetName: "02 PUBLIC PRIVEE", OrgUnit: "ou1"})
+	if issues := CheckOwnership(evt, ctx); len(issues) != 0 {
+		t.Fatalf("expected no issue, got %+v", issues)
+	}
+}
+
+func TestR18_FormEmpty_GroupPresent(t *testing.T) {
+	evt := makeEvent("e1", nil)
+	ctx := ownershipCtx([]*models.Event{evt}, models.OrgUnitGroup{GroupUID: "g", GroupName: "Public", SetName: "02 PUBLIC PRIVEE", OrgUnit: "ou1"})
+	if issues := CheckOwnership(evt, ctx); len(issues) != 0 {
+		t.Fatalf("empty form value must not be flagged as mismatch, got %+v", issues)
 	}
 }

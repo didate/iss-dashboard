@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
@@ -44,6 +45,19 @@ func (s *Store) migrate() error {
 	s.db.Exec(`ALTER TABLE metadata_de ADD COLUMN form_name TEXT DEFAULT ''`)
 	s.db.Exec(`ALTER TABLE usage_rh ADD COLUMN effectif_asc INTEGER DEFAULT 0`)
 	s.db.Exec(`ALTER TABLE usage_rh ADD COLUMN effectif_reco INTEGER DEFAULT 0`)
+	// Carte sanitaire : attributs de structure dérivés au sync
+	for _, col := range []string{
+		"district_uid TEXT DEFAULT ''",
+		"sous_prefecture TEXT DEFAULT ''",
+		"sous_prefecture_uid TEXT DEFAULT ''",
+		"type_code TEXT DEFAULT ''",
+		"type_source TEXT DEFAULT ''",
+		"lat REAL",
+		"lng REAL",
+	} {
+		s.db.Exec(`ALTER TABLE event ADD COLUMN ` + col)
+	}
+	s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_event_type ON event(type_code)`)
 	// Clean up orphan "running" sync_runs from previous crashes
 	s.db.Exec(`UPDATE sync_run SET status='error', error_text='interrupted by restart' WHERE status='running'`)
 	return nil
@@ -207,6 +221,47 @@ func (s *Store) UpsertOrgUnits(units []models.OrgUnit) error {
 	return tx.Commit()
 }
 
+// UpsertOrgUnitGroups replaces all group memberships (small table, full reload is simplest).
+func (s *Store) UpsertOrgUnitGroups(groups []models.OrgUnitGroup) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`DELETE FROM org_unit_group`); err != nil {
+		return err
+	}
+	stmt, err := tx.Prepare(`INSERT OR IGNORE INTO org_unit_group (group_uid, group_name, set_name, ou_uid) VALUES (?,?,?,?)`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	for _, g := range groups {
+		if _, err := stmt.Exec(g.GroupUID, g.GroupName, g.SetName, g.OrgUnit); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func (s *Store) GetAllOrgUnitGroups() ([]models.OrgUnitGroup, error) {
+	rows, err := s.db.Query(`SELECT group_uid, group_name, COALESCE(set_name,''), ou_uid FROM org_unit_group`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []models.OrgUnitGroup
+	for rows.Next() {
+		var g models.OrgUnitGroup
+		if err := rows.Scan(&g.GroupUID, &g.GroupName, &g.SetName, &g.OrgUnit); err != nil {
+			return nil, err
+		}
+		out = append(out, g)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) GetAllMetadataDE() ([]models.DataElementMeta, error) {
 	rows, err := s.db.Query(`SELECT de_uid, COALESCE(code,''), name, COALESCE(form_name,''), COALESCE(value_type,''), COALESCE(option_set_id,''), COALESCE(section_prefix,'') FROM metadata_de`)
 	if err != nil {
@@ -276,6 +331,9 @@ type SyncData struct {
 	UsageRH          []models.UsageRH
 	UsageCommodites  []models.UsageCommodite
 	ReportingRates   []models.ReportingRate
+	Population       []models.PopulationRow
+	UsageGeo         []models.UsageGeo
+	UsageCouverture  []models.UsageCouverture
 }
 
 // PersistSyncData atomically replaces all derived data within a single transaction.
@@ -287,7 +345,7 @@ func (s *Store) PersistSyncData(syncRunID int64, data *SyncData) error {
 	defer tx.Rollback()
 
 	// Clear derived tables (order matters for FK)
-	for _, table := range []string{"event_value", "quality_issue", "event_quality", "quality_summary", "usage_recensement", "usage_service", "usage_equipement", "usage_rh", "usage_commodite", "reporting_rate", "event"} {
+	for _, table := range []string{"event_value", "quality_issue", "event_quality", "quality_summary", "usage_recensement", "usage_service", "usage_equipement", "usage_rh", "usage_commodite", "reporting_rate", "population", "usage_geo", "usage_couverture", "event"} {
 		res, err := tx.Exec("DELETE FROM " + table)
 		if err != nil {
 			return fmt.Errorf("clear %s: %w", table, err)
@@ -306,7 +364,8 @@ func (s *Store) PersistSyncData(syncRunID int64, data *SyncData) error {
 	}
 
 	// Events + values
-	evtStmt, err := tx.Prepare(`INSERT OR REPLACE INTO event (event_uid, org_unit_uid, org_unit_name, district, region, event_date, status, raw_json, sync_run_id) VALUES (?,?,?,?,?,?,?,?,?)`)
+	evtStmt, err := tx.Prepare(`INSERT OR REPLACE INTO event (event_uid, org_unit_uid, org_unit_name, district, region, event_date, status, raw_json, sync_run_id,
+		district_uid, sous_prefecture, sous_prefecture_uid, type_code, type_source, lat, lng) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
 	if err != nil {
 		return err
 	}
@@ -319,7 +378,8 @@ func (s *Store) PersistSyncData(syncRunID int64, data *SyncData) error {
 	defer valStmt.Close()
 
 	for _, evt := range data.Events {
-		if _, err := evtStmt.Exec(evt.EventUID, evt.OrgUnitUID, evt.OrgUnitName, evt.District, evt.Region, evt.EventDate, evt.Status, evt.RawJSON, syncRunID); err != nil {
+		if _, err := evtStmt.Exec(evt.EventUID, evt.OrgUnitUID, evt.OrgUnitName, evt.District, evt.Region, evt.EventDate, evt.Status, evt.RawJSON, syncRunID,
+			evt.DistrictUID, evt.SousPrefecture, evt.SousPrefectureUID, evt.TypeCode, evt.TypeSource, evt.Lat, evt.Lng); err != nil {
 			log.Printf("WARN: insert event %s: %v", evt.EventUID, err)
 			continue
 		}
@@ -436,6 +496,43 @@ func (s *Store) PersistSyncData(syncRunID int64, data *SyncData) error {
 	for _, rr := range data.ReportingRates {
 		if _, err := rrStmt.Exec(rr.Dimension, rr.Key, rr.Label, rr.NExpected, rr.NReported, rr.Pct); err != nil {
 			log.Printf("WARN: insert reporting_rate: %v", err)
+		}
+	}
+
+	// Population
+	popStmt, err := tx.Prepare(`INSERT OR REPLACE INTO population (ou_uid, indicator, period, value) VALUES (?,?,?,?)`)
+	if err != nil {
+		return err
+	}
+	defer popStmt.Close()
+	for _, p := range data.Population {
+		if _, err := popStmt.Exec(p.OrgUnitUID, p.Indicator, p.Period, p.Value); err != nil {
+			log.Printf("WARN: insert population: %v", err)
+		}
+	}
+
+	// Usage geo
+	geoStmt, err := tx.Prepare(`INSERT INTO usage_geo (level, ou_uid, name, parent_name, n_structures, n_gps, pct_gps, avg_score, population, n_par_type) VALUES (?,?,?,?,?,?,?,?,?,?)`)
+	if err != nil {
+		return err
+	}
+	defer geoStmt.Close()
+	for _, g := range data.UsageGeo {
+		parType, _ := json.Marshal(g.NParType)
+		if _, err := geoStmt.Exec(g.Level, g.OrgUnitUID, g.Name, g.ParentName, g.NStructures, g.NGPS, g.PctGPS, g.AvgScore, g.Population, string(parType)); err != nil {
+			log.Printf("WARN: insert usage_geo: %v", err)
+		}
+	}
+
+	// Usage couverture
+	covStmt, err := tx.Prepare(`INSERT INTO usage_couverture (dimension, key, label, indicator, numerator, population, ratio_10k) VALUES (?,?,?,?,?,?,?)`)
+	if err != nil {
+		return err
+	}
+	defer covStmt.Close()
+	for _, c := range data.UsageCouverture {
+		if _, err := covStmt.Exec(c.Dimension, c.Key, c.Label, c.Indicator, c.Numerator, c.Population, c.Ratio10k); err != nil {
+			log.Printf("WARN: insert usage_couverture: %v", err)
 		}
 	}
 

@@ -29,7 +29,20 @@ type Event struct {
 	DataValues  []DataValue `json:"dataValues"`
 	RawJSON     string      `json:"-"`
 	SyncRunID   int64       `json:"-"`
+
+	// Carte sanitaire : attributs de la structure dérivés au sync (hiérarchie,
+	// typologie, position). Jamais fournis par DHIS2 tels quels.
+	DistrictUID       string   `json:"districtUid,omitempty"`
+	SousPrefecture    string   `json:"sousPrefecture,omitempty"`
+	SousPrefectureUID string   `json:"sousPrefectureUid,omitempty"`
+	TypeCode          string   `json:"typeCode,omitempty"`   // PS|CS|CSA|CMC|HP|HR|HN|CABINET|CLINIQUE|AUTRE_PRIVE|INDETERMINE
+	TypeSource        string   `json:"typeSource,omitempty"` // group|group_multiple|name|none
+	Lat               *float64 `json:"lat,omitempty"`
+	Lng               *float64 `json:"lng,omitempty"`
 }
+
+// HasGPS reports whether the structure has a usable point position.
+func (e *Event) HasGPS() bool { return e.Lat != nil && e.Lng != nil }
 
 // Values returns a map de_uid → value for quick lookups.
 func (e *Event) Values() map[string]string {
@@ -95,6 +108,47 @@ type OrgUnit struct {
 	ParentName string `json:"parentName,omitempty"`
 	ClosedDate string `json:"closedDate,omitempty"`
 	Geometry   string `json:"geometry,omitempty"`
+}
+
+// OrgUnitGroup is one org unit's membership in a DHIS2 organisation unit group.
+type OrgUnitGroup struct {
+	GroupUID  string `json:"groupUid"`
+	GroupName string `json:"groupName"`
+	SetName   string `json:"setName"` // parent group set name, "" if the group belongs to none
+	OrgUnit   string `json:"orgUnit"`
+}
+
+// PopulationRow is the latest known population figure for one org unit and indicator.
+type PopulationRow struct {
+	OrgUnitUID string  `json:"ou_uid"`
+	Indicator  string  `json:"indicator"` // total | moins5 | fap | grossesses | accouchements ...
+	Period     string  `json:"period"`    // DHIS2 period id, e.g. 202508
+	Value      float64 `json:"value"`
+}
+
+// UsageGeo is the geographic/demographic coverage of one administrative unit.
+type UsageGeo struct {
+	Level       int            `json:"level"` // 3 = district/préfecture, 4 = sous-préfecture
+	OrgUnitUID  string         `json:"ou_uid"`
+	Name        string         `json:"name"`
+	ParentName  string         `json:"parent_name"`
+	NStructures int            `json:"n_structures"`
+	NGPS        int            `json:"n_gps"`
+	PctGPS      *float64       `json:"pct_gps"`
+	AvgScore    *float64       `json:"avg_score"`
+	Population  *float64       `json:"population"`
+	NParType    map[string]int `json:"n_par_type"`
+}
+
+// UsageCouverture is one demographic ratio (numerator per 10 000 inhabitants).
+type UsageCouverture struct {
+	Dimension  string   `json:"dimension"` // global | region | district | sous_prefecture
+	Key        string   `json:"key"`
+	Label      string   `json:"label"`
+	Indicator  string   `json:"indicator"` // structures | lits | medecins | sages_femmes | infirmiers | ats
+	Numerator  float64  `json:"numerator"`
+	Population *float64 `json:"population"`
+	Ratio10k   *float64 `json:"ratio_10k"`
 }
 
 // EquipPair represents a TOTAL/FONC equipment pair.
@@ -193,12 +247,12 @@ type UsageCommodite struct {
 
 // ReportingRate is a reporting completeness row.
 type ReportingRate struct {
-	Dimension  string  `json:"dimension"`
-	Key        string  `json:"key"`
-	Label      string  `json:"label"`
-	NExpected  int     `json:"n_expected"`
-	NReported  int     `json:"n_reported"`
-	Pct        float64 `json:"pct"`
+	Dimension string  `json:"dimension"`
+	Key       string  `json:"key"`
+	Label     string  `json:"label"`
+	NExpected int     `json:"n_expected"`
+	NReported int     `json:"n_reported"`
+	Pct       float64 `json:"pct"`
 }
 
 // User represents an application user.
@@ -299,9 +353,9 @@ type MapDistrictProperties struct {
 	// Couche 4 : Équipements (nombres bruts)
 	Equipements map[string]EquipMapData `json:"equipements"`
 	// Couche 5 : WASH forage/réseau
-	WashForageOuReseauPct *float64 `json:"wash_forage_ou_reseau_pct"`
-	WashForageOuReseauN   int      `json:"wash_forage_ou_reseau_n"`
-	WashTotal             int      `json:"wash_total"`
+	WashForageOuReseauPct  *float64 `json:"wash_forage_ou_reseau_pct"`
+	WashForageOuReseauN    int      `json:"wash_forage_ou_reseau_n"`
+	WashTotal              int      `json:"wash_total"`
 	WashEauPtsCritiquesPct *float64 `json:"wash_eau_pts_critiques_pct"`
 	WashEauPtsCritiquesN   int      `json:"wash_eau_pts_critiques_n"`
 	// Couche 6 : Densité RH
@@ -313,9 +367,9 @@ type MapDistrictProperties struct {
 }
 
 type MapDistrictFeature struct {
-	Type       string                 `json:"type"`
-	Geometry   json.RawMessage        `json:"geometry"`
-	Properties MapDistrictProperties  `json:"properties"`
+	Type       string                `json:"type"`
+	Geometry   json.RawMessage       `json:"geometry"`
+	Properties MapDistrictProperties `json:"properties"`
 }
 
 type MapDistrictCollection struct {

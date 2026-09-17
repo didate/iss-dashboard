@@ -8,6 +8,7 @@ import (
 	"iss-dashboard-backend/internal/config"
 	"iss-dashboard-backend/internal/dhis2"
 	"iss-dashboard-backend/internal/store"
+	syncer "iss-dashboard-backend/internal/sync"
 	"iss-dashboard-backend/internal/webui"
 
 	"github.com/gin-gonic/gin"
@@ -72,7 +73,7 @@ func SetupRouter(cfg *config.Config, st *store.Store, client *dhis2.Client) *gin
 	admin := api.Group("/admin")
 	admin.Use(JWTAuth(jwtSecret, st), RequireAdmin())
 	{
-		ah := &AdminHandlers{Store: st, Client: client}
+		ah := &AdminHandlers{Store: st, Client: client, SyncOptions: syncer.OptionsFromConfig(cfg)}
 		admin.POST("/sync", ah.TriggerSync)
 		admin.GET("/sync/status", ah.GetSyncStatus)
 		admin.GET("/users", auth.ListUsers)
