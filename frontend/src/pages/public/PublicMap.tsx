@@ -45,7 +45,10 @@ export default function PublicMap() {
   const [me, setMe] = useState<[number, number] | null>(null);
   const [locating, setLocating] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
+  const [focus, setFocus] = useState<{ uid: string; nonce: number } | null>(null);
   const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
+  const [clusterParam, setClusterParam] = useUrlState('cluster');
+  const cluster = clusterParam !== 'off';
 
   // Chargement unique : points (cache navigateur), filtres, résumé.
   useEffect(() => {
@@ -118,10 +121,14 @@ export default function PublicMap() {
     );
   }, []);
 
+  // Depuis la liste : on met en avant la structure sur la carte (déplacement + popup).
   const selectResult = useCallback((item: PublicStructureItem) => {
     setSelected(item.uid);
-    if (item.lat !== null && item.lng !== null) setFlyTarget([item.lat, item.lng]);
+    if (item.lat !== null && item.lng !== null) setFocus({ uid: item.uid, nonce: Date.now() });
   }, []);
+
+  // Depuis la carte : simple surbrillance dans la liste, la popup s'ouvre seule, sans zoom.
+  const onMarkerClick = useCallback((uid: string) => setSelected(uid), []);
 
   const clearAll = () => {
     setSearch('');
@@ -131,6 +138,7 @@ export default function PublicMap() {
     setDistrict('');
     setMe(null);
     setSelected(null);
+    setFocus(null);
   };
 
   const hasFilter = !!(search || type || service || region || district || me);
@@ -268,7 +276,7 @@ export default function PublicMap() {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          {points && <ClusterLayer features={visibleFeatures} selectedUid={selected} onSelect={setSelected} />}
+          {points && <ClusterLayer features={visibleFeatures} cluster={cluster} focus={focus} onMarkerClick={onMarkerClick} />}
           {me && <CircleMarker center={me} radius={9} pathOptions={{ color: '#1d4ed8', fillColor: '#3b82f6', fillOpacity: 0.6 }} />}
           <FlyTo target={flyTarget} />
         </MapContainer>
@@ -283,6 +291,15 @@ export default function PublicMap() {
           <div className="font-medium text-gray-700 mb-1">
             {visibleFeatures.length.toLocaleString('fr-FR')} structures sur la carte
           </div>
+          <label className="flex items-center gap-1.5 text-gray-600 cursor-pointer mb-1">
+            <input
+              type="checkbox"
+              checked={cluster}
+              onChange={(e) => setClusterParam(e.target.checked ? '' : 'off')}
+              className="accent-emerald-600"
+            />
+            Regrouper les points
+          </label>
           {[
             ['Hôpitaux', 'HP'],
             ['CMC / CSA', 'CMC'],

@@ -9,8 +9,15 @@ import { typeColor, opLabel } from '../../api/public';
 
 interface Props {
   features: PublicPointFeature[];
-  selectedUid?: string | null;
-  onSelect?: (uid: string) => void;
+  /** Regrouper les points en clusters (sinon tous les cercles sont dessinés). */
+  cluster: boolean;
+  /**
+   * Structure à mettre en avant depuis la liste : la carte se déplace jusqu'à
+   * elle et ouvre sa popup. Un clic direct sur un marqueur ne passe pas par
+   * ici — il ouvre seulement la popup, sans zoom.
+   */
+  focus?: { uid: string; nonce: number } | null;
+  onMarkerClick?: (uid: string) => void;
 }
 
 const FICHE_BASE = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/fs/`;
@@ -33,23 +40,25 @@ function popupHtml(p: PublicPointFeature['properties']): string {
     </div>`;
 }
 
-// Regroupe les points en clusters (leaflet.markercluster) ; les marqueurs sont
-// des cercles colorés par type. Pur affichage : les données arrivent filtrées.
-export default function ClusterLayer({ features, selectedUid, onSelect }: Props) {
+// Dessine les structures en cercles colorés par type, regroupés en clusters
+// (leaflet.markercluster) ou non. Pur affichage : les données arrivent filtrées.
+export default function ClusterLayer({ features, cluster, focus, onMarkerClick }: Props) {
   const map = useMap();
-  const groupRef = useRef<L.MarkerClusterGroup | null>(null);
+  const groupRef = useRef<L.MarkerClusterGroup | L.LayerGroup | null>(null);
   const markersRef = useRef<Map<string, L.CircleMarker>>(new Map());
 
   useEffect(() => {
     // Pas de chargement par tranches : ~3 000 cercles s'ajoutent en quelques
     // dizaines de ms, et le mode chunked plante si le groupe est retiré de la
     // carte avant la fin (double montage StrictMode, changement de filtre rapide).
-    const group = L.markerClusterGroup({
-      chunkedLoading: false,
-      maxClusterRadius: 45,
-      spiderfyOnMaxZoom: true,
-      showCoverageOnHover: false,
-    });
+    const group: L.MarkerClusterGroup | L.LayerGroup = cluster
+      ? L.markerClusterGroup({
+          chunkedLoading: false,
+          maxClusterRadius: 45,
+          spiderfyOnMaxZoom: true,
+          showCoverageOnHover: false,
+        })
+      : L.layerGroup();
     const markers = new Map<string, L.CircleMarker>();
     for (const f of features) {
       const [lng, lat] = f.geometry.coordinates;
@@ -62,7 +71,7 @@ export default function ClusterLayer({ features, selectedUid, onSelect }: Props)
         fillOpacity: 0.9,
       });
       m.bindPopup(popupHtml(p), { closeButton: true });
-      m.on('click', () => onSelect?.(p.uid));
+      m.on('click', () => onMarkerClick?.(p.uid));
       markers.set(p.uid, m);
       group.addLayer(m);
     }
@@ -75,19 +84,22 @@ export default function ClusterLayer({ features, selectedUid, onSelect }: Props)
       groupRef.current = null;
       markersRef.current = new Map();
     };
-  }, [map, features, onSelect]);
+  }, [map, features, cluster, onMarkerClick]);
 
   useEffect(() => {
-    if (!selectedUid) return;
-    const marker = markersRef.current.get(selectedUid);
+    if (!focus) return;
+    const marker = markersRef.current.get(focus.uid);
     const group = groupRef.current;
     if (!marker || !group) return;
-    group.zoomToShowLayer(marker, () => {
+    const reveal = () => {
       const ll = marker.getLatLng();
       if (map.getZoom() < 13) map.setView(ll, 13);
+      else map.panTo(ll);
       marker.openPopup();
-    });
-  }, [selectedUid, map, features]);
+    };
+    if ('zoomToShowLayer' in group) group.zoomToShowLayer(marker, reveal);
+    else reveal();
+  }, [focus, map, features, cluster]);
 
   return null;
 }
