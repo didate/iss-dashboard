@@ -242,8 +242,9 @@ L'accès pro se fait via un lien « Espace planification » dans l'en-tête → 
 
 - Le tableau de bord actuel passe de `/` à **`/tableau-de-bord`** (redirection depuis les anciens liens `/` → seulement
   si connecté, sinon carte publique). Les autres routes ne bougent pas.
-- `MapView` : sélecteur **Niveau : préfecture | sous-préfecture** ; couche **Points** (mêmes marqueurs que le public,
-  mais colorés par score qualité, clic → `StructureDetail`) ; couche **Couverture GPS**.
+- `MapView` : deux couches supplémentaires rendues par `ProGeoMap` — **Couverture géo** (niveau district ou
+  sous-préfecture, métrique : % GPS / score / structures pour 10 000 hab. / nombre) et **Structures (points)**
+  (endpoint pro `/map/points`, colorés par score qualité, clic → `StructureDetail`, regroupement désactivable).
 - Nouvelle page **`/geolocalisation`** : KPI (% GPS national), tableau par district/sous-préfecture, liste des
   structures sans GPS avec filtres et export CSV.
 - `Usage` : onglet **Couverture** (ratios /10 000 hab, tableau + barres) ; recensement par **type**.
@@ -319,7 +320,7 @@ README.md   + section « Carte sanitaire » : espaces public/pro, variables, com
 | **A — Données** ✅ | groupes d'OU, typologie, GPS→lat/lng, sous-préfecture, population, `usage_geo`, `usage_couverture`, R14/R17/R18, tests | `go test ./...` ; sync sur l'instance ; requêtes SQLite : distribution des types, % GPS, ratios de quelques districts comparés à la main |
 | **B — API** ✅ | endpoints publics + pro, snapshot GeoJSON, ETag | `curl` sur chaque endpoint, taille et temps de `/public/points.geojson` (1,04 Mo brut, 108 Ko gzip, 304 sur ETag) |
 | **C — Espace public** ✅ | PublicLayout, PublicMap, PublicFiche, About | parcours : recherche → marqueur → fiche → lien partagé ; mobile — vérifié dans le navigateur intégré (desktop + 375 px) |
-| **D — Espace pro** | MapView niveau 4 + points, page Géolocalisation, onglet Couverture, filtres type/GPS | parcours DPS : « mes structures sans GPS » → export CSV |
+| **D — Espace pro** ✅ | MapView couches « Couverture géo » (niveaux 3/4, 4 métriques) et « Structures (points) » par score, page Géolocalisation, onglet Couverture, filtres type/GPS, détail enrichi | parcours DPS : « mes structures sans GPS » → export CSV — vérifié dans le navigateur intégré |
 | **E — Doc & conf** | README, `.env.example`, `docker-compose` (rien à changer côté images) | relecture |
 
 ---

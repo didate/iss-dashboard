@@ -92,3 +92,13 @@ func (h *GeoHandlers) GetMapGeo(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, fc)
 }
+
+// GET /map/points — structures géolocalisées avec score qualité (espace pro).
+func (h *GeoHandlers) GetMapPoints(c *gin.Context) {
+	fc, err := h.Store.GetProPoints()
+	if err != nil {
+		internalError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, fc)
+}

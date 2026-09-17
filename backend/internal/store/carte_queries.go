@@ -465,3 +465,56 @@ func (s *Store) GetMapGeo(level int) (*MapGeoCollection, error) {
 	}
 	return fc, nil
 }
+
+// --- Pro : points des structures avec qualité ---------------------------------
+
+// ProPointProperties are the planners' map point properties (quality included).
+type ProPointProperties struct {
+	EventUID      string `json:"event_uid"`
+	UID           string `json:"uid"`
+	Name          string `json:"name"`
+	TypeCode      string `json:"type"`
+	TypeLabel     string `json:"type_label"`
+	Region        string `json:"region"`
+	District      string `json:"district"`
+	Score         int    `json:"score"`
+	WorstSeverity string `json:"worst_severity"`
+	NIssues       int    `json:"n_issues"`
+}
+
+type ProPointFeature struct {
+	Type       string             `json:"type"`
+	Geometry   json.RawMessage    `json:"geometry"`
+	Properties ProPointProperties `json:"properties"`
+}
+
+type ProPointCollection struct {
+	Type     string            `json:"type"`
+	Features []ProPointFeature `json:"features"`
+}
+
+// GetProPoints returns every geolocated structure (latest event) with its quality summary.
+func (s *Store) GetProPoints() (*ProPointCollection, error) {
+	rows, err := s.db.Query(`
+		SELECT e.event_uid, e.org_unit_uid, e.org_unit_name, COALESCE(e.type_code,''), e.region, e.district, e.lat, e.lng,
+		       COALESCE(q.score, 100), COALESCE(q.worst_severity,''), COALESCE(q.n_error,0)+COALESCE(q.n_warning,0)+COALESCE(q.n_info,0)
+		FROM structure_latest e LEFT JOIN event_quality q ON q.event_uid = e.event_uid
+		WHERE e.lat IS NOT NULL AND e.lng IS NOT NULL
+		ORDER BY e.org_unit_name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	fc := &ProPointCollection{Type: "FeatureCollection", Features: []ProPointFeature{}}
+	for rows.Next() {
+		var p ProPointProperties
+		var lat, lng float64
+		if err := rows.Scan(&p.EventUID, &p.UID, &p.Name, &p.TypeCode, &p.Region, &p.District, &lat, &lng, &p.Score, &p.WorstSeverity, &p.NIssues); err != nil {
+			return nil, err
+		}
+		p.TypeLabel = typologie.Label(p.TypeCode)
+		geom, _ := json.Marshal(map[string]any{"type": "Point", "coordinates": []float64{lng, lat}})
+		fc.Features = append(fc.Features, ProPointFeature{Type: "Feature", Geometry: geom, Properties: p})
+	}
+	return fc, rows.Err()
+}

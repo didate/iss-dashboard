@@ -72,6 +72,7 @@ func SetupRouter(cfg *config.Config, st *store.Store, client *dhis2.Client) *gin
 		read.GET("/geo/missing.csv", gh.GetMissingCSV)
 		read.GET("/usage/couverture", gh.GetCouverture)
 		read.GET("/map/geo", gh.GetMapGeo)
+		read.GET("/map/points", gh.GetMapPoints)
 
 		pdfH := &PDFHandlers{Store: st}
 		read.GET("/export/pdf", pdfH.ExportDistrictPDF)

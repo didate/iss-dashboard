@@ -5,6 +5,8 @@ import type { StructureListResult, Filters } from '../types';
 import { useUrlState, useUrlStateInt } from '../hooks/useUrlState';
 import ScoreBar from '../components/ScoreBar';
 import SeverityBadge from '../components/SeverityBadge';
+import { MapPin, MapPinOff } from 'lucide-react';
+import { typeColor } from '../api/public';
 
 export default function Structures() {
   const navigate = useNavigate();
@@ -14,6 +16,8 @@ export default function Structures() {
 
   const [district, setDistrict] = useUrlState('district');
   const [search, setSearch] = useUrlState('search');
+  const [type, setType] = useUrlState('type');
+  const [gps, setGps] = useUrlState('gps');
   const [page, setPage] = useUrlStateInt('page', 1);
 
   useEffect(() => {
@@ -22,11 +26,11 @@ export default function Structures() {
 
   const fetchData = useCallback(() => {
     setLoading(true);
-    api.getStructuresList({ district, search, page, pageSize: 25 })
+    api.getStructuresList({ district, search, type, gps, page, pageSize: 25 })
       .then(setResult)
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [district, search, page]);
+  }, [district, search, type, gps, page]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -57,6 +61,27 @@ export default function Structures() {
           ))}
         </select>
 
+        <select
+          className="border border-gray-300 rounded px-2 py-1.5 text-sm"
+          value={type}
+          onChange={(e) => { setType(e.target.value); setPage(1); }}
+        >
+          <option value="">Tous types</option>
+          {filters?.types?.map((t) => (
+            <option key={t.code} value={t.code}>{t.label} ({t.n})</option>
+          ))}
+        </select>
+
+        <select
+          className="border border-gray-300 rounded px-2 py-1.5 text-sm"
+          value={gps}
+          onChange={(e) => { setGps(e.target.value); setPage(1); }}
+        >
+          <option value="">GPS : toutes</option>
+          <option value="oui">Géolocalisées</option>
+          <option value="non">Sans GPS</option>
+        </select>
+
         <input
           type="text"
           placeholder="Rechercher par nom..."
@@ -81,6 +106,7 @@ export default function Structures() {
                 <thead>
                   <tr className="border-b bg-gray-50">
                     <th className="text-left px-3 py-2 font-medium text-gray-500">Structure</th>
+                    <th className="text-left px-3 py-2 font-medium text-gray-500 hidden md:table-cell">Type</th>
                     <th className="text-left px-3 py-2 font-medium text-gray-500">District</th>
                     <th className="text-left px-3 py-2 font-medium text-gray-500 hidden sm:table-cell">Region</th>
                     <th className="text-left px-3 py-2 font-medium text-gray-500 hidden md:table-cell">Date</th>
@@ -96,7 +122,22 @@ export default function Structures() {
                       className="border-b border-gray-100 cursor-pointer hover:bg-blue-50"
                       onClick={() => navigate(`/structure/${item.event_uid}`)}
                     >
-                      <td className="px-3 py-2 font-medium text-gray-800">{item.org_unit_name}</td>
+                      <td className="px-3 py-2 font-medium text-gray-800">
+                        <span className="inline-flex items-center gap-1.5">
+                          {item.has_gps ? (
+                            <MapPin size={13} className="text-emerald-600 shrink-0" aria-label="Géolocalisée" />
+                          ) : (
+                            <MapPinOff size={13} className="text-gray-300 shrink-0" aria-label="Sans GPS" />
+                          )}
+                          {item.org_unit_name}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-gray-600 hidden md:table-cell">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full" style={{ background: typeColor(item.type_code) }} />
+                          {item.type_label}
+                        </span>
+                      </td>
                       <td className="px-3 py-2 text-gray-600">{item.district}</td>
                       <td className="px-3 py-2 text-gray-600 hidden sm:table-cell">{item.region}</td>
                       <td className="px-3 py-2 text-gray-500 hidden md:table-cell">{item.event_date?.slice(0, 10)}</td>
@@ -115,7 +156,7 @@ export default function Structures() {
                   ))}
                   {items.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-3 py-8 text-center text-gray-400">
+                      <td colSpan={8} className="px-3 py-8 text-center text-gray-400">
                         Aucune structure trouvée
                       </td>
                     </tr>

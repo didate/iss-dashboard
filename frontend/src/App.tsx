@@ -11,6 +11,7 @@ import DistrictReport from './pages/DistrictReport';
 import NationalReport from './pages/NationalReport';
 import MapView from './pages/MapView';
 import Admin from './pages/Admin';
+import Geolocalisation from './pages/Geolocalisation';
 import Login from './pages/Login';
 import PublicLayout from './components/PublicLayout';
 import PublicMap from './pages/public/PublicMap';
@@ -45,6 +46,7 @@ export default function App() {
           isLoggedIn ? <NationalReport /> : <Navigate to="/login" />
         } />
         <Route path="/carte" element={<MapView />} />
+        <Route path="/geolocalisation" element={<Geolocalisation />} />
         <Route path="/admin" element={
           isLoggedIn ? <Admin /> : <Navigate to="/login" />
         } />

@@ -1,6 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, ChevronRight, FileDown } from 'lucide-react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { ArrowLeft, ChevronDown, ChevronRight, FileDown, MapPin, Globe } from 'lucide-react';
+import { typeColor } from '../api/public';
+import { typologieLabel, typeSourceLabel } from '../utils/typologie';
 import { api } from '../api/client';
 import type { EventDetail } from '../types';
 import ScoreBar from '../components/ScoreBar';
@@ -107,11 +109,32 @@ export default function StructureDetail() {
       <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900">{evt.org_unit_name}</h2>
-            <p className="text-sm text-gray-500 mt-1">{evt.district} — {evt.region}</p>
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900">{evt.orgUnitName}</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              {[evt.sousPrefecture, evt.district, evt.region].filter(Boolean).join(' — ')}
+            </p>
             <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-400">
-              <span>Date : {evt.event_date?.slice(0, 10)}</span>
+              {evt.typeCode && (
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full" style={{ background: typeColor(evt.typeCode) }} />
+                  {typologieLabel(evt.typeCode)}
+                  {evt.typeSource && evt.typeSource !== 'group' && (
+                    <span className="text-amber-600" title="Type non confirmé par un groupe DHIS2">({typeSourceLabel(evt.typeSource)})</span>
+                  )}
+                </span>
+              )}
+              <span>Date : {evt.eventDate?.slice(0, 10)}</span>
               <span>Statut : {evt.status}</span>
+              {evt.lat !== undefined && evt.lng !== undefined ? (
+                <span className="inline-flex items-center gap-1 text-gray-500">
+                  <MapPin size={12} /> {evt.lat.toFixed(5)}, {evt.lng.toFixed(5)}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-red-500"><MapPin size={12} /> Sans coordonnées GPS</span>
+              )}
+              <Link to={`/fs/${evt.orgUnit}`} className="inline-flex items-center gap-1 text-emerald-700 hover:underline">
+                <Globe size={12} /> Fiche publique
+              </Link>
             </div>
           </div>
           <div className="flex flex-col items-end gap-1">

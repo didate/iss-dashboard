@@ -66,11 +66,15 @@ export interface EventValueDisplay {
 
 export interface StructureListItem {
   event_uid: string;
+  org_unit_uid: string;
   org_unit_name: string;
   district: string;
   region: string;
   event_date: string;
   status: string;
+  type_code: string;
+  type_label: string;
+  has_gps: boolean;
   score: number;
   n_error: number;
   n_warning: number;
@@ -94,14 +98,22 @@ export interface EventQuality {
 }
 
 export interface EventDetail {
+  // Clés JSON de models.Event côté backend (camelCase DHIS2)
   event: {
-    event_uid: string;
-    org_unit_uid: string;
-    org_unit_name: string;
+    event: string;
+    orgUnit: string;
+    orgUnitName: string;
     district: string;
     region: string;
-    event_date: string;
+    eventDate: string;
     status: string;
+    districtUid?: string;
+    sousPrefecture?: string;
+    sousPrefectureUid?: string;
+    typeCode?: string;
+    typeSource?: string;
+    lat?: number;
+    lng?: number;
   };
   values: EventValueDisplay[];
   issues: Issue[];
@@ -218,6 +230,7 @@ export interface Filters {
   rules: RuleInfo[];
   services: string[];
   statuts: string[];
+  types: PublicFilterType[];
 }
 
 export interface SyncStatus {
@@ -380,4 +393,77 @@ export interface PublicSummary {
   n_par_type: Record<string, number>;
   pct_gps: number;
   derniere_synchro: string;
+}
+
+// --- Carte sanitaire : espace pro (géo, couverture) ---
+
+export interface UsageGeo {
+  level: number;
+  ou_uid: string;
+  name: string;
+  parent_name: string;
+  n_structures: number;
+  n_gps: number;
+  pct_gps: number | null;
+  avg_score: number | null;
+  population: number | null;
+  n_par_type: Record<string, number>;
+}
+
+export interface MapGeoFeature {
+  type: 'Feature';
+  geometry: GeoJSON.Geometry;
+  properties: UsageGeo & { ratio_structures_10k: number | null };
+}
+
+export interface MapGeoCollection {
+  type: 'FeatureCollection';
+  features: MapGeoFeature[];
+}
+
+export interface ProPointProperties {
+  event_uid: string;
+  uid: string;
+  name: string;
+  type: string;
+  type_label: string;
+  region: string;
+  district: string;
+  score: number;
+  worst_severity: string;
+  n_issues: number;
+}
+
+export interface ProPointCollection {
+  type: 'FeatureCollection';
+  features: { type: 'Feature'; geometry: { type: 'Point'; coordinates: [number, number] }; properties: ProPointProperties }[];
+}
+
+export interface MissingGPSItem {
+  event_uid: string;
+  org_unit_uid: string;
+  name: string;
+  type: string;
+  type_label: string;
+  region: string;
+  district: string;
+  sous_prefecture: string;
+  event_date: string;
+}
+
+export interface MissingGPSResult {
+  data: MissingGPSItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface UsageCouverture {
+  dimension: string;
+  key: string;
+  label: string;
+  indicator: string;
+  numerator: number;
+  population: number | null;
+  ratio_10k: number | null;
 }

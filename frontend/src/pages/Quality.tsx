@@ -191,9 +191,9 @@ export default function Quality() {
           <div className="w-full lg:w-96 bg-white rounded-lg border border-gray-200 p-4 overflow-y-auto max-h-[80vh]">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h3 className="font-bold text-gray-900">{detail.event.org_unit_name}</h3>
+                <h3 className="font-bold text-gray-900">{detail.event.orgUnitName}</h3>
                 <p className="text-xs text-gray-500">{detail.event.district} — {detail.event.region}</p>
-                <p className="text-xs text-gray-400 mt-1">Date: {detail.event.event_date}</p>
+                <p className="text-xs text-gray-400 mt-1">Date: {detail.event.eventDate?.slice(0, 10)}</p>
               </div>
               <button
                 className="text-gray-400 hover:text-gray-600 text-lg"

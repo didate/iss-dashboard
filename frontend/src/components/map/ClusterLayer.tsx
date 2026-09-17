@@ -4,45 +4,36 @@ import L from 'leaflet';
 import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
-import type { PublicPointFeature } from '../../types';
-import { typeColor, opLabel } from '../../api/public';
+
+/** Un point à dessiner : position, couleur et contenu HTML (déjà échappé) de la popup. */
+export interface MarkerSpec {
+  uid: string;
+  lat: number;
+  lng: number;
+  color: string;
+  popup: string;
+}
 
 interface Props {
-  features: PublicPointFeature[];
+  points: MarkerSpec[];
   /** Regrouper les points en clusters (sinon tous les cercles sont dessinés). */
   cluster: boolean;
   /**
-   * Structure à mettre en avant depuis la liste : la carte se déplace jusqu'à
-   * elle et ouvre sa popup. Un clic direct sur un marqueur ne passe pas par
-   * ici — il ouvre seulement la popup, sans zoom.
+   * Point à mettre en avant depuis une liste : la carte se déplace jusqu'à lui
+   * et ouvre sa popup. Un clic direct sur un marqueur ne passe pas par ici —
+   * il ouvre seulement la popup, sans zoom.
    */
   focus?: { uid: string; nonce: number } | null;
   onMarkerClick?: (uid: string) => void;
 }
 
-const FICHE_BASE = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/fs/`;
-
-function escapeHtml(s: string): string {
+export function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 }
 
-function popupHtml(p: PublicPointFeature['properties']): string {
-  const where = [p.sp, p.district].filter(Boolean).join(' · ');
-  return `
-    <div style="min-width:180px">
-      <div style="font-weight:600;font-size:14px;margin-bottom:2px">${escapeHtml(p.name)}</div>
-      <div style="font-size:12px;color:#374151">
-        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${typeColor(p.type)};margin-right:4px"></span>${escapeHtml(p.type_label)}
-      </div>
-      <div style="font-size:12px;color:#6b7280">${escapeHtml(where)}</div>
-      <div style="font-size:12px;color:#6b7280;margin-bottom:6px">${escapeHtml(opLabel(p.op))}</div>
-      <a href="${FICHE_BASE}${encodeURIComponent(p.uid)}" style="font-size:12px;color:#047857;font-weight:500">Voir la fiche →</a>
-    </div>`;
-}
-
-// Dessine les structures en cercles colorés par type, regroupés en clusters
-// (leaflet.markercluster) ou non. Pur affichage : les données arrivent filtrées.
-export default function ClusterLayer({ features, cluster, focus, onMarkerClick }: Props) {
+// Dessine des cercles colorés, regroupés en clusters (leaflet.markercluster) ou
+// non. Pur affichage : les données arrivent déjà filtrées et colorées.
+export default function ClusterLayer({ points, cluster, focus, onMarkerClick }: Props) {
   const map = useMap();
   const groupRef = useRef<L.MarkerClusterGroup | L.LayerGroup | null>(null);
   const markersRef = useRef<Map<string, L.CircleMarker>>(new Map());
@@ -60,17 +51,15 @@ export default function ClusterLayer({ features, cluster, focus, onMarkerClick }
         })
       : L.layerGroup();
     const markers = new Map<string, L.CircleMarker>();
-    for (const f of features) {
-      const [lng, lat] = f.geometry.coordinates;
-      const p = f.properties;
-      const m = L.circleMarker([lat, lng], {
+    for (const p of points) {
+      const m = L.circleMarker([p.lat, p.lng], {
         radius: 7,
         color: '#ffffff',
         weight: 1.5,
-        fillColor: typeColor(p.type),
+        fillColor: p.color,
         fillOpacity: 0.9,
       });
-      m.bindPopup(popupHtml(p), { closeButton: true });
+      m.bindPopup(p.popup, { closeButton: true });
       m.on('click', () => onMarkerClick?.(p.uid));
       markers.set(p.uid, m);
       group.addLayer(m);
@@ -84,7 +73,7 @@ export default function ClusterLayer({ features, cluster, focus, onMarkerClick }
       groupRef.current = null;
       markersRef.current = new Map();
     };
-  }, [map, features, cluster, onMarkerClick]);
+  }, [map, points, cluster, onMarkerClick]);
 
   useEffect(() => {
     if (!focus) return;
@@ -99,7 +88,7 @@ export default function ClusterLayer({ features, cluster, focus, onMarkerClick }
     };
     if ('zoomToShowLayer' in group) group.zoomToShowLayer(marker, reveal);
     else reveal();
-  }, [focus, map, features, cluster]);
+  }, [focus, map, points, cluster]);
 
   return null;
 }

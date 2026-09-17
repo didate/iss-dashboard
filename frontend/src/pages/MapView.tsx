@@ -7,8 +7,9 @@ import type { Feature, Geometry } from 'geojson';
 import { api } from '../api/client';
 import type { MapDistrictCollection, MapDistrictProperties } from '../types';
 import MethodNote from '../components/MethodNote';
+import ProGeoMap from '../components/map/ProGeoMap';
 
-type LayerKey = 'rapportage' | 'qualite' | 'services' | 'equipements' | 'wash' | 'rh';
+type LayerKey = 'rapportage' | 'qualite' | 'services' | 'equipements' | 'wash' | 'rh' | 'gps' | 'points';
 
 const LAYERS: { key: LayerKey; label: string }[] = [
   { key: 'rapportage', label: 'Taux de rapportage' },
@@ -17,7 +18,11 @@ const LAYERS: { key: LayerKey; label: string }[] = [
   { key: 'equipements', label: 'Équipements' },
   { key: 'wash', label: 'WASH (Forage/Réseau)' },
   { key: 'rh', label: 'Densité RH' },
+  // Carte sanitaire : rendues par ProGeoMap (niveaux district / sous-préfecture, points)
+  { key: 'gps', label: 'Couverture géo' },
+  { key: 'points', label: 'Structures (points)' },
 ];
+const GEO_LAYERS: LayerKey[] = ['gps', 'points'];
 
 function getColorPct(value: number | null): string {
   if (value === null || value === undefined) return '#d1d5db';
@@ -605,8 +610,10 @@ export default function MapView() {
         ))}
       </div>
 
+      {GEO_LAYERS.includes(activeLayer) && <ProGeoMap mode={activeLayer as 'gps' | 'points'} />}
+
       {/* Sub-selectors */}
-      {activeLayer === 'services' && serviceOptions.length > 0 && (
+      {!GEO_LAYERS.includes(activeLayer) && activeLayer === 'services' && serviceOptions.length > 0 && (
         <select
           value={selectedService}
           onChange={e => setSelectedService(e.target.value)}
@@ -641,6 +648,7 @@ export default function MapView() {
       )}
 
       {/* Map + Legend + Inset */}
+      {!GEO_LAYERS.includes(activeLayer) && (
       <div className="relative rounded-lg overflow-hidden border border-gray-200 bg-white" style={{ height: 'calc(100vh - 200px)', minHeight: '400px' }}>
         <MapContainer
           center={[10.5, -11.8]}
@@ -748,6 +756,8 @@ export default function MapView() {
         </div>
       </div>
 
+      )}
+
       {/* Methodologie */}
       <MethodNote title="Méthodologie - Carte thématique">
         <p>La carte affiche les districts avec un code couleur selon l'indicateur sélectionné. Les contours sont récupérés depuis DHIS2 (geometry des org units niveau 3).</p>
@@ -758,6 +768,8 @@ export default function MapView() {
           <li><strong>Équipements</strong> : nombres bruts (fonctionnels / total) par catégorie. Échelle à quantiles dynamiques.</li>
           <li><strong>WASH</strong> : % de structures alimentées par forage (FMH/FME) ou réseau public.</li>
           <li><strong>Densité RH</strong> : ratio d'effectif du profil RH sélectionné (médecins, infirmiers, ATS, etc.) par structure dans le district. Échelle à quantiles dynamiques.</li>
+          <li><strong>Couverture géo</strong> : par district ou sous-préfecture (contours niveau 4 DHIS2) — % de structures géolocalisées, score qualité moyen, structures pour 10 000 habitants (population DHIS2), nombre de structures.</li>
+          <li><strong>Structures (points)</strong> : chaque structure géolocalisée, colorée par son score qualité ; clic → détail. Regroupement en clusters désactivable.</li>
         </ul>
       </MethodNote>
     </div>

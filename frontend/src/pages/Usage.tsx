@@ -16,6 +16,7 @@ import type {
   ReportingRate,
   ClosedOUItem,
   Filters,
+  UsageCouverture,
 } from '../types';
 import DataTable from '../components/DataTable';
 import ExportCSV from '../components/ExportCSV';
@@ -30,6 +31,7 @@ const tabs = [
   { key: 'equipements', label: 'Équipements' },
   { key: 'rh', label: 'Ressources humaines' },
   { key: 'commodites', label: 'Commodités' },
+  { key: 'couverture', label: 'Couverture' },
   { key: 'fermees', label: 'Structures fermées' },
 ];
 
@@ -43,7 +45,7 @@ export default function Usage() {
     api.getFilters().then(setFilters).catch(console.error);
   }, []);
 
-  const showDistrictFilter = !['recensement', 'matrice', 'rapportage'].includes(tab);
+  const showDistrictFilter = !['recensement', 'matrice', 'rapportage', 'couverture'].includes(tab);
 
   return (
     <div className="space-y-4">
@@ -100,6 +102,7 @@ export default function Usage() {
         {tab === 'equipements' && <EquipementsTab district={district} />}
         {tab === 'rh' && <RHTab district={district} />}
         {tab === 'commodites' && <CommoditesTab district={district} />}
+        {tab === 'couverture' && <CouvertureTab filters={filters} />}
         {tab === 'fermees' && <ClosedOUsTab district={district} />}
       </div>
     </div>
@@ -236,10 +239,10 @@ function RecensementTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
-          {['district', 'region', 'statut_structure', 'statut_juridique'].map((v) => (
+          {['district', 'region', 'type', 'statut_structure', 'statut_juridique'].map((v) => (
             <button key={v} onClick={() => setBy(v)}
               className={`px-2 py-1 text-xs rounded ${by === v ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600'}`}>
-              {v === 'statut_juridique' ? 'Statut juridique' : v === 'statut_structure' ? 'Public/Privé' : v.charAt(0).toUpperCase() + v.slice(1)}
+              {v === 'statut_juridique' ? 'Statut juridique' : v === 'statut_structure' ? 'Public/Privé' : v === 'type' ? 'Type de structure' : v.charAt(0).toUpperCase() + v.slice(1)}
             </button>
           ))}
         </div>
@@ -776,6 +779,115 @@ function ClosedOUsTab({ district }: { district: string }) {
         <p><strong>Avec données</strong> : la structure a soumis au moins un formulaire ISS dont la date est postérieure à sa date de fermeture.</p>
         <p><strong>Sans données</strong> : la structure est fermée et n'a aucun formulaire ISS actif (soit jamais soumis, soit les données ont été supprimées).</p>
         <p>Ces structures devraient idéalement être désassignées du programme ISS dans DHIS2 pour ne plus être comptées dans le taux de rapportage.</p>
+      </MethodNote>
+    </div>
+  );
+}
+
+// ==================== COUVERTURE (ratios pour 10 000 habitants) ====================
+
+const COUVERTURE_INDICATORS: { key: string; label: string; short: string }[] = [
+  { key: 'structures', label: 'Structures sanitaires', short: 'Structures' },
+  { key: 'lits', label: "Lits d'hospitalisation", short: 'Lits' },
+  { key: 'medecins', label: 'Médecins (toutes spécialités)', short: 'Médecins' },
+  { key: 'sages_femmes', label: 'Sages-femmes', short: 'Sages-femmes' },
+  { key: 'infirmiers', label: 'Infirmiers', short: 'Infirmiers' },
+  { key: 'ats', label: 'ATS', short: 'ATS' },
+];
+
+function CouvertureTab({ filters }: { filters: Filters | null }) {
+  const [by, setBy] = useUrlState('by', 'district');
+  const [indicator, setIndicator] = useUrlState('indicator', 'medecins');
+  const [regionFilter, setRegionFilter] = useUrlState('region');
+  const [rows, setRows] = useState<UsageCouverture[]>([]);
+  const [national, setNational] = useState<UsageCouverture[]>([]);
+
+  useEffect(() => {
+    api.getCouverture(by).then((d) => setRows(d ?? [])).catch(console.error);
+    api.getCouverture('global').then((d) => setNational(d ?? [])).catch(console.error);
+  }, [by]);
+
+  // Pivot : une ligne par clé, une colonne par indicateur (ratio /10 000)
+  const pivot = (() => {
+    const map = new Map<string, Record<string, unknown>>();
+    for (const r of rows) {
+      if (by === 'district' && regionFilter && filters?.district_regions[r.key] !== regionFilter) continue;
+      if (!map.has(r.key)) map.set(r.key, { key: r.key, label: r.label, population: r.population });
+      const row = map.get(r.key)!;
+      row[`n_${r.indicator}`] = r.numerator;
+      row[`r_${r.indicator}`] = r.ratio_10k;
+    }
+    return Array.from(map.values()).sort((a, b) => String(a.label).localeCompare(String(b.label)));
+  })();
+
+  const nat = Object.fromEntries(national.map((r) => [r.indicator, r]));
+  const selected = COUVERTURE_INDICATORS.find((i) => i.key === indicator) ?? COUVERTURE_INDICATORS[0];
+  const chartData = pivot
+    .filter((r) => r[`r_${indicator}`] !== null && r[`r_${indicator}`] !== undefined)
+    .map((r) => ({ name: String(r.label), ratio: r[`r_${indicator}`] as number, n: r[`n_${indicator}`] as number }))
+    .sort((a, b) => b.ratio - a.ratio);
+
+  const fmtRatio = (v: unknown) => (v === null || v === undefined ? '—' : (v as number).toFixed(2));
+  const columns = [
+    { key: 'label', header: by === 'sous_prefecture' ? 'Sous-préfecture' : by.charAt(0).toUpperCase() + by.slice(1) },
+    { key: 'population', header: 'Population', render: (r: Record<string, unknown>) => (r.population ? Math.round(r.population as number).toLocaleString('fr-FR') : '—') },
+    ...COUVERTURE_INDICATORS.filter((i) => by !== 'sous_prefecture' || i.key === 'structures').map((i) => ({
+      key: `r_${i.key}`,
+      header: `${i.short} /10k`,
+      render: (r: Record<string, unknown>) => (
+        <span title={`${r[`n_${i.key}`] ?? 0} ${i.label.toLowerCase()}`}>{fmtRatio(r[`r_${i.key}`])}</span>
+      ),
+    })),
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        {['region', 'district', 'sous_prefecture'].map((v) => (
+          <button key={v} onClick={() => setBy(v)}
+            className={`px-2 py-1 text-xs rounded ${by === v ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600'}`}>
+            {v === 'sous_prefecture' ? 'Sous-préfecture' : v.charAt(0).toUpperCase() + v.slice(1)}
+          </button>
+        ))}
+        {by === 'district' && (
+          <select className="border border-gray-300 rounded px-2 py-1 text-xs" value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)}>
+            <option value="">Toutes régions</option>
+            {filters?.regions.map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
+        )}
+        <select className="border border-gray-300 rounded px-2 py-1 text-xs" value={indicator} onChange={(e) => setIndicator(e.target.value)}>
+          {COUVERTURE_INDICATORS.map((i) => <option key={i.key} value={i.key}>{i.label}</option>)}
+        </select>
+        <div className="ml-auto">
+          <ExportCSV data={pivot} columns={columns} filename={`couverture_${by}`} />
+        </div>
+      </div>
+
+      {nat[indicator] && (
+        <div className="text-sm text-gray-600">
+          National : <strong>{fmtRatio(nat[indicator].ratio_10k)}</strong> {selected.label.toLowerCase()} pour 10 000 habitants
+          {' '}({nat[indicator].numerator.toLocaleString('fr-FR')} pour {nat[indicator].population ? Math.round(nat[indicator].population!).toLocaleString('fr-FR') : '?'} hab.)
+        </div>
+      )}
+
+      {chartData.length > 0 && chartData.length <= 60 && (
+        <ResponsiveContainer width="100%" height={Math.max(200, chartData.length * 18)}>
+          <BarChart data={chartData} layout="vertical" margin={{ left: 20, right: 30 }}>
+            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+            <XAxis type="number" fontSize={11} />
+            <YAxis type="category" dataKey="name" width={140} fontSize={11} interval={0} />
+            <Tooltip formatter={(v: number, _n, p) => [`${v.toFixed(2)} /10 000 hab. (${p.payload.n})`, selected.short]} />
+            <Bar dataKey="ratio" fill="#2563eb" radius={[0, 3, 3, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      )}
+
+      <DataTable columns={columns} data={pivot} />
+
+      <MethodNote title="Méthodologie - Couverture démographique">
+        <p>Ratio = effectif (ou nombre de structures / lits) ÷ population × 10 000. La population vient du data set DHIS2 <em>SIS_POPULATION</em> (dernière période mensuelle renseignée × 12, la saisie mensuelle étant la population annuelle divisée par 12).</p>
+        <p>Les effectifs RH et les lits reprennent les agrégats des onglets Ressources humaines et Équipements ; les structures sont comptées une fois par unité d'organisation. Quand la population d'une unité est inconnue, le ratio est laissé vide.</p>
+        <p>Au niveau sous-préfecture seul le nombre de structures est disponible (les RH et équipements ne sont agrégés qu'au district).</p>
       </MethodNote>
     </div>
   );

@@ -5,11 +5,26 @@ import { Search, LocateFixed, X, Loader2 } from 'lucide-react';
 import { publicApi, typeColor, opLabel, opColor } from '../../api/public';
 import { useUrlState } from '../../hooks/useUrlState';
 import type { PublicFilters, PublicPointCollection, PublicStructureItem, PublicSummary } from '../../types';
-import ClusterLayer from '../../components/map/ClusterLayer';
+import ClusterLayer, { escapeHtml, type MarkerSpec } from '../../components/map/ClusterLayer';
 import InvalidateOnResize from '../../components/map/InvalidateOnResize';
 
 const GUINEA_CENTER: [number, number] = [10.4, -11.3];
 const NEAR_RADIUS_KM = 25;
+const FICHE_BASE = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/fs/`;
+
+function popupHtml(p: PublicPointCollection['features'][number]['properties']): string {
+  const where = [p.sp, p.district].filter(Boolean).join(' · ');
+  return `
+    <div style="min-width:180px">
+      <div style="font-weight:600;font-size:14px;margin-bottom:2px">${escapeHtml(p.name)}</div>
+      <div style="font-size:12px;color:#374151">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${typeColor(p.type)};margin-right:4px"></span>${escapeHtml(p.type_label)}
+      </div>
+      <div style="font-size:12px;color:#6b7280">${escapeHtml(where)}</div>
+      <div style="font-size:12px;color:#6b7280;margin-bottom:6px">${escapeHtml(opLabel(p.op))}</div>
+      <a href="${FICHE_BASE}${encodeURIComponent(p.uid)}" style="font-size:12px;color:#047857;font-weight:500">Voir la fiche →</a>
+    </div>`;
+}
 
 function FlyTo({ target }: { target: [number, number] | null }) {
   const map = useMap();
@@ -94,6 +109,19 @@ export default function PublicMap() {
       return true;
     });
   }, [points, type, region, district, service, debouncedSearch]);
+
+  // Marqueurs : position + couleur par type + popup, dérivés du GeoJSON filtré.
+  const markers = useMemo<MarkerSpec[]>(
+    () =>
+      visibleFeatures.map((f) => ({
+        uid: f.properties.uid,
+        lat: f.geometry.coordinates[1],
+        lng: f.geometry.coordinates[0],
+        color: typeColor(f.properties.type),
+        popup: popupHtml(f.properties),
+      })),
+    [visibleFeatures],
+  );
 
   const districtsOfRegion = useMemo(
     () => (filters ? filters.districts.filter((d) => !region || d.region === region) : []),
@@ -276,7 +304,7 @@ export default function PublicMap() {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          {points && <ClusterLayer features={visibleFeatures} cluster={cluster} focus={focus} onMarkerClick={onMarkerClick} />}
+          {points && <ClusterLayer points={markers} cluster={cluster} focus={focus} onMarkerClick={onMarkerClick} />}
           {me && <CircleMarker center={me} radius={9} pathOptions={{ color: '#1d4ed8', fillColor: '#3b82f6', fillOpacity: 0.6 }} />}
           <FlyTo target={flyTarget} />
         </MapContainer>

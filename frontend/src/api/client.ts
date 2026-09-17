@@ -19,6 +19,11 @@ import type {
   MapDistrictCollection,
   StructureListResult,
   CompareResult,
+  UsageGeo,
+  MapGeoCollection,
+  ProPointCollection,
+  MissingGPSResult,
+  UsageCouverture,
 } from '../types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
@@ -122,6 +127,8 @@ export const api = {
   getStructuresList: (params: {
     district?: string;
     search?: string;
+    type?: string;
+    gps?: string;
     page?: number;
     pageSize?: number;
   }) => request<StructureListResult>(`/api/structures${qs(params)}`),
@@ -160,6 +167,28 @@ export const api = {
   },
 
   getMapData: () => request<MapDistrictCollection>('/api/map/districts'),
+
+  // Carte sanitaire (espace pro)
+  getMapGeo: (level: number) => request<MapGeoCollection>(`/api/map/geo${qs({ level })}`),
+  getMapPoints: () => request<ProPointCollection>('/api/map/points'),
+  getGeoCoverage: (level: number, region?: string) => request<UsageGeo[]>(`/api/geo/coverage${qs({ level, region })}`),
+  getMissingGPS: (params: { district?: string; region?: string; type?: string; page?: number; pageSize?: number }) =>
+    request<MissingGPSResult>(`/api/geo/missing${qs(params)}`),
+  getCouverture: (by: string, indicator?: string) => request<UsageCouverture[]>(`/api/usage/couverture${qs({ by, indicator })}`),
+  exportMissingGPSCSV: async (params: { district?: string; region?: string; type?: string }) => {
+    const token = (await import('./auth')).getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${BASE_URL}/api/geo/missing.csv${qs(params)}`, { headers });
+    if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'structures_sans_gps.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  },
 
   // Admin
   triggerSync: () =>
