@@ -299,3 +299,85 @@ export interface MapDistrictCollection {
   type: 'FeatureCollection';
   features: MapDistrictFeature[];
 }
+
+// --- Carte sanitaire : espace public (projections réduites servies par /api/public/*) ---
+
+export interface PublicService {
+  code: string;
+  label: string;
+}
+
+export interface PublicPointProperties {
+  uid: string;
+  name: string;
+  type: string;
+  type_label: string;
+  statut: string;
+  op: string;
+  region: string;
+  district: string;
+  sp: string;
+  svc: string[] | null;
+}
+
+export interface PublicPointFeature {
+  type: 'Feature';
+  geometry: { type: 'Point'; coordinates: [number, number] };
+  properties: PublicPointProperties;
+}
+
+export interface PublicPointCollection {
+  type: 'FeatureCollection';
+  features: PublicPointFeature[];
+}
+
+export interface PublicFilterType {
+  code: string;
+  label: string;
+  n: number;
+}
+
+export interface PublicFilters {
+  types: PublicFilterType[];
+  services: PublicService[];
+  regions: string[];
+  districts: { name: string; region: string }[];
+}
+
+export interface PublicStructure {
+  uid: string;
+  name: string;
+  type: string;
+  type_label: string;
+  statut: string;
+  statut_detail: string;
+  op: string;
+  region: string;
+  district: string;
+  sous_prefecture: string;
+  lat: number | null;
+  lng: number | null;
+  services: PublicService[];
+  plateau: Record<string, boolean>;
+  recense_le: string;
+}
+
+export interface PublicStructureItem {
+  uid: string;
+  name: string;
+  type: string;
+  type_label: string;
+  op: string;
+  region: string;
+  district: string;
+  lat: number | null;
+  lng: number | null;
+  distance_km?: number;
+}
+
+export interface PublicSummary {
+  n_structures: number;
+  n_par_type: Record<string, number>;
+  pct_gps: number;
+  derniere_synchro: string;
+}

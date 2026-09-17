@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, ShieldAlert, BarChart3, Building2, ArrowLeftRight, Map, Settings, LogOut, User, Menu, X } from 'lucide-react';
+import { LayoutDashboard, ShieldAlert, BarChart3, Building2, ArrowLeftRight, Map, Settings, LogOut, User, Menu, X, Globe } from 'lucide-react';
 import type { AuthUser } from '../api/auth';
 
 const navItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Vue d\'ensemble' },
+  { to: '/tableau-de-bord', icon: LayoutDashboard, label: 'Vue d\'ensemble' },
   { to: '/quality', icon: ShieldAlert, label: 'Qualité' },
   { to: '/usage', icon: BarChart3, label: 'Utilisation' },
   { to: '/structures', icon: Building2, label: 'Structures' },
@@ -27,9 +27,9 @@ export default function Layout({ user, onLogout }: Props) {
       <header className="bg-gray-900 text-gray-300 shrink-0 z-40">
         <div className="flex items-center justify-between px-4 h-14">
           {/* Logo */}
-          <NavLink to="/" className="flex items-center gap-2">
+          <NavLink to="/tableau-de-bord" className="flex items-center gap-2">
             <h1 className="text-white font-bold text-lg">ISS Dashboard</h1>
-            <span className="text-[10px] text-gray-500 hidden sm:inline">Qualité & Utilisation</span>
+            <span className="text-[10px] text-gray-500 hidden sm:inline">Espace planification</span>
           </NavLink>
 
           {/* Desktop nav */}
@@ -38,7 +38,7 @@ export default function Layout({ user, onLogout }: Props) {
               <NavLink
                 key={item.to}
                 to={item.to}
-                end={item.to === '/'}
+                end={item.to === '/tableau-de-bord'}
                 className={({ isActive }) =>
                   `flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors ${
                     isActive
@@ -55,6 +55,10 @@ export default function Layout({ user, onLogout }: Props) {
 
           {/* User + Mobile menu button */}
           <div className="flex items-center gap-3">
+            <NavLink to="/" className="hidden sm:flex items-center gap-1 text-xs text-gray-400 hover:text-white" title="Carte sanitaire publique">
+              <Globe size={14} />
+              Carte publique
+            </NavLink>
             {user ? (
               <div className="hidden sm:flex items-center gap-2 text-xs text-gray-400">
                 <User size={14} />
@@ -82,7 +86,7 @@ export default function Layout({ user, onLogout }: Props) {
               <NavLink
                 key={item.to}
                 to={item.to}
-                end={item.to === '/'}
+                end={item.to === '/tableau-de-bord'}
                 onClick={() => setMenuOpen(false)}
                 className={({ isActive }) =>
                   `flex items-center gap-2 px-3 py-2 text-sm rounded transition-colors ${

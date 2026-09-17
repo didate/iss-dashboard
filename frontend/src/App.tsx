@@ -12,6 +12,10 @@ import NationalReport from './pages/NationalReport';
 import MapView from './pages/MapView';
 import Admin from './pages/Admin';
 import Login from './pages/Login';
+import PublicLayout from './components/PublicLayout';
+import PublicMap from './pages/public/PublicMap';
+import PublicFiche from './pages/public/PublicFiche';
+import About from './pages/public/About';
 
 export default function App() {
   const { user, isLoggedIn, login, logout } = useAuth();
@@ -21,8 +25,16 @@ export default function App() {
       <Route path="/login" element={
         isLoggedIn ? <Navigate to="/admin" /> : <Login onLogin={login} />
       } />
+      {/* Espace public : carte, fiche, à propos — aucune donnée sensible */}
+      <Route element={<PublicLayout isLoggedIn={isLoggedIn} />}>
+        <Route path="/" element={<PublicMap />} />
+        <Route path="/fs/:uid" element={<PublicFiche />} />
+        <Route path="/a-propos" element={<About />} />
+      </Route>
+
+      {/* Espace planification */}
       <Route element={<Layout user={user} onLogout={logout} />}>
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/tableau-de-bord" element={<Dashboard />} />
         <Route path="/quality" element={<Quality />} />
         <Route path="/usage" element={<Usage />} />
         <Route path="/structures" element={<Structures />} />
