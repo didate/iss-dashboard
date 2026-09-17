@@ -31,6 +31,17 @@ func SetupRouter(cfg *config.Config, st *store.Store, client *dhis2.Client) *gin
 	auth := &AuthHandlers{Store: st, JWTSecret: jwtSecret}
 	api.POST("/auth/login", LoginRateLimit(), auth.Login)
 
+	// Carte sanitaire : espace public, toujours ouvert, projections réduites uniquement
+	pub := api.Group("/public")
+	{
+		ph := &PublicHandlers{Store: st}
+		pub.GET("/points.geojson", ph.GetPoints)
+		pub.GET("/filters", ph.GetFilters)
+		pub.GET("/structures", ph.SearchStructures)
+		pub.GET("/structure/:uid", ph.GetStructure)
+		pub.GET("/summary", ph.GetSummary)
+	}
+
 	// Public/protected read endpoints
 	read := api.Group("")
 	read.Use(DashboardAuth(cfg.DashboardPublic, jwtSecret, st))
@@ -54,6 +65,13 @@ func SetupRouter(cfg *config.Config, st *store.Store, client *dhis2.Client) *gin
 		read.GET("/structures", h.GetStructuresList)
 		read.GET("/compare", h.GetCompareDistricts)
 		read.GET("/map/districts", h.GetMapData)
+
+		gh := &GeoHandlers{Store: st}
+		read.GET("/geo/coverage", gh.GetCoverage)
+		read.GET("/geo/missing", gh.GetMissing)
+		read.GET("/geo/missing.csv", gh.GetMissingCSV)
+		read.GET("/usage/couverture", gh.GetCouverture)
+		read.GET("/map/geo", gh.GetMapGeo)
 
 		pdfH := &PDFHandlers{Store: st}
 		read.GET("/export/pdf", pdfH.ExportDistrictPDF)

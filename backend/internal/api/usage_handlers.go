@@ -154,6 +154,8 @@ func (h *ReadHandlers) GetStructuresList(c *gin.Context) {
 	params := store.StructureListParams{
 		District: c.Query("district"),
 		Search:   c.Query("search"),
+		Type:     c.Query("type"),
+		GPS:      c.Query("gps"),
 		Page:     page,
 		PageSize: pageSize,
 	}

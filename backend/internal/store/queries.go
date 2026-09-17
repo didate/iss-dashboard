@@ -6,18 +6,19 @@ import (
 	"strings"
 
 	"iss-dashboard-backend/internal/models"
+	"iss-dashboard-backend/internal/typologie"
 )
 
 // --- Summary ---
 
 type SummaryResult struct {
-	NStructures    int            `json:"n_structures"`
-	NOperationnel  int            `json:"n_operationnel"`
-	AvgScore       float64        `json:"avg_score"`
-	NError         int            `json:"n_error"`
-	NWarning       int            `json:"n_warning"`
-	NInfo          int            `json:"n_info"`
-	LastSync       *models.SyncRun `json:"last_sync"`
+	NStructures   int             `json:"n_structures"`
+	NOperationnel int             `json:"n_operationnel"`
+	AvgScore      float64         `json:"avg_score"`
+	NError        int             `json:"n_error"`
+	NWarning      int             `json:"n_warning"`
+	NInfo         int             `json:"n_info"`
+	LastSync      *models.SyncRun `json:"last_sync"`
 }
 
 func (s *Store) GetSummary() (*SummaryResult, error) {
@@ -210,17 +211,23 @@ type EventValueDisplay struct {
 type StructureListParams struct {
 	District string
 	Search   string
+	Type     string // type_code
+	GPS      string // "oui" | "non" | ""
 	Page     int
 	PageSize int
 }
 
 type StructureListItem struct {
 	EventUID    string `json:"event_uid"`
+	OrgUnitUID  string `json:"org_unit_uid"`
 	OrgUnitName string `json:"org_unit_name"`
 	District    string `json:"district"`
 	Region      string `json:"region"`
 	EventDate   string `json:"event_date"`
 	Status      string `json:"status"`
+	TypeCode    string `json:"type_code"`
+	TypeLabel   string `json:"type_label"`
+	HasGPS      bool   `json:"has_gps"`
 	Score       int    `json:"score"`
 	NError      int    `json:"n_error"`
 	NWarning    int    `json:"n_warning"`
@@ -254,6 +261,16 @@ func (s *Store) GetStructuresList(p StructureListParams) (*StructureListResult, 
 		where = append(where, "e.org_unit_name LIKE ?")
 		args = append(args, "%"+p.Search+"%")
 	}
+	if p.Type != "" {
+		where = append(where, "e.type_code = ?")
+		args = append(args, p.Type)
+	}
+	switch p.GPS {
+	case "oui":
+		where = append(where, "e.lat IS NOT NULL")
+	case "non":
+		where = append(where, "e.lat IS NULL")
+	}
 
 	whereClause := strings.Join(where, " AND ")
 
@@ -264,7 +281,8 @@ func (s *Store) GetStructuresList(p StructureListParams) (*StructureListResult, 
 
 	// Data
 	query := fmt.Sprintf(`
-		SELECT e.event_uid, e.org_unit_name, e.district, e.region, e.event_date, e.status,
+		SELECT e.event_uid, e.org_unit_uid, e.org_unit_name, e.district, e.region, e.event_date, e.status,
+			COALESCE(e.type_code,''), e.lat IS NOT NULL,
 			COALESCE(eq.score, 100), COALESCE(eq.n_error, 0), COALESCE(eq.n_warning, 0), COALESCE(eq.n_info, 0)
 		FROM event e
 		LEFT JOIN event_quality eq ON e.event_uid = eq.event_uid
@@ -283,9 +301,10 @@ func (s *Store) GetStructuresList(p StructureListParams) (*StructureListResult, 
 	var data []StructureListItem
 	for rows.Next() {
 		var item StructureListItem
-		if err := rows.Scan(&item.EventUID, &item.OrgUnitName, &item.District, &item.Region, &item.EventDate, &item.Status, &item.Score, &item.NError, &item.NWarning, &item.NInfo); err != nil {
+		if err := rows.Scan(&item.EventUID, &item.OrgUnitUID, &item.OrgUnitName, &item.District, &item.Region, &item.EventDate, &item.Status, &item.TypeCode, &item.HasGPS, &item.Score, &item.NError, &item.NWarning, &item.NInfo); err != nil {
 			return nil, err
 		}
+		item.TypeLabel = typologie.Label(item.TypeCode)
 		data = append(data, item)
 	}
 
@@ -295,12 +314,19 @@ func (s *Store) GetStructuresList(p StructureListParams) (*StructureListResult, 
 func (s *Store) GetEventDetail(eventUID string) (*EventDetail, error) {
 	// Event
 	var evt models.Event
-	row := s.db.QueryRow(`SELECT event_uid, org_unit_uid, org_unit_name, district, region, event_date, status FROM event WHERE event_uid=?`, eventUID)
-	if err := row.Scan(&evt.EventUID, &evt.OrgUnitUID, &evt.OrgUnitName, &evt.District, &evt.Region, &evt.EventDate, &evt.Status); err != nil {
+	var lat, lng sql.NullFloat64
+	row := s.db.QueryRow(`SELECT event_uid, org_unit_uid, org_unit_name, district, region, event_date, status,
+		COALESCE(district_uid,''), COALESCE(sous_prefecture,''), COALESCE(sous_prefecture_uid,''), COALESCE(type_code,''), COALESCE(type_source,''), lat, lng
+		FROM event WHERE event_uid=?`, eventUID)
+	if err := row.Scan(&evt.EventUID, &evt.OrgUnitUID, &evt.OrgUnitName, &evt.District, &evt.Region, &evt.EventDate, &evt.Status,
+		&evt.DistrictUID, &evt.SousPrefecture, &evt.SousPrefectureUID, &evt.TypeCode, &evt.TypeSource, &lat, &lng); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
 		return nil, err
+	}
+	if lat.Valid && lng.Valid {
+		evt.Lat, evt.Lng = &lat.Float64, &lng.Float64
 	}
 
 	// Values
@@ -683,13 +709,14 @@ type RuleInfo struct {
 }
 
 type Filters struct {
-	Districts       []string            `json:"districts"`
-	Regions         []string            `json:"regions"`
-	DistrictRegions map[string]string   `json:"district_regions"`
-	DistrictUIDs    map[string]string   `json:"district_uids"`
-	Rules           []RuleInfo          `json:"rules"`
-	Services        []string            `json:"services"`
-	Statuts         []string            `json:"statuts"`
+	Districts       []string          `json:"districts"`
+	Regions         []string          `json:"regions"`
+	DistrictRegions map[string]string `json:"district_regions"`
+	DistrictUIDs    map[string]string `json:"district_uids"`
+	Rules           []RuleInfo        `json:"rules"`
+	Services        []string          `json:"services"`
+	Statuts         []string          `json:"statuts"`
+	Types           []models.PublicFilterType `json:"types"`
 }
 
 func (s *Store) GetFilters() (*Filters, error) {
@@ -725,6 +752,19 @@ func (s *Store) GetFilters() (*Filters, error) {
 		}
 	}
 
+	// Structure types with counts (latest event per org unit)
+	tRows, err := s.db.Query(`SELECT COALESCE(NULLIF(type_code,''),'INDETERMINE'), COUNT(*) FROM structure_latest GROUP BY 1 ORDER BY 2 DESC`)
+	if err == nil {
+		defer tRows.Close()
+		for tRows.Next() {
+			var t models.PublicFilterType
+			if tRows.Scan(&t.Code, &t.N) == nil {
+				t.Label = typologie.Label(t.Code)
+				f.Types = append(f.Types, t)
+			}
+		}
+	}
+
 	// Rules with names
 	rows, err := s.db.Query(`SELECT DISTINCT rule_code, rule_name FROM quality_issue ORDER BY CAST(SUBSTR(rule_code, 2) AS INTEGER)`)
 	if err == nil {
@@ -744,17 +784,17 @@ func (s *Store) GetFilters() (*Filters, error) {
 // --- Compare Districts ---
 
 type CompareDistrictData struct {
-	Name           string                  `json:"name"`
-	AvgScore       float64                 `json:"avg_score"`
-	NStructures    int                     `json:"n_structures"`
-	ReportingPct   float64                 `json:"reporting_pct"`
-	ReportingExp   int                     `json:"reporting_expected"`
-	ReportingRep   int                     `json:"reporting_reported"`
-	Services       []models.UsageService   `json:"services"`
-	Equipements    []models.UsageEquipement `json:"equipements"`
-	RH             []models.UsageRH        `json:"rh"`
-	RHSummary      *RHSummaryResult        `json:"rh_summary"`
-	Commodites     []models.UsageCommodite `json:"commodites"`
+	Name         string                   `json:"name"`
+	AvgScore     float64                  `json:"avg_score"`
+	NStructures  int                      `json:"n_structures"`
+	ReportingPct float64                  `json:"reporting_pct"`
+	ReportingExp int                      `json:"reporting_expected"`
+	ReportingRep int                      `json:"reporting_reported"`
+	Services     []models.UsageService    `json:"services"`
+	Equipements  []models.UsageEquipement `json:"equipements"`
+	RH           []models.UsageRH         `json:"rh"`
+	RHSummary    *RHSummaryResult         `json:"rh_summary"`
+	Commodites   []models.UsageCommodite  `json:"commodites"`
 }
 
 type CompareResult struct {

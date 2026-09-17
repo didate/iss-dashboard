@@ -207,6 +207,11 @@ func RunSync(st *store.Store, client *dhis2.Client, opts Options) (*models.SyncR
 	popIndex := usage.BuildPopulationIndex(population)
 	usageGeo := usage.ComputeGeo(eventPtrs, orgUnits, eventQualities, popIndex)
 	usageCouverture := usage.ComputeCouverture(eventPtrs, orgUnits, usageRH, usageEquipements, popIndex)
+	blobs, err := usage.BuildPublicSnapshot(eventPtrs, ctx)
+	if err != nil {
+		return finishErr(fmt.Sprintf("build public snapshot: %v", err))
+	}
+	log.Printf("[SYNC] Public snapshot: %d octets de GeoJSON", len(blobs[usage.BlobPublicPoints]))
 
 	// Step 7: Persist atomically
 	log.Println("[SYNC] Persisting data...")
@@ -224,6 +229,7 @@ func RunSync(st *store.Store, client *dhis2.Client, opts Options) (*models.SyncR
 		Population:       population,
 		UsageGeo:         usageGeo,
 		UsageCouverture:  usageCouverture,
+		Blobs:            blobs,
 	}
 
 	if err := st.PersistSyncData(syncRunID, data); err != nil {

@@ -376,3 +376,111 @@ type MapDistrictCollection struct {
 	Type     string               `json:"type"`
 	Features []MapDistrictFeature `json:"features"`
 }
+
+// --- Carte sanitaire : projections publiques (fiche réduite, option B) ---
+
+// PublicService is one service offered by a structure.
+type PublicService struct {
+	Code  string `json:"code"`  // short key, e.g. MATERNITE
+	Label string `json:"label"` // human label
+}
+
+// PublicPointProperties are the reduced properties of one structure on the public map.
+// Never carries HR counts, equipment counts, responsible person or quality data.
+type PublicPointProperties struct {
+	UID            string   `json:"uid"` // org unit uid = stable public id
+	Name           string   `json:"name"`
+	TypeCode       string   `json:"type"`
+	TypeLabel      string   `json:"type_label"`
+	StatutJuri     string   `json:"statut"` // publique | privée | ""
+	StatutOp       string   `json:"op"`     // operationnel | non_operationnel | ferme_temporairement | ""
+	Region         string   `json:"region"`
+	District       string   `json:"district"`
+	SousPrefecture string   `json:"sp"`
+	Services       []string `json:"svc"` // short service keys declared "oui"
+}
+
+type PublicPointFeature struct {
+	Type       string                `json:"type"`
+	Geometry   json.RawMessage       `json:"geometry"`
+	Properties PublicPointProperties `json:"properties"`
+}
+
+type PublicPointCollection struct {
+	Type     string               `json:"type"`
+	Features []PublicPointFeature `json:"features"`
+}
+
+// PublicFilterType is a structure type with its count.
+type PublicFilterType struct {
+	Code  string `json:"code"`
+	Label string `json:"label"`
+	N     int    `json:"n"`
+}
+
+type PublicFilterDistrict struct {
+	Name   string `json:"name"`
+	Region string `json:"region"`
+}
+
+// PublicFilters feeds the public map's filter widgets.
+type PublicFilters struct {
+	Types     []PublicFilterType     `json:"types"`
+	Services  []PublicService        `json:"services"`
+	Regions   []string               `json:"regions"`
+	Districts []PublicFilterDistrict `json:"districts"`
+}
+
+// PublicStructure is the reduced public record (fiche) of one structure.
+type PublicStructure struct {
+	UID            string          `json:"uid"`
+	Name           string          `json:"name"`
+	TypeCode       string          `json:"type"`
+	TypeLabel      string          `json:"type_label"`
+	StatutJuri     string          `json:"statut"`
+	StatutDetail   string          `json:"statut_detail"` // parapublique, confessionnel, ...
+	StatutOp       string          `json:"op"`
+	Region         string          `json:"region"`
+	District       string          `json:"district"`
+	SousPrefecture string          `json:"sous_prefecture"`
+	Lat            *float64        `json:"lat"`
+	Lng            *float64        `json:"lng"`
+	Services       []PublicService `json:"services"`
+	Plateau        map[string]bool `json:"plateau"` // labo, maternite, imagerie, urgences, pharmacie, chirurgie
+	RecenseLe      string          `json:"recense_le"`
+}
+
+// PublicStructureItem is one public search result.
+type PublicStructureItem struct {
+	UID        string   `json:"uid"`
+	Name       string   `json:"name"`
+	TypeCode   string   `json:"type"`
+	TypeLabel  string   `json:"type_label"`
+	StatutOp   string   `json:"op"`
+	Region     string   `json:"region"`
+	District   string   `json:"district"`
+	Lat        *float64 `json:"lat"`
+	Lng        *float64 `json:"lng"`
+	DistanceKm *float64 `json:"distance_km,omitempty"`
+}
+
+// PublicSummary is the public landing page's headline figures.
+type PublicSummary struct {
+	NStructures     int            `json:"n_structures"`
+	NParType        map[string]int `json:"n_par_type"`
+	PctGPS          float64        `json:"pct_gps"`
+	DerniereSynchro string         `json:"derniere_synchro"`
+}
+
+// MissingGPSItem is one structure without coordinates (pro geolocation screen).
+type MissingGPSItem struct {
+	EventUID       string `json:"event_uid"`
+	OrgUnitUID     string `json:"org_unit_uid"`
+	Name           string `json:"name"`
+	TypeCode       string `json:"type"`
+	TypeLabel      string `json:"type_label"`
+	Region         string `json:"region"`
+	District       string `json:"district"`
+	SousPrefecture string `json:"sous_prefecture"`
+	EventDate      string `json:"event_date"`
+}

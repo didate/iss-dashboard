@@ -213,8 +213,9 @@ GET /geo/coverage?level=3|4&region=
 GET /geo/missing?district=&type=&page=&pageSize=
     → structures sans GPS (= issues R14), avec district, sous-préfecture, type, date recensement
 GET /geo/missing.csv?district=          → export CSV pour les équipes terrain
-GET /map/districts?level=3|4&layer=      → existant, étendu : level=4 renvoie les polygones sous-préfectoraux
-                                           avec les couches calculables au niveau 4 (structures, gps, qualité, population)
+GET /map/geo?level=3|4                   → NOUVEAU (plutôt qu'étendre /map/districts, dont les propriétés sont
+                                           spécifiques aux couches district) : polygones + propriétés usage_geo
+                                           (structures, gps, score, population, n_par_type, ratio structures/10k)
 GET /usage/couverture?by=region|district|sous_prefecture&indicator=
     → lignes usage_couverture
 GET /usage/recensement?by=type           → existant, nouvelle dimension
@@ -315,8 +316,8 @@ README.md   + section « Carte sanitaire » : espaces public/pro, variables, com
 
 | Lot | Contenu | Vérification |
 |---|---|---|
-| **A — Données** | groupes d'OU, typologie, GPS→lat/lng, sous-préfecture, population, `usage_geo`, `usage_couverture`, R14/R17/R18, tests | `go test ./...` ; sync sur l'instance ; requêtes SQLite : distribution des types, % GPS, ratios de quelques districts comparés à la main |
-| **B — API** | endpoints publics + pro, snapshot GeoJSON, ETag | `curl` sur chaque endpoint, taille et temps de `/public/points.geojson` |
+| **A — Données** ✅ | groupes d'OU, typologie, GPS→lat/lng, sous-préfecture, population, `usage_geo`, `usage_couverture`, R14/R17/R18, tests | `go test ./...` ; sync sur l'instance ; requêtes SQLite : distribution des types, % GPS, ratios de quelques districts comparés à la main |
+| **B — API** ✅ | endpoints publics + pro, snapshot GeoJSON, ETag | `curl` sur chaque endpoint, taille et temps de `/public/points.geojson` (1,04 Mo brut, 108 Ko gzip, 304 sur ETag) |
 | **C — Espace public** | PublicLayout, PublicMap, PublicFiche, About | parcours : recherche → marqueur → fiche → lien partagé ; mobile |
 | **D — Espace pro** | MapView niveau 4 + points, page Géolocalisation, onglet Couverture, filtres type/GPS | parcours DPS : « mes structures sans GPS » → export CSV |
 | **E — Doc & conf** | README, `.env.example`, `docker-compose` (rien à changer côté images) | relecture |

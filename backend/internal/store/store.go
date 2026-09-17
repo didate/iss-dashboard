@@ -1,6 +1,7 @@
 package store
 
 import (
+	"crypto/sha1"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -58,6 +59,11 @@ func (s *Store) migrate() error {
 		s.db.Exec(`ALTER TABLE event ADD COLUMN ` + col)
 	}
 	s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_event_type ON event(type_code)`)
+	// Une structure = son event le plus récent (une OU peut avoir été recensée plusieurs fois).
+	s.db.Exec(`CREATE VIEW IF NOT EXISTS structure_latest AS
+		SELECT e.* FROM event e
+		WHERE e.event_uid = (SELECT e2.event_uid FROM event e2 WHERE e2.org_unit_uid = e.org_unit_uid
+		                     ORDER BY e2.event_date DESC, e2.event_uid DESC LIMIT 1)`)
 	// Clean up orphan "running" sync_runs from previous crashes
 	s.db.Exec(`UPDATE sync_run SET status='error', error_text='interrupted by restart' WHERE status='running'`)
 	return nil
@@ -334,6 +340,7 @@ type SyncData struct {
 	Population       []models.PopulationRow
 	UsageGeo         []models.UsageGeo
 	UsageCouverture  []models.UsageCouverture
+	Blobs            map[string][]byte // pre-serialized public payloads, keyed by blob name
 }
 
 // PersistSyncData atomically replaces all derived data within a single transaction.
@@ -533,6 +540,20 @@ func (s *Store) PersistSyncData(syncRunID int64, data *SyncData) error {
 	for _, c := range data.UsageCouverture {
 		if _, err := covStmt.Exec(c.Dimension, c.Key, c.Label, c.Indicator, c.Numerator, c.Population, c.Ratio10k); err != nil {
 			log.Printf("WARN: insert usage_couverture: %v", err)
+		}
+	}
+
+	// Snapshot blobs (public projections), ETag = sha1 of the payload
+	blobStmt, err := tx.Prepare(`INSERT OR REPLACE INTO snapshot_blob (key, etag, json, built_at) VALUES (?,?,?,?)`)
+	if err != nil {
+		return err
+	}
+	defer blobStmt.Close()
+	now := time.Now().UTC().Format(time.RFC3339)
+	for key, payload := range data.Blobs {
+		etag := fmt.Sprintf(`"%x"`, sha1.Sum(payload))
+		if _, err := blobStmt.Exec(key, etag, payload, now); err != nil {
+			log.Printf("WARN: insert snapshot_blob %s: %v", key, err)
 		}
 	}
 
