@@ -17,6 +17,7 @@ import PublicLayout from './components/PublicLayout';
 import PublicMap from './pages/public/PublicMap';
 import PublicFiche from './pages/public/PublicFiche';
 import About from './pages/public/About';
+import Annuaire from './pages/public/Annuaire';
 
 export default function App() {
   const { user, isLoggedIn, login, logout } = useAuth();
@@ -30,6 +31,7 @@ export default function App() {
       <Route element={<PublicLayout isLoggedIn={isLoggedIn} />}>
         <Route path="/" element={<PublicMap />} />
         <Route path="/fs/:uid" element={<PublicFiche />} />
+        <Route path="/annuaire" element={<Annuaire />} />
         <Route path="/a-propos" element={<About />} />
       </Route>
 

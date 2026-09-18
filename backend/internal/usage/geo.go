@@ -5,16 +5,18 @@ import (
 	"strings"
 
 	"iss-dashboard-backend/internal/models"
+	"iss-dashboard-backend/internal/quality"
 )
 
 // Indicateurs de couverture démographique, et leur libellé.
 var couvertureLabels = map[string]string{
-	"structures":   "Structures sanitaires",
-	"lits":         "Lits d'hospitalisation",
-	"medecins":     "Médecins (toutes spécialités)",
-	"sages_femmes": "Sages-femmes",
-	"infirmiers":   "Infirmiers",
-	"ats":          "ATS",
+	"structures":         "Structures sanitaires",
+	"lits":               "Lits d'hospitalisation",
+	"medecins":           "Médecins (toutes spécialités)",
+	"sages_femmes":       "Sages-femmes",
+	"infirmiers":         "Infirmiers",
+	"ats":                "ATS",
+	"personnel_soignant": "Personnel soignant (médecins, sages-femmes, infirmiers, ATS)",
 }
 
 // couvertureRHProfiles maps an indicator to the usage_rh profile roots it sums.
@@ -138,16 +140,15 @@ func ComputeGeo(events []*models.Event, orgUnits []models.OrgUnit, qualities []m
 	return out
 }
 
-// ComputeCouverture derives "per 10 000 inhabitants" ratios. Numerators reuse the
-// already computed RH and equipment aggregates (so the figures match the RH and
-// equipment tabs) ; structures are counted per distinct org unit from the events.
-// Population comes straight from the org unit of each dimension key (level 1
-// for global, 2 for region, 3 for district, 4 for sous-préfecture) — no summing
+// ComputeCouverture derives "per 10 000 inhabitants" ratios for every dimension
+// (global, région, district, sous-préfecture). Numerators are counted straight
+// from the events with the same RH profile discovery as ComputeRH and the same
+// equipment pairs as ComputeEquipements, so figures match the RH / equipment tabs.
+// Population comes from the org unit of each key (level 1 → 4) — no summing
 // across children, which would silently produce partial totals.
-func ComputeCouverture(events []*models.Event, orgUnits []models.OrgUnit, usageRH []models.UsageRH, usageEquip []models.UsageEquipement, pop PopulationIndex) []models.UsageCouverture {
-	// Dimension key → org unit uid, to look population up.
+func ComputeCouverture(events []*models.Event, orgUnits []models.OrgUnit, ctx *quality.QualityContext, pop PopulationIndex) []models.UsageCouverture {
+	// dimension → key (name) → org unit uid ; region/district/sous_prefecture keyed by name
 	uidOf := map[string]map[string]string{"global": {}, "region": {}, "district": {}, "sous_prefecture": {}}
-	districtRegion := make(map[string]string) // district name → region name
 	for _, ou := range orgUnits {
 		switch ou.Level {
 		case 1:
@@ -156,9 +157,24 @@ func ComputeCouverture(events []*models.Event, orgUnits []models.OrgUnit, usageR
 			uidOf["region"][ou.Name] = ou.UID
 		case 3:
 			uidOf["district"][ou.Name] = ou.UID
-			districtRegion[ou.Name] = ou.ParentName
 		case 4:
 			uidOf["sous_prefecture"][ou.Name] = ou.UID
+		}
+	}
+
+	// Which data elements feed which indicator.
+	rhDEs, _ := DiscoverRHProfiles(ctx)
+	deIndicators := map[string][]string{} // de uid → indicators it counts for
+	for _, rh := range rhDEs {
+		for ind, prefixes := range couvertureRHProfiles {
+			if matchesProfile(rh.Root, prefixes) {
+				deIndicators[rh.UID] = append(deIndicators[rh.UID], ind, "personnel_soignant")
+			}
+		}
+	}
+	for _, pair := range ctx.EquipPairs {
+		if pair.Root == litsEquipRoot {
+			deIndicators[pair.TotalUID] = append(deIndicators[pair.TotalUID], "lits")
 		}
 	}
 
@@ -176,58 +192,45 @@ func ComputeCouverture(events []*models.Event, orgUnits []models.OrgUnit, usageR
 		}
 		num[dim][key][ind] += v
 	}
+	addAll := func(evt *models.Event, ind string, v float64) {
+		addNum("global", "all", ind, v)
+		addNum("region", evt.Region, ind, v)
+		addNum("district", evt.District, ind, v)
+		addNum("sous_prefecture", evt.SousPrefecture, ind, v)
+	}
 
-	// Structures : distinct org units per dimension.
 	seen := map[string]bool{}
 	for _, evt := range events {
 		if seen[evt.OrgUnitUID] {
-			continue
+			continue // one structure = one org unit, even if censused twice
 		}
 		seen[evt.OrgUnitUID] = true
-		addNum("global", "all", "structures", 1)
-		addNum("region", evt.Region, "structures", 1)
-		addNum("district", evt.District, "structures", 1)
-		addNum("sous_prefecture", evt.SousPrefecture, "structures", 1)
-	}
-
-	// RH : usage_rh rows are keyed by district name or "all".
-	for _, rh := range usageRH {
-		for ind, prefixes := range couvertureRHProfiles {
-			if !matchesProfile(rh.ProfilCode, prefixes) {
+		addAll(evt, "structures", 1)
+		for _, dv := range evt.DataValues {
+			inds, ok := deIndicators[dv.DataElement]
+			if !ok {
 				continue
 			}
-			v := float64(rh.EffectifTotal)
-			if rh.District == "all" {
-				addNum("global", "all", ind, v)
-			} else {
-				addNum("district", rh.District, ind, v)
-				addNum("region", districtRegion[rh.District], ind, v)
+			v := quality.ParseNum(dv.Value)
+			if v <= 0 {
+				continue
 			}
-		}
-	}
-
-	// Lits : usage_equipement, same keying.
-	for _, eq := range usageEquip {
-		if eq.EquipRoot != litsEquipRoot {
-			continue
-		}
-		v := float64(eq.SumTotal)
-		if eq.District == "all" {
-			addNum("global", "all", "lits", v)
-		} else {
-			addNum("district", eq.District, "lits", v)
-			addNum("region", districtRegion[eq.District], "lits", v)
+			for _, ind := range inds {
+				addAll(evt, ind, v)
+			}
 		}
 	}
 
 	var out []models.UsageCouverture
 	for dim, byKey := range num {
 		for key, byInd := range byKey {
-			population := pop.get(uidOf[dim][key])
+			ouUID := uidOf[dim][key]
+			population := pop.get(ouUID)
 			for ind, v := range byInd {
 				row := models.UsageCouverture{
 					Dimension:  dim,
 					Key:        key,
+					OrgUnitUID: ouUID,
 					Label:      key,
 					Indicator:  ind,
 					Numerator:  v,

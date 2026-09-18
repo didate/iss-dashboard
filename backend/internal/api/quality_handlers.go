@@ -24,12 +24,14 @@ func (h *ReadHandlers) GetQualityIssues(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
 
 	params := store.IssueListParams{
-		Severity: c.Query("severity"),
-		Rule:     c.Query("rule"),
-		District: c.Query("district"),
-		Search:   c.Query("search"),
-		Page:     page,
-		PageSize: pageSize,
+		Severity:       c.Query("severity"),
+		Rule:           c.Query("rule"),
+		District:       c.Query("district"),
+		Region:         c.Query("region"),
+		SousPrefecture: c.Query("sous_prefecture"),
+		Search:         c.Query("search"),
+		Page:           page,
+		PageSize:       pageSize,
 	}
 
 	result, err := h.Store.GetQualityIssues(params)

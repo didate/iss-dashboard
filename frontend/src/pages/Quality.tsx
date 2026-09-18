@@ -17,17 +17,18 @@ export default function Quality() {
   const [severity, setSeverity] = useUrlState('severity');
   const [rule, setRule] = useUrlState('rule');
   const [district, setDistrict] = useUrlState('district');
+  const [sousPrefecture, setSousPrefecture] = useUrlState('sp');
   const [search, setSearch] = useUrlState('search');
   const [page, setPage] = useUrlStateInt('page', 1);
 
   const fetchData = useCallback(() => {
     setLoading(true);
     api
-      .getQualityIssues({ severity, rule, district, search, page, pageSize: 20 })
+      .getQualityIssues({ severity, rule, district, sous_prefecture: sousPrefecture, search, page, pageSize: 20 })
       .then(setResult)
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [severity, rule, district, search, page]);
+  }, [severity, rule, district, sousPrefecture, search, page]);
 
   useEffect(() => {
     fetchData();
@@ -92,11 +93,22 @@ export default function Quality() {
         <select
           className="border border-gray-300 rounded px-2 py-1.5 text-sm"
           value={district}
-          onChange={(e) => { setDistrict(e.target.value); setPage(1); }}
+          onChange={(e) => { setDistrict(e.target.value); setSousPrefecture(''); setPage(1); }}
         >
           <option value="">Tous districts</option>
           {filters?.districts.map((d) => (
             <option key={d} value={d}>{d}</option>
+          ))}
+        </select>
+
+        <select
+          className="border border-gray-300 rounded px-2 py-1.5 text-sm"
+          value={sousPrefecture}
+          onChange={(e) => { setSousPrefecture(e.target.value); setPage(1); }}
+        >
+          <option value="">Toutes sous-préfectures</option>
+          {(filters?.sous_prefectures ?? []).filter((sp) => !district || sp.district === district).map((sp) => (
+            <option key={sp.name} value={sp.name}>{sp.name}</option>
           ))}
         </select>
 

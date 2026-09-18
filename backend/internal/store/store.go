@@ -59,6 +59,8 @@ func (s *Store) migrate() error {
 		s.db.Exec(`ALTER TABLE event ADD COLUMN ` + col)
 	}
 	s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_event_type ON event(type_code)`)
+	s.db.Exec(`ALTER TABLE usage_couverture ADD COLUMN ou_uid TEXT DEFAULT ''`)
+	s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_couverture_ou ON usage_couverture(ou_uid)`)
 	// Une structure = son event le plus récent (une OU peut avoir été recensée plusieurs fois).
 	s.db.Exec(`CREATE VIEW IF NOT EXISTS structure_latest AS
 		SELECT e.* FROM event e
@@ -532,13 +534,13 @@ func (s *Store) PersistSyncData(syncRunID int64, data *SyncData) error {
 	}
 
 	// Usage couverture
-	covStmt, err := tx.Prepare(`INSERT INTO usage_couverture (dimension, key, label, indicator, numerator, population, ratio_10k) VALUES (?,?,?,?,?,?,?)`)
+	covStmt, err := tx.Prepare(`INSERT INTO usage_couverture (dimension, key, ou_uid, label, indicator, numerator, population, ratio_10k) VALUES (?,?,?,?,?,?,?,?)`)
 	if err != nil {
 		return err
 	}
 	defer covStmt.Close()
 	for _, c := range data.UsageCouverture {
-		if _, err := covStmt.Exec(c.Dimension, c.Key, c.Label, c.Indicator, c.Numerator, c.Population, c.Ratio10k); err != nil {
+		if _, err := covStmt.Exec(c.Dimension, c.Key, c.OrgUnitUID, c.Label, c.Indicator, c.Numerator, c.Population, c.Ratio10k); err != nil {
 			log.Printf("WARN: insert usage_couverture: %v", err)
 		}
 	}

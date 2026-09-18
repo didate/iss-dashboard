@@ -231,6 +231,7 @@ export interface Filters {
   services: string[];
   statuts: string[];
   types: PublicFilterType[];
+  sous_prefectures: { name: string; district: string }[];
 }
 
 export interface SyncStatus {
@@ -413,7 +414,11 @@ export interface UsageGeo {
 export interface MapGeoFeature {
   type: 'Feature';
   geometry: GeoJSON.Geometry;
-  properties: UsageGeo & { ratio_structures_10k: number | null };
+  properties: UsageGeo & {
+    ratio_structures_10k: number | null;
+    ratios: Record<string, number | null>; // /10 000 hab. par indicateur de couverture
+    numerators: Record<string, number>;
+  };
 }
 
 export interface MapGeoCollection {
@@ -461,9 +466,32 @@ export interface MissingGPSResult {
 export interface UsageCouverture {
   dimension: string;
   key: string;
+  ou_uid: string;
   label: string;
   indicator: string;
   numerator: number;
   population: number | null;
   ratio_10k: number | null;
+}
+
+export interface PublicAnnuaireRow {
+  uid: string;
+  name: string;
+  type: string;
+  type_label: string;
+  statut: string;
+  op: string;
+  region: string;
+  district: string;
+  sous_prefecture: string;
+  lat: number | null;
+  lng: number | null;
+  n_services: number;
+}
+
+export interface PublicAnnuaireResult {
+  data: PublicAnnuaireRow[];
+  total: number;
+  page: number;
+  page_size: number;
 }

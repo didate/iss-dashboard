@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"iss-dashboard-backend/internal/models"
+	"iss-dashboard-backend/internal/quality"
 )
 
 func pf(v float64) *float64 { return &v }
@@ -65,21 +66,24 @@ func TestComputeGeo_CountsDistinctOrgUnits(t *testing.T) {
 
 func TestComputeCouverture_RatiosAndPopulationScope(t *testing.T) {
 	events, orgUnits := geoFixture()
-	rh := []models.UsageRH{
-		{ProfilCode: "ISS_RH_MED_GEN", District: "all", EffectifTotal: 10},
-		{ProfilCode: "ISS_RH_MED_CHIR", District: "all", EffectifTotal: 2},
-		{ProfilCode: "ISS_RH_MED_GEN", District: "Kankan D", EffectifTotal: 4},
-		{ProfilCode: "ISS_RH_SAGEF", District: "Kankan D", EffectifTotal: 3},
-		{ProfilCode: "ISS_RH_INF", District: "Siguiri", EffectifTotal: 7},
+	meta := []models.DataElementMeta{
+		{UID: "medGen", Code: "ISS_RH_MED_GEN_FN_DE", Name: "Médecin généraliste", ValueType: "NUMBER", SectionPrefix: "ISS_RH"},
+		{UID: "medChir", Code: "ISS_RH_MED_CHIR_CT_DE", Name: "Chirurgien", ValueType: "NUMBER", SectionPrefix: "ISS_RH_SPE"},
+		{UID: "sf", Code: "ISS_RH_SAGEF_FN_DE", Name: "Sage-femme", ValueType: "NUMBER", SectionPrefix: "ISS_RH"},
+		{UID: "inf", Code: "ISS_RH_INF_FN_DE", Name: "Infirmier", ValueType: "NUMBER", SectionPrefix: "ISS_RH"},
+		{UID: "litTot", Code: "ISS_EQUI_LIT_TOTAL_DE", Name: "Lits total", ValueType: "NUMBER", SectionPrefix: "ISS_EQ"},
+		{UID: "litFonc", Code: "ISS_EQUI_LIT_FONC_DE", Name: "Lits fonctionnels", ValueType: "NUMBER", SectionPrefix: "ISS_EQ"},
+		{UID: "frigo", Code: "ISS_EQUI_FRIGO_TOTAL_DE", Name: "Frigos", ValueType: "NUMBER", SectionPrefix: "ISS_EQ"},
+		{UID: "frigoF", Code: "ISS_EQUI_FRIGO_FONC_DE", Name: "Frigos fonc", ValueType: "NUMBER", SectionPrefix: "ISS_EQ"},
 	}
-	eq := []models.UsageEquipement{
-		{EquipRoot: "ISS_EQUI_LIT", District: "all", SumTotal: 100},
-		{EquipRoot: "ISS_EQUI_LIT", District: "Kankan D", SumTotal: 40},
-		{EquipRoot: "ISS_EQUI_FRIGO", District: "Kankan D", SumTotal: 9}, // ignoré
-	}
-	pop := PopulationIndex{"gn": 1_000_000, "d1": 20000} // pas de population régionale
+	// e1 (ou1, Balandou) : 4 médecins gén., 3 SF, 40 lits ; e2/e3 (ou2, doublon) : 2 chirurgiens, 7 infirmiers
+	events[0].DataValues = []models.DataValue{{DataElement: "medGen", Value: "4"}, {DataElement: "sf", Value: "3"}, {DataElement: "litTot", Value: "40"}, {DataElement: "litFonc", Value: "30"}, {DataElement: "frigo", Value: "9"}}
+	events[1].DataValues = []models.DataValue{{DataElement: "medChir", Value: "2"}, {DataElement: "inf", Value: "7"}}
+	events[2].DataValues = events[1].DataValues
+	ctx := quality.BuildContext(meta, nil, events, orgUnits)
+	pop := PopulationIndex{"gn": 1_000_000, "d1": 20000, "sp1": 5000} // pas de population régionale
 
-	rows := ComputeCouverture(events, orgUnits, rh, eq, pop)
+	rows := ComputeCouverture(events, orgUnits, ctx, pop)
 	get := func(dim, key, ind string) *models.UsageCouverture {
 		for i := range rows {
 			if rows[i].Dimension == dim && rows[i].Key == key && rows[i].Indicator == ind {
@@ -89,20 +93,23 @@ func TestComputeCouverture_RatiosAndPopulationScope(t *testing.T) {
 		return nil
 	}
 
-	if r := get("global", "all", "medecins"); r == nil || r.Numerator != 12 || !near(r.Ratio10k, 0.12) {
-		t.Fatalf("global medecins: %+v", r)
+	if r := get("global", "all", "medecins"); r == nil || r.Numerator != 6 || !near(r.Ratio10k, 0.06) {
+		t.Fatalf("global medecins (gén. + chirurgien, doublon compté une fois): %+v", r)
 	}
-	if r := get("district", "Kankan D", "structures"); r == nil || r.Numerator != 2 || !near(r.Ratio10k, 1) {
+	if r := get("district", "Kankan D", "structures"); r == nil || r.Numerator != 2 || !near(r.Ratio10k, 1) || r.OrgUnitUID != "d1" {
 		t.Fatalf("district structures (distinct OU): %+v", r)
 	}
 	if r := get("district", "Kankan D", "lits"); r == nil || r.Numerator != 40 || !near(r.Ratio10k, 20) {
-		t.Fatalf("district lits: %+v", r)
+		t.Fatalf("district lits (total, pas fonctionnel): %+v", r)
+	}
+	if r := get("district", "Kankan D", "personnel_soignant"); r == nil || r.Numerator != 4+3+2+7 {
+		t.Fatalf("personnel soignant = médecins + SF + infirmiers + ATS: %+v", r)
 	}
 	if r := get("region", "Kankan", "infirmiers"); r == nil || r.Numerator != 7 || r.Population != nil || r.Ratio10k != nil {
 		t.Fatalf("region without population must sum numerators but leave ratio nil: %+v", r)
 	}
-	if r := get("sous_prefecture", "Balandou", "structures"); r == nil || r.Numerator != 1 {
-		t.Fatalf("sous-préfecture structures: %+v", r)
+	if r := get("sous_prefecture", "Balandou", "sages_femmes"); r == nil || r.Numerator != 3 || !near(r.Ratio10k, 6) || r.OrgUnitUID != "sp1" {
+		t.Fatalf("sous-préfecture sages-femmes /10k: %+v", r)
 	}
 	if r := get("district", "Kankan D", "frigo"); r != nil {
 		t.Fatal("unrelated equipment must not produce an indicator")

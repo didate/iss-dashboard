@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/csv"
 	"net/http"
 	"strconv"
 	"strings"
@@ -60,15 +61,62 @@ func (h *PublicHandlers) GetPoints(c *gin.Context) { h.serveBlob(c, usage.BlobPu
 // GET /public/filters
 func (h *PublicHandlers) GetFilters(c *gin.Context) { h.serveBlob(c, usage.BlobPublicFilters) }
 
+func publicParams(c *gin.Context) store.PublicSearchParams {
+	return store.PublicSearchParams{
+		Search:         strings.TrimSpace(c.Query("search")),
+		Type:           c.Query("type"),
+		Service:        c.Query("service"),
+		District:       c.Query("district"),
+		Region:         c.Query("region"),
+		SousPrefecture: c.Query("sous_prefecture"),
+	}
+}
+
+// GET /public/annuaire?search=&type=&service=&district=&region=&sous_prefecture=&page=&pageSize=
+func (h *PublicHandlers) GetAnnuaire(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "50"))
+	if pageSize < 1 || pageSize > 200 {
+		pageSize = 50
+	}
+	res, err := h.Store.ListPublicStructures(publicParams(c), page, pageSize)
+	if err != nil {
+		internalError(c, err)
+		return
+	}
+	c.Header("Cache-Control", publicCacheControl)
+	c.JSON(http.StatusOK, res)
+}
+
+// GET /public/structures.csv?… — full registry with the same filters (open data).
+func (h *PublicHandlers) GetAnnuaireCSV(c *gin.Context) {
+	res, err := h.Store.ListPublicStructures(publicParams(c), 1, 0)
+	if err != nil {
+		internalError(c, err)
+		return
+	}
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", `attachment; filename="structures_sanitaires.csv"`)
+	c.Header("Cache-Control", publicCacheControl)
+	c.Writer.Write([]byte{0xEF, 0xBB, 0xBF})
+	w := csv.NewWriter(c.Writer)
+	w.Comma = ';'
+	w.Write([]string{"uid", "structure", "type", "statut_juridique", "statut_operationnel", "region", "district", "sous_prefecture", "latitude", "longitude", "nb_services_fonctionnels"})
+	f := func(v *float64) string {
+		if v == nil {
+			return ""
+		}
+		return strconv.FormatFloat(*v, 'f', 6, 64)
+	}
+	for _, r := range res.Data {
+		w.Write([]string{r.UID, r.Name, r.TypeLabel, r.StatutJuri, r.StatutOp, r.Region, r.District, r.SousPrefecture, f(r.Lat), f(r.Lng), strconv.Itoa(r.NServices)})
+	}
+	w.Flush()
+}
+
 // GET /public/structures?search=&type=&service=&district=&region=&near=lat,lng&radius_km=&limit=
 func (h *PublicHandlers) SearchStructures(c *gin.Context) {
-	p := store.PublicSearchParams{
-		Search:   strings.TrimSpace(c.Query("search")),
-		Type:     c.Query("type"),
-		Service:  c.Query("service"),
-		District: c.Query("district"),
-		Region:   c.Query("region"),
-	}
+	p := publicParams(c)
 	p.Limit, _ = strconv.Atoi(c.DefaultQuery("limit", "50"))
 	p.RadiusKm, _ = strconv.ParseFloat(c.DefaultQuery("radius_km", "0"), 64)
 	if near := c.Query("near"); near != "" {

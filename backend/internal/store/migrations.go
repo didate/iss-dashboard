@@ -214,6 +214,7 @@ CREATE TABLE IF NOT EXISTS usage_geo (
 CREATE TABLE IF NOT EXISTS usage_couverture (
     dimension       TEXT NOT NULL,
     key             TEXT NOT NULL,
+    ou_uid          TEXT DEFAULT '',
     label           TEXT DEFAULT '',
     indicator       TEXT NOT NULL,
     numerator       REAL DEFAULT 0,

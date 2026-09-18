@@ -97,6 +97,7 @@ La synchro est aussi lancee automatiquement par le scheduler (par defaut toutes 
 |---|---|
 | **Carte** (`/`) | Fond OpenStreetMap, structures geolocalisees en clusters colores par type (regroupement desactivable). Recherche par nom, filtres type / service / region / district (dans l'URL, partageables), « Autour de moi » (geolocalisation du navigateur, tri par distance cote serveur). Clic marqueur → popup ; clic dans la liste → deplacement + popup. |
 | **Fiche** (`/fs/:uid`) | Identite, type, statut juridique et operationnel, rattachement, mini-carte, plateau technique, services fonctionnels, QR code, copie du lien, itineraire OSM. `uid` = UID de l'unite d'organisation DHIS2 (stable entre recensements). |
+| **Annuaire** (`/annuaire`) | Registre en tableau, memes filtres que la carte, pagine, **export CSV** (open data) avec les filtres actifs. |
 | **A propos** (`/a-propos`) | Sources, chiffres cles, limites. |
 
 La fiche publique est volontairement **reduite** : pas de RH, pas d'equipements chiffres, pas de nom/telephone du responsable, pas de qualite. Cette frontiere est garantie par l'API (`/api/public/*` ne lit que `structure_latest` et les blobs pre-calcules) et par un test (`usage/public_snapshot_test.go`) qui verifie que le GeoJSON public ne fuit rien.
@@ -175,6 +176,8 @@ Groupes d'OU : ils sont lus via les group sets (champs imbriques), ce qui contou
 | `GET` | `/iss/api/public/points.geojson` | GeoJSON pre-calcule de toutes les structures geolocalisees (uid, nom, type, statut, rattachement, services `oui`). ETag, gzip, `Cache-Control: max-age=3600` |
 | `GET` | `/iss/api/public/filters` | Types (avec effectifs), services, regions, districts |
 | `GET` | `/iss/api/public/structures?search=&type=&service=&district=&region=&near=lat,lng&radius_km=&limit=` | Recherche ; avec `near`, tri par distance (haversine) et rayon |
+| `GET` | `/iss/api/public/annuaire?…&page=&pageSize=` | Registre pagine (memes filtres + `sous_prefecture`) |
+| `GET` | `/iss/api/public/structures.csv?…` | Registre complet en CSV (`;`, UTF-8 BOM) |
 | `GET` | `/iss/api/public/structure/:uid` | Fiche reduite (uid = org unit) |
 | `GET` | `/iss/api/public/summary` | Nombre de structures, repartition par type, % GPS, date de synchro |
 
@@ -185,10 +188,12 @@ Groupes d'OU : ils sont lus via les group sets (champs imbriques), ce qui contou
 | `GET` | `/iss/api/geo/coverage?level=3\|4&region=` | Couverture par district / sous-prefecture (structures, GPS, score, population, types) |
 | `GET` | `/iss/api/geo/missing?district=&region=&type=&page=&pageSize=` | Structures sans coordonnees (dernier event par org unit) |
 | `GET` | `/iss/api/geo/missing.csv?district=&region=&type=` | Idem, liste complete en CSV (`;`, UTF-8 BOM) |
-| `GET` | `/iss/api/usage/couverture?by=global\|region\|district\|sous_prefecture&indicator=` | Ratios pour 10 000 habitants (structures, lits, medecins, sages_femmes, infirmiers, ats) |
-| `GET` | `/iss/api/map/geo?level=3\|4` | Polygones + proprietes de couverture |
+| `GET` | `/iss/api/usage/couverture?by=global\|region\|district\|sous_prefecture&indicator=` | Ratios pour 10 000 habitants (structures, lits, medecins, sages_femmes, infirmiers, ats, personnel_soignant), a tous les niveaux |
+| `GET` | `/iss/api/map/geo?level=3\|4` | Polygones + proprietes de couverture, dont `ratios` et `numerators` par indicateur |
+| `GET` | `/iss/api/export/pdf?district=` ou `?region=` | Rapport PDF d'un district ou d'une region (agregats des districts) |
 | `GET` | `/iss/api/map/points` | Structures geolocalisees avec score qualite |
-| `GET` | `/iss/api/structures?district=&search=&type=&gps=oui\|non&page=&pageSize=` | Liste des structures |
+| `GET` | `/iss/api/structures?district=&sous_prefecture=&search=&type=&gps=oui\|non&page=&pageSize=` | Liste des structures |
+| `GET` | `/iss/api/quality/issues?…&region=&sous_prefecture=` | Filtres geographiques supplementaires |
 
 ### Lecture (publique si `DASHBOARD_PUBLIC=true`)
 

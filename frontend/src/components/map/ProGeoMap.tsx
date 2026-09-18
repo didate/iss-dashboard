@@ -14,11 +14,27 @@ type Props = { mode: 'gps' | 'points' };
 const METRICS: { key: string; label: string; unit: string }[] = [
   { key: 'pct_gps', label: 'Couverture GPS', unit: '%' },
   { key: 'avg_score', label: 'Score qualité moyen', unit: '' },
-  { key: 'ratio_structures_10k', label: 'Structures pour 10 000 hab.', unit: '' },
   { key: 'n_structures', label: 'Nombre de structures', unit: '' },
+  { key: 'ratio_structures_10k', label: 'Structures pour 10 000 hab.', unit: '' },
+  // ratios de couverture (usage_couverture) : clé = ratio:<indicateur>
+  { key: 'ratio:personnel_soignant', label: 'Personnel soignant pour 10 000 hab.', unit: '' },
+  { key: 'ratio:medecins', label: 'Médecins pour 10 000 hab.', unit: '' },
+  { key: 'ratio:sages_femmes', label: 'Sages-femmes pour 10 000 hab.', unit: '' },
+  { key: 'ratio:infirmiers', label: 'Infirmiers pour 10 000 hab.', unit: '' },
+  { key: 'ratio:ats', label: 'ATS pour 10 000 hab.', unit: '' },
+  { key: 'ratio:lits', label: "Lits d'hospitalisation pour 10 000 hab.", unit: '' },
 ];
 
 const GREY = '#d1d5db';
+
+const RATIO_LABELS: Record<string, string> = {
+  personnel_soignant: 'Personnel soignant',
+  medecins: 'Médecins',
+  sages_femmes: 'Sages-femmes',
+  infirmiers: 'Infirmiers',
+  ats: 'ATS',
+  lits: 'Lits',
+};
 
 function scoreColor(score: number): string {
   if (score < 50) return '#ef4444';
@@ -44,6 +60,10 @@ function rampColor(v: number | null, breaks: number[]): string {
 }
 
 function metricValue(p: MapGeoFeature['properties'], key: string): number | null {
+  if (key.startsWith('ratio:')) {
+    const v = p.ratios?.[key.slice(6)];
+    return typeof v === 'number' ? v : null;
+  }
   const v = p[key as keyof typeof p];
   return typeof v === 'number' ? v : null;
 }
@@ -113,6 +133,10 @@ export default function ProGeoMap({ mode }: Props) {
         <div>Score qualité moyen : <b>${p.avg_score === null ? '—' : p.avg_score.toFixed(1)}</b></div>
         <div>Population : <b>${p.population === null ? '—' : Math.round(p.population).toLocaleString('fr-FR')}</b></div>
         <div>Structures /10 000 hab. : <b>${p.ratio_structures_10k === null ? '—' : p.ratio_structures_10k.toFixed(2)}</b></div>
+        ${['personnel_soignant', 'medecins', 'sages_femmes', 'infirmiers', 'lits']
+          .filter((k) => p.numerators?.[k] !== undefined)
+          .map((k) => `<div>${escapeHtml(RATIO_LABELS[k] ?? k)} : <b>${p.numerators[k]}</b>${p.ratios?.[k] != null ? ` (${p.ratios[k]!.toFixed(2)} /10 000)` : ''}</div>`)
+          .join('')}
         ${types ? `<div style="margin-top:6px;color:#374151">${types}</div>` : ''}
       </div>`);
   }, []);

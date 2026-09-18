@@ -65,12 +65,14 @@ func (s *Store) GetQualitySummary(dimension string) ([]models.QualitySummaryRow,
 // --- Quality Issues (paginated) ---
 
 type IssueListParams struct {
-	Severity string
-	Rule     string
-	District string
-	Search   string
-	Page     int
-	PageSize int
+	Severity       string
+	Rule           string
+	District       string
+	Region         string
+	SousPrefecture string
+	Search         string
+	Page           int
+	PageSize       int
 }
 
 type IssueListItem struct {
@@ -112,6 +114,14 @@ func (s *Store) GetQualityIssues(p IssueListParams) (*IssueListResult, error) {
 	if p.District != "" {
 		where = append(where, "e.district = ?")
 		args = append(args, p.District)
+	}
+	if p.Region != "" {
+		where = append(where, "e.region = ?")
+		args = append(args, p.Region)
+	}
+	if p.SousPrefecture != "" {
+		where = append(where, "e.sous_prefecture = ?")
+		args = append(args, p.SousPrefecture)
 	}
 	if p.Search != "" {
 		where = append(where, "e.org_unit_name LIKE ?")
@@ -209,12 +219,13 @@ type EventValueDisplay struct {
 // --- Structures list ---
 
 type StructureListParams struct {
-	District string
-	Search   string
-	Type     string // type_code
-	GPS      string // "oui" | "non" | ""
-	Page     int
-	PageSize int
+	District       string
+	SousPrefecture string
+	Search         string
+	Type           string // type_code
+	GPS            string // "oui" | "non" | ""
+	Page           int
+	PageSize       int
 }
 
 type StructureListItem struct {
@@ -260,6 +271,10 @@ func (s *Store) GetStructuresList(p StructureListParams) (*StructureListResult, 
 	if p.Search != "" {
 		where = append(where, "e.org_unit_name LIKE ?")
 		args = append(args, "%"+p.Search+"%")
+	}
+	if p.SousPrefecture != "" {
+		where = append(where, "e.sous_prefecture = ?")
+		args = append(args, p.SousPrefecture)
 	}
 	if p.Type != "" {
 		where = append(where, "e.type_code = ?")
@@ -709,14 +724,20 @@ type RuleInfo struct {
 }
 
 type Filters struct {
-	Districts       []string          `json:"districts"`
-	Regions         []string          `json:"regions"`
-	DistrictRegions map[string]string `json:"district_regions"`
-	DistrictUIDs    map[string]string `json:"district_uids"`
-	Rules           []RuleInfo        `json:"rules"`
-	Services        []string          `json:"services"`
-	Statuts         []string          `json:"statuts"`
+	Districts       []string                  `json:"districts"`
+	Regions         []string                  `json:"regions"`
+	DistrictRegions map[string]string         `json:"district_regions"`
+	DistrictUIDs    map[string]string         `json:"district_uids"`
+	Rules           []RuleInfo                `json:"rules"`
+	Services        []string                  `json:"services"`
+	Statuts         []string                  `json:"statuts"`
 	Types           []models.PublicFilterType `json:"types"`
+	SousPrefectures []SousPrefectureInfo      `json:"sous_prefectures"`
+}
+
+type SousPrefectureInfo struct {
+	Name     string `json:"name"`
+	District string `json:"district"`
 }
 
 func (s *Store) GetFilters() (*Filters, error) {
@@ -748,6 +769,18 @@ func (s *Store) GetFilters() (*Filters, error) {
 			var dist, region string
 			if drRows.Scan(&dist, &region) == nil && region != "" {
 				f.DistrictRegions[dist] = region
+			}
+		}
+	}
+
+	// Sous-préfectures (niveau 4) avec leur district
+	spRows, err := s.db.Query(`SELECT name, COALESCE(parent_name,'') FROM org_unit WHERE level=4 ORDER BY parent_name, name`)
+	if err == nil {
+		defer spRows.Close()
+		for spRows.Next() {
+			var sp SousPrefectureInfo
+			if spRows.Scan(&sp.Name, &sp.District) == nil {
+				f.SousPrefectures = append(f.SousPrefectures, sp)
 			}
 		}
 	}

@@ -17,27 +17,61 @@ type PDFHandlers struct {
 	Store *store.Store
 }
 
+// areaReport gathers everything the district / region report prints.
+type areaReport struct {
+	title        string // "Region" | "District"
+	name         string
+	avgScore     float64
+	nStructures  int
+	reportingPct float64
+	reportingExp int
+	reportingRep int
+	services     []models.UsageService
+	equipements  []models.UsageEquipement
+	rhSummary    *store.RHSummaryResult
+	commodites   []models.UsageCommodite
+	issues       *store.IssueListResult
+}
+
+// GET /export/pdf?district=   ou   /export/pdf?region=
 func (h *PDFHandlers) ExportDistrictPDF(c *gin.Context) {
-	district := c.Query("district")
-	if district == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "district parameter required"})
-		return
+	district, region := c.Query("district"), c.Query("region")
+	switch {
+	case district != "":
+		h.writeAreaPDF(c, h.districtReport(district))
+	case region != "":
+		h.writeAreaPDF(c, h.regionReport(region))
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "district or region parameter required"})
 	}
+}
 
-	// Gather data
-	var avgScore float64
-	var nStructures int
-	h.Store.DB().QueryRow(`SELECT COALESCE(avg_score,0), COALESCE(n_structures,0) FROM quality_summary WHERE dimension='district' AND key=?`, district).Scan(&avgScore, &nStructures)
+func (h *PDFHandlers) districtReport(district string) areaReport {
+	r := areaReport{title: "District", name: district}
+	h.Store.DB().QueryRow(`SELECT COALESCE(avg_score,0), COALESCE(n_structures,0) FROM quality_summary WHERE dimension='district' AND key=?`, district).Scan(&r.avgScore, &r.nStructures)
+	h.Store.DB().QueryRow(`SELECT COALESCE(pct,0), COALESCE(n_expected,0), COALESCE(n_reported,0) FROM reporting_rate WHERE dimension='district' AND key=?`, district).Scan(&r.reportingPct, &r.reportingExp, &r.reportingRep)
+	r.services, _ = h.Store.GetUsageServices(district)
+	r.equipements, _ = h.Store.GetUsageEquipements("all", district)
+	r.rhSummary, _ = h.Store.GetRHSummary(district)
+	r.commodites, _ = h.Store.GetUsageCommodites(district)
+	r.issues, _ = h.Store.GetQualityIssues(store.IssueListParams{District: district, Page: 1, PageSize: 30})
+	return r
+}
 
-	var reportingPct float64
-	var reportingExp, reportingRep int
-	h.Store.DB().QueryRow(`SELECT COALESCE(pct,0), COALESCE(n_expected,0), COALESCE(n_reported,0) FROM reporting_rate WHERE dimension='district' AND key=?`, district).Scan(&reportingPct, &reportingExp, &reportingRep)
+func (h *PDFHandlers) regionReport(region string) areaReport {
+	r := areaReport{title: "Region", name: region}
+	h.Store.DB().QueryRow(`SELECT COALESCE(avg_score,0), COALESCE(n_structures,0) FROM quality_summary WHERE dimension='region' AND key=?`, region).Scan(&r.avgScore, &r.nStructures)
+	h.Store.DB().QueryRow(`SELECT COALESCE(pct,0), COALESCE(n_expected,0), COALESCE(n_reported,0) FROM reporting_rate WHERE dimension='region' AND key=?`, region).Scan(&r.reportingPct, &r.reportingExp, &r.reportingRep)
+	r.services, _ = h.Store.GetUsageServicesRegion(region)
+	r.equipements, _ = h.Store.GetUsageEquipementsRegion(region)
+	r.rhSummary, _ = h.Store.GetRHSummaryRegion(region)
+	r.commodites, _ = h.Store.GetUsageCommoditesRegion(region)
+	r.issues, _ = h.Store.GetQualityIssues(store.IssueListParams{Region: region, Page: 1, PageSize: 30})
+	return r
+}
 
-	services, _ := h.Store.GetUsageServices(district)
-	equipements, _ := h.Store.GetUsageEquipements("all", district)
-	rhSummary, _ := h.Store.GetRHSummary(district)
-	commodites, _ := h.Store.GetUsageCommodites(district)
-	issueResult, _ := h.Store.GetQualityIssues(store.IssueListParams{District: district, Page: 1, PageSize: 30})
+func (h *PDFHandlers) writeAreaPDF(c *gin.Context, r areaReport) {
+	services, equipements, rhSummary, commodites, issueResult := r.services, r.equipements, r.rhSummary, r.commodites, r.issues
 
 	// Build PDF
 	pdf := fpdf.New("P", "mm", "A4", "")
@@ -46,10 +80,10 @@ func (h *PDFHandlers) ExportDistrictPDF(c *gin.Context) {
 
 	// Title
 	pdf.SetFont("Helvetica", "B", 18)
-	pdf.Cell(0, 10, "Rapport ISS")
+	pdf.Cell(0, 10, "Rapport ISS - "+r.title)
 	pdf.Ln(10)
 	pdf.SetFont("Helvetica", "B", 14)
-	pdf.Cell(0, 8, district)
+	pdf.Cell(0, 8, r.name)
 	pdf.Ln(10)
 	pdf.SetFont("Helvetica", "", 9)
 	pdf.SetTextColor(120, 120, 120)
@@ -62,9 +96,9 @@ func (h *PDFHandlers) ExportDistrictPDF(c *gin.Context) {
 	pdf.Cell(0, 8, "Indicateurs cles")
 	pdf.Ln(9)
 	pdfKPITable(pdf, [][]string{
-		{"Structures analysees", fmt.Sprintf("%d", nStructures)},
-		{"Score qualite moyen", fmt.Sprintf("%.1f / 100", avgScore)},
-		{"Taux de rapportage", fmt.Sprintf("%.1f%% (%d / %d)", reportingPct, reportingRep, reportingExp)},
+		{"Structures analysees", fmt.Sprintf("%d", r.nStructures)},
+		{"Score qualite moyen", fmt.Sprintf("%.1f / 100", r.avgScore)},
+		{"Taux de rapportage", fmt.Sprintf("%.1f%% (%d / %d)", r.reportingPct, r.reportingRep, r.reportingExp)},
 	})
 	if rhSummary != nil {
 		pdfKPITable(pdf, [][]string{
@@ -129,7 +163,7 @@ func (h *PDFHandlers) ExportDistrictPDF(c *gin.Context) {
 	}
 
 	// Output
-	filename := fmt.Sprintf("rapport_iss_%s_%s.pdf", strings.ReplaceAll(district, " ", "_"), time.Now().Format("20060102"))
+	filename := fmt.Sprintf("rapport_iss_%s_%s.pdf", strings.ReplaceAll(r.name, " ", "_"), time.Now().Format("20060102"))
 	c.Header("Content-Type", "application/pdf")
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
 	if err := pdf.Output(c.Writer); err != nil {

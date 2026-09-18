@@ -206,7 +206,7 @@ func RunSync(st *store.Store, client *dhis2.Client, opts Options) (*models.SyncR
 	reportingRates := usage.ComputeReportingRate(eventPtrs, programOrgUnits, orgUnits)
 	popIndex := usage.BuildPopulationIndex(population)
 	usageGeo := usage.ComputeGeo(eventPtrs, orgUnits, eventQualities, popIndex)
-	usageCouverture := usage.ComputeCouverture(eventPtrs, orgUnits, usageRH, usageEquipements, popIndex)
+	usageCouverture := usage.ComputeCouverture(eventPtrs, orgUnits, ctx, popIndex)
 	blobs, err := usage.BuildPublicSnapshot(eventPtrs, ctx)
 	if err != nil {
 		return finishErr(fmt.Sprintf("build public snapshot: %v", err))

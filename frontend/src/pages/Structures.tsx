@@ -15,6 +15,7 @@ export default function Structures() {
   const [loading, setLoading] = useState(true);
 
   const [district, setDistrict] = useUrlState('district');
+  const [sousPrefecture, setSousPrefecture] = useUrlState('sp');
   const [search, setSearch] = useUrlState('search');
   const [type, setType] = useUrlState('type');
   const [gps, setGps] = useUrlState('gps');
@@ -26,11 +27,11 @@ export default function Structures() {
 
   const fetchData = useCallback(() => {
     setLoading(true);
-    api.getStructuresList({ district, search, type, gps, page, pageSize: 25 })
+    api.getStructuresList({ district, sous_prefecture: sousPrefecture, search, type, gps, page, pageSize: 25 })
       .then(setResult)
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [district, search, type, gps, page]);
+  }, [district, sousPrefecture, search, type, gps, page]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -53,11 +54,22 @@ export default function Structures() {
         <select
           className="border border-gray-300 rounded px-2 py-1.5 text-sm"
           value={district}
-          onChange={(e) => { setDistrict(e.target.value); setPage(1); }}
+          onChange={(e) => { setDistrict(e.target.value); setSousPrefecture(''); setPage(1); }}
         >
           <option value="">Tous districts</option>
           {filters?.districts.map((d) => (
             <option key={d} value={d}>{d}</option>
+          ))}
+        </select>
+
+        <select
+          className="border border-gray-300 rounded px-2 py-1.5 text-sm"
+          value={sousPrefecture}
+          onChange={(e) => { setSousPrefecture(e.target.value); setPage(1); }}
+        >
+          <option value="">Toutes sous-préfectures</option>
+          {(filters?.sous_prefectures ?? []).filter((sp) => !district || sp.district === district).map((sp) => (
+            <option key={sp.name} value={sp.name}>{sp.name}</option>
           ))}
         </select>
 

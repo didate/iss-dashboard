@@ -10,10 +10,10 @@ import (
 // R12 — Pharmacie sans pharmacien
 
 type serviceStaffRule struct {
-	ServiceUID string
+	ServiceUID  string
 	ServiceName string
-	StaffUIDs  []string
-	StaffName  string
+	StaffUIDs   []string
+	StaffName   string
 }
 
 var serviceStaffRules = []serviceStaffRule{

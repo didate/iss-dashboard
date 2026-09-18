@@ -144,6 +144,7 @@ type UsageGeo struct {
 type UsageCouverture struct {
 	Dimension  string   `json:"dimension"` // global | region | district | sous_prefecture
 	Key        string   `json:"key"`
+	OrgUnitUID string   `json:"ou_uid"`
 	Label      string   `json:"label"`
 	Indicator  string   `json:"indicator"` // structures | lits | medecins | sages_femmes | infirmiers | ats
 	Numerator  float64  `json:"numerator"`

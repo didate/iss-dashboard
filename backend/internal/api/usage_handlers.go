@@ -152,12 +152,13 @@ func (h *ReadHandlers) GetStructuresList(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
 	params := store.StructureListParams{
-		District: c.Query("district"),
-		Search:   c.Query("search"),
-		Type:     c.Query("type"),
-		GPS:      c.Query("gps"),
-		Page:     page,
-		PageSize: pageSize,
+		District:       c.Query("district"),
+		SousPrefecture: c.Query("sous_prefecture"),
+		Search:         c.Query("search"),
+		Type:           c.Query("type"),
+		GPS:            c.Query("gps"),
+		Page:           page,
+		PageSize:       pageSize,
 	}
 	result, err := h.Store.GetStructuresList(params)
 	if err != nil {

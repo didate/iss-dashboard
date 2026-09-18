@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { MapPin, Info, LockKeyhole } from 'lucide-react';
+import { MapPin, Info, LockKeyhole, List } from 'lucide-react';
 
 interface Props {
   isLoggedIn: boolean;
@@ -30,6 +30,10 @@ export default function PublicLayout({ isLoggedIn }: Props) {
             <NavLink to="/" end className={link}>
               <MapPin size={15} />
               <span className="hidden sm:inline">Carte</span>
+            </NavLink>
+            <NavLink to="/annuaire" className={link}>
+              <List size={15} />
+              <span className="hidden sm:inline">Annuaire</span>
             </NavLink>
             <NavLink to="/a-propos" className={link}>
               <Info size={15} />

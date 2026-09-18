@@ -1,4 +1,5 @@
 import type {
+  PublicAnnuaireResult,
   PublicFilters,
   PublicPointCollection,
   PublicStructure,
@@ -33,6 +34,7 @@ export interface PublicSearchParams {
   service?: string;
   district?: string;
   region?: string;
+  sous_prefecture?: string;
   near?: string; // "lat,lng"
   radius_km?: number;
   limit?: number;
@@ -44,6 +46,10 @@ export const publicApi = {
   getSummary: () => get<PublicSummary>('/api/public/summary'),
   search: (params: PublicSearchParams) => get<PublicStructureItem[]>(`/api/public/structures${qs({ ...params })}`),
   getStructure: (uid: string) => get<PublicStructure>(`/api/public/structure/${encodeURIComponent(uid)}`),
+  getAnnuaire: (params: PublicSearchParams & { page?: number; pageSize?: number }) =>
+    get<PublicAnnuaireResult>(`/api/public/annuaire${qs({ ...params })}`),
+  // Lien direct (pas de fetch) : le navigateur télécharge le CSV avec les mêmes filtres.
+  annuaireCSVUrl: (params: PublicSearchParams) => `${BASE_URL}/api/public/structures.csv${qs({ ...params })}`,
 };
 
 // Couleur par type de structure (affichage uniquement).

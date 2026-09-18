@@ -38,6 +38,8 @@ func SetupRouter(cfg *config.Config, st *store.Store, client *dhis2.Client) *gin
 		pub.GET("/points.geojson", ph.GetPoints)
 		pub.GET("/filters", ph.GetFilters)
 		pub.GET("/structures", ph.SearchStructures)
+		pub.GET("/annuaire", ph.GetAnnuaire)
+		pub.GET("/structures.csv", ph.GetAnnuaireCSV)
 		pub.GET("/structure/:uid", ph.GetStructure)
 		pub.GET("/summary", ph.GetSummary)
 	}

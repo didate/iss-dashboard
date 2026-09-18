@@ -66,6 +66,21 @@ function qs(params: Record<string, string | number | undefined>): string {
   return parts.length ? `?${parts.join('&')}` : '';
 }
 
+async function downloadAreaPDF(params: { district?: string; region?: string }) {
+  const token = (await import('./auth')).getToken();
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${BASE_URL}/api/export/pdf${qs(params)}`, { headers });
+  if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `rapport_iss_${params.district ?? params.region}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export const api = {
   // Auth
   login: (username: string, password: string) =>
@@ -84,6 +99,8 @@ export const api = {
     severity?: string;
     rule?: string;
     district?: string;
+    region?: string;
+    sous_prefecture?: string;
     search?: string;
     page?: number;
     pageSize?: number;
@@ -126,6 +143,7 @@ export const api = {
 
   getStructuresList: (params: {
     district?: string;
+    sous_prefecture?: string;
     search?: string;
     type?: string;
     gps?: string;
@@ -151,20 +169,8 @@ export const api = {
     URL.revokeObjectURL(url);
   },
 
-  exportDistrictPDF: async (district: string) => {
-    const token = (await import('./auth')).getToken();
-    const headers: Record<string, string> = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch(`${BASE_URL}/api/export/pdf${qs({ district })}`, { headers });
-    if (!res.ok) throw new Error(`Export failed: ${res.status}`);
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `rapport_iss_${district}.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
-  },
+  exportDistrictPDF: async (district: string) => downloadAreaPDF({ district }),
+  exportRegionPDF: async (region: string) => downloadAreaPDF({ region }),
 
   getMapData: () => request<MapDistrictCollection>('/api/map/districts'),
 

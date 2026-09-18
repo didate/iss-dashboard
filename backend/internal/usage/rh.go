@@ -17,17 +17,19 @@ func normalizeRHRoot(root string) string {
 	return root
 }
 
-// ComputeRH aggregates human resources by profile and employment status.
-func ComputeRH(events []*models.Event, ctx *quality.QualityContext) []models.UsageRH {
-	// Discover RH profiles: group DEs by their root (strip _FN_DE, _CT_DE, _BN_DE, _FONC, _CONTR, _BENEV)
-	type rhDE struct {
-		uid    string
-		root   string
-		statut string // fonc, contr, benev, asc, reco, other
-		label  string
-	}
+// RHDataElement is one RH data element resolved to its profile root and employment status.
+type RHDataElement struct {
+	UID    string
+	Root   string // profile, e.g. ISS_RH_INF
+	Statut string // fonc, contr, benev, asc, reco, other
+	Label  string
+}
 
-	var rhDEs []rhDE
+// DiscoverRHProfiles lists the RH data elements (sections ISS_RH / ISS_RH_SPE,
+// numeric) with their profile root, plus a display label per root. Shared by the
+// RH aggregation and the demographic coverage ratios so both count the same DEs.
+func DiscoverRHProfiles(ctx *quality.QualityContext) ([]RHDataElement, map[string]string) {
+	var rhDEs []RHDataElement
 	rootLabels := make(map[string]string)
 
 	for _, de := range ctx.MetadataByUID {
@@ -77,7 +79,7 @@ func ComputeRH(events []*models.Event, ctx *quality.QualityContext) []models.Usa
 		// Normalize known irregular roots
 		root = normalizeRHRoot(root)
 
-		rhDEs = append(rhDEs, rhDE{uid: de.UID, root: root, statut: statut, label: de.DisplayName()})
+		rhDEs = append(rhDEs, RHDataElement{UID: de.UID, Root: root, Statut: statut, Label: de.DisplayName()})
 
 		// Build label from DE display name (strip the status suffix)
 		if _, ok := rootLabels[root]; !ok {
@@ -88,6 +90,12 @@ func ComputeRH(events []*models.Event, ctx *quality.QualityContext) []models.Usa
 			rootLabels[root] = label
 		}
 	}
+	return rhDEs, rootLabels
+}
+
+// ComputeRH aggregates human resources by profile and employment status.
+func ComputeRH(events []*models.Event, ctx *quality.QualityContext) []models.UsageRH {
+	rhDEs, rootLabels := DiscoverRHProfiles(ctx)
 
 	type counter struct {
 		fonc, contr, benev, asc, reco int
@@ -104,14 +112,14 @@ func ComputeRH(events []*models.Event, ctx *quality.QualityContext) []models.Usa
 	for _, evt := range events {
 		vals := evt.Values()
 		for _, rh := range rhDEs {
-			v := quality.ParseNum(vals[rh.uid])
+			v := quality.ParseNum(vals[rh.UID])
 			if v == 0 {
 				continue
 			}
 			iv := int(v)
 
 			add := func(c *counter) {
-				switch rh.statut {
+				switch rh.Statut {
 				case "fonc":
 					c.fonc += iv
 				case "contr":
@@ -127,9 +135,9 @@ func ComputeRH(events []*models.Event, ctx *quality.QualityContext) []models.Usa
 				}
 			}
 
-			add(ensure(rh.root, "all"))
+			add(ensure(rh.Root, "all"))
 			if evt.District != "" {
-				add(ensure(rh.root, evt.District))
+				add(ensure(rh.Root, evt.District))
 			}
 		}
 	}

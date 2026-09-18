@@ -186,7 +186,17 @@ function RapportageTab({ filters }: { filters: Filters | null }) {
             </select>
           )}
         </div>
-        <ExportCSV data={filteredData as unknown as Record<string, unknown>[]} columns={columns} filename={`rapportage_${by}`} />
+        <div className="flex items-center gap-2">
+          {regionFilter && (
+            <button
+              onClick={() => api.exportRegionPDF(regionFilter).catch(console.error)}
+              className="flex items-center gap-1 px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              <FileDown size={14} /> Rapport PDF région
+            </button>
+          )}
+          <ExportCSV data={filteredData as unknown as Record<string, unknown>[]} columns={columns} filename={`rapportage_${by}`} />
+        </div>
       </div>
 
       {/* Bar chart */}
@@ -788,6 +798,7 @@ function ClosedOUsTab({ district }: { district: string }) {
 
 const COUVERTURE_INDICATORS: { key: string; label: string; short: string }[] = [
   { key: 'structures', label: 'Structures sanitaires', short: 'Structures' },
+  { key: 'personnel_soignant', label: 'Personnel soignant (médecins, SF, infirmiers, ATS)', short: 'Soignants' },
   { key: 'lits', label: "Lits d'hospitalisation", short: 'Lits' },
   { key: 'medecins', label: 'Médecins (toutes spécialités)', short: 'Médecins' },
   { key: 'sages_femmes', label: 'Sages-femmes', short: 'Sages-femmes' },
@@ -831,7 +842,7 @@ function CouvertureTab({ filters }: { filters: Filters | null }) {
   const columns = [
     { key: 'label', header: by === 'sous_prefecture' ? 'Sous-préfecture' : by.charAt(0).toUpperCase() + by.slice(1) },
     { key: 'population', header: 'Population', render: (r: Record<string, unknown>) => (r.population ? Math.round(r.population as number).toLocaleString('fr-FR') : '—') },
-    ...COUVERTURE_INDICATORS.filter((i) => by !== 'sous_prefecture' || i.key === 'structures').map((i) => ({
+    ...COUVERTURE_INDICATORS.map((i) => ({
       key: `r_${i.key}`,
       header: `${i.short} /10k`,
       render: (r: Record<string, unknown>) => (
@@ -858,7 +869,18 @@ function CouvertureTab({ filters }: { filters: Filters | null }) {
         <select className="border border-gray-300 rounded px-2 py-1 text-xs" value={indicator} onChange={(e) => setIndicator(e.target.value)}>
           {COUVERTURE_INDICATORS.map((i) => <option key={i.key} value={i.key}>{i.label}</option>)}
         </select>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          {by === 'region' && (
+            <select
+              className="border border-gray-300 rounded px-2 py-1 text-xs"
+              value=""
+              onChange={(e) => { if (e.target.value) api.exportRegionPDF(e.target.value).catch(console.error); }}
+              title="Télécharger le rapport PDF d'une région"
+            >
+              <option value="">Rapport PDF région…</option>
+              {filters?.regions.map((r) => <option key={r} value={r}>{r}</option>)}
+            </select>
+          )}
           <ExportCSV data={pivot} columns={columns} filename={`couverture_${by}`} />
         </div>
       </div>
@@ -886,8 +908,8 @@ function CouvertureTab({ filters }: { filters: Filters | null }) {
 
       <MethodNote title="Méthodologie - Couverture démographique">
         <p>Ratio = effectif (ou nombre de structures / lits) ÷ population × 10 000. La population vient du data set DHIS2 <em>SIS_POPULATION</em> (dernière période mensuelle renseignée × 12, la saisie mensuelle étant la population annuelle divisée par 12).</p>
-        <p>Les effectifs RH et les lits reprennent les agrégats des onglets Ressources humaines et Équipements ; les structures sont comptées une fois par unité d'organisation. Quand la population d'une unité est inconnue, le ratio est laissé vide.</p>
-        <p>Au niveau sous-préfecture seul le nombre de structures est disponible (les RH et équipements ne sont agrégés qu'au district).</p>
+        <p>Les effectifs RH utilisent la même découverte des profils que l'onglet Ressources humaines (médecins = tous les profils ISS_RH_MED_*), les lits le couple d'équipement ISS_EQUI_LIT. Quand la population d'une unité est inconnue, le ratio est laissé vide.</p>
+        <p>Les numérateurs sont comptés directement sur les structures (dernier recensement par unité d'organisation), ce qui permet le niveau sous-préfecture ; ils peuvent différer de quelques unités des onglets RH / Équipements, qui comptent chaque event.</p>
       </MethodNote>
     </div>
   );

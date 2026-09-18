@@ -40,23 +40,21 @@ const serviceOptionSet = "RGsTov6dBHH"
 // PublicSearchParams filters the public structure search. Lat/Lng enable the
 // "around me" mode: results are then sorted by distance and limited to RadiusKm.
 type PublicSearchParams struct {
-	Search   string
-	Type     string
-	Service  string // short key, e.g. MATERNITE
-	District string
-	Region   string
-	Lat, Lng *float64
-	RadiusKm float64
-	Limit    int
+	Search         string
+	Type           string
+	Service        string // short key, e.g. MATERNITE
+	District       string
+	Region         string
+	SousPrefecture string
+	Lat, Lng       *float64
+	RadiusKm       float64
+	Limit          int
 }
 
-func (s *Store) SearchPublicStructures(p PublicSearchParams) ([]models.PublicStructureItem, error) {
-	if p.Limit < 1 || p.Limit > 200 {
-		p.Limit = 50
-	}
-	near := p.Lat != nil && p.Lng != nil
-
-	// SECURITY: only hardcoded conditions go in where[]; user values go in args[] as placeholders.
+// publicWhere builds the WHERE clause shared by the public search, the annuaire
+// and its CSV export. SECURITY: only hardcoded conditions go in where[]; user
+// values go in args[] as placeholders.
+func publicWhere(p PublicSearchParams) ([]string, []any) {
 	where := []string{"1=1"}
 	args := []any{}
 	if p.Search != "" {
@@ -75,10 +73,24 @@ func (s *Store) SearchPublicStructures(p PublicSearchParams) ([]models.PublicStr
 		where = append(where, "e.region = ?")
 		args = append(args, p.Region)
 	}
+	if p.SousPrefecture != "" {
+		where = append(where, "e.sous_prefecture = ?")
+		args = append(args, p.SousPrefecture)
+	}
 	if p.Service != "" {
 		where = append(where, "EXISTS (SELECT 1 FROM event_value ev WHERE ev.event_uid = e.event_uid AND ev.de_code = ? AND ev.value = 'oui')")
 		args = append(args, "ISS_SVC_"+strings.ToUpper(p.Service)+"_DE")
 	}
+	return where, args
+}
+
+func (s *Store) SearchPublicStructures(p PublicSearchParams) ([]models.PublicStructureItem, error) {
+	if p.Limit < 1 || p.Limit > 200 {
+		p.Limit = 50
+	}
+	near := p.Lat != nil && p.Lng != nil
+
+	where, args := publicWhere(p)
 	if near {
 		where = append(where, "e.lat IS NOT NULL AND e.lng IS NOT NULL")
 	}
@@ -133,6 +145,75 @@ func (s *Store) SearchPublicStructures(p PublicSearchParams) ([]models.PublicStr
 		items = []models.PublicStructureItem{}
 	}
 	return items, nil
+}
+
+// PublicAnnuaireRow is one line of the public registry (annuaire) and its CSV export.
+type PublicAnnuaireRow struct {
+	UID            string   `json:"uid"`
+	Name           string   `json:"name"`
+	TypeCode       string   `json:"type"`
+	TypeLabel      string   `json:"type_label"`
+	StatutJuri     string   `json:"statut"`
+	StatutOp       string   `json:"op"`
+	Region         string   `json:"region"`
+	District       string   `json:"district"`
+	SousPrefecture string   `json:"sous_prefecture"`
+	Lat            *float64 `json:"lat"`
+	Lng            *float64 `json:"lng"`
+	NServices      int      `json:"n_services"`
+}
+
+type PublicAnnuaireResult struct {
+	Data     []PublicAnnuaireRow `json:"data"`
+	Total    int                 `json:"total"`
+	Page     int                 `json:"page"`
+	PageSize int                 `json:"page_size"`
+}
+
+// ListPublicStructures is the paginated registry. PageSize 0 disables pagination (CSV export).
+func (s *Store) ListPublicStructures(p PublicSearchParams, page, pageSize int) (*PublicAnnuaireResult, error) {
+	if page < 1 {
+		page = 1
+	}
+	where, args := publicWhere(p)
+	whereClause := strings.Join(where, " AND ")
+
+	var total int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM structure_latest e WHERE `+whereClause, args...).Scan(&total); err != nil {
+		return nil, err
+	}
+
+	query := `
+		SELECT e.org_unit_uid, e.org_unit_name, COALESCE(e.type_code,''), e.region, e.district, COALESCE(e.sous_prefecture,''), e.lat, e.lng,
+		       COALESCE((SELECT ev.value FROM event_value ev WHERE ev.event_uid = e.event_uid AND ev.de_code = 'ISS_STATUT_STRUCT_DE'), ''),
+		       COALESCE((SELECT ev.value FROM event_value ev WHERE ev.event_uid = e.event_uid AND ev.de_code = 'ISS_STATUT_OP_DE'), ''),
+		       (SELECT COUNT(*) FROM event_value ev JOIN metadata_de md ON md.de_uid = ev.de_uid
+		         WHERE ev.event_uid = e.event_uid AND ev.value = 'oui' AND md.option_set_id = ? AND md.section_prefix IN ('ISS_SVC','ISS_LAB'))
+		FROM structure_latest e WHERE ` + whereClause + ` ORDER BY e.region, e.district, e.org_unit_name`
+	args = append([]any{serviceOptionSet}, args...)
+	if pageSize > 0 {
+		query += " LIMIT ? OFFSET ?"
+		args = append(args, pageSize, (page-1)*pageSize)
+	}
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	res := &PublicAnnuaireResult{Data: []PublicAnnuaireRow{}, Total: total, Page: page, PageSize: pageSize}
+	for rows.Next() {
+		var r PublicAnnuaireRow
+		var lat, lng sql.NullFloat64
+		if err := rows.Scan(&r.UID, &r.Name, &r.TypeCode, &r.Region, &r.District, &r.SousPrefecture, &lat, &lng, &r.StatutJuri, &r.StatutOp, &r.NServices); err != nil {
+			return nil, err
+		}
+		r.TypeLabel = typologie.Label(r.TypeCode)
+		if lat.Valid && lng.Valid {
+			r.Lat, r.Lng = &lat.Float64, &lng.Float64
+		}
+		res.Data = append(res.Data, r)
+	}
+	return res, rows.Err()
 }
 
 // haversineKm is the great-circle distance between two WGS84 points.
@@ -379,7 +460,7 @@ func (s *Store) GetCouverture(dimension, indicator string) ([]models.UsageCouver
 	default:
 		dimension = "district"
 	}
-	query := `SELECT dimension, key, label, indicator, numerator, population, ratio_10k FROM usage_couverture WHERE dimension = ?`
+	query := `SELECT dimension, key, COALESCE(ou_uid,''), label, indicator, numerator, population, ratio_10k FROM usage_couverture WHERE dimension = ?`
 	args := []any{dimension}
 	if indicator != "" {
 		query += ` AND indicator = ?`
@@ -395,7 +476,7 @@ func (s *Store) GetCouverture(dimension, indicator string) ([]models.UsageCouver
 	for rows.Next() {
 		var c models.UsageCouverture
 		var pop, ratio sql.NullFloat64
-		if err := rows.Scan(&c.Dimension, &c.Key, &c.Label, &c.Indicator, &c.Numerator, &pop, &ratio); err != nil {
+		if err := rows.Scan(&c.Dimension, &c.Key, &c.OrgUnitUID, &c.Label, &c.Indicator, &c.Numerator, &pop, &ratio); err != nil {
 			return nil, err
 		}
 		if pop.Valid {
@@ -413,6 +494,9 @@ func (s *Store) GetCouverture(dimension, indicator string) ([]models.UsageCouver
 type MapGeoProperties struct {
 	models.UsageGeo
 	RatioStructures10k *float64 `json:"ratio_structures_10k"`
+	// Ratios pour 10 000 hab. par indicateur de couverture (lits, medecins, sages_femmes, …)
+	Ratios     map[string]*float64 `json:"ratios"`
+	Numerators map[string]float64  `json:"numerators"`
 }
 
 type MapGeoFeature struct {
@@ -450,13 +534,49 @@ func (s *Store) GetMapGeo(level int) (*MapGeoCollection, error) {
 		return nil, err
 	}
 
+	// Couverture démographique par unité (une ligne par indicateur).
+	cRows, err := s.db.Query(`SELECT ou_uid, indicator, numerator, ratio_10k FROM usage_couverture WHERE ou_uid != '' AND dimension = ?`,
+		map[int]string{3: "district", 4: "sous_prefecture"}[level])
+	if err != nil {
+		return nil, err
+	}
+	defer cRows.Close()
+	ratios := map[string]map[string]*float64{}
+	numerators := map[string]map[string]float64{}
+	for cRows.Next() {
+		var uid, ind string
+		var num float64
+		var ratio sql.NullFloat64
+		if err := cRows.Scan(&uid, &ind, &num, &ratio); err != nil {
+			return nil, err
+		}
+		if ratios[uid] == nil {
+			ratios[uid] = map[string]*float64{}
+			numerators[uid] = map[string]float64{}
+		}
+		numerators[uid][ind] = num
+		if ratio.Valid {
+			r := ratio.Float64
+			ratios[uid][ind] = &r
+		} else {
+			ratios[uid][ind] = nil
+		}
+	}
+	if err := cRows.Err(); err != nil {
+		return nil, err
+	}
+
 	fc := &MapGeoCollection{Type: "FeatureCollection", Features: []MapGeoFeature{}}
 	for _, g := range units {
 		geom, ok := geoms[g.OrgUnitUID]
 		if !ok {
 			continue
 		}
-		props := MapGeoProperties{UsageGeo: g}
+		props := MapGeoProperties{UsageGeo: g, Ratios: ratios[g.OrgUnitUID], Numerators: numerators[g.OrgUnitUID]}
+		if props.Ratios == nil {
+			props.Ratios = map[string]*float64{}
+			props.Numerators = map[string]float64{}
+		}
 		if g.Population != nil && *g.Population > 0 {
 			r := float64(g.NStructures) / *g.Population * 10000
 			props.RatioStructures10k = &r
@@ -517,4 +637,106 @@ func (s *Store) GetProPoints() (*ProPointCollection, error) {
 		fc.Features = append(fc.Features, ProPointFeature{Type: "Feature", Geometry: geom, Properties: p})
 	}
 	return fc, rows.Err()
+}
+
+// --- Agrégats régionaux (somme des districts, pour le rapport PDF par région) ----
+
+// districtsOfRegionSQL is a subquery of district names (level 3) belonging to a region name.
+const districtsOfRegionSQL = `SELECT d.name FROM org_unit d JOIN org_unit r ON r.uid = d.parent_uid WHERE d.level = 3 AND r.name = ?`
+
+func (s *Store) GetUsageServicesRegion(region string) ([]models.UsageService, error) {
+	rows, err := s.db.Query(`
+		SELECT service_code, MAX(service_label), SUM(n_oui), SUM(n_oui_pas_fonc), SUM(n_non), SUM(n_total)
+		FROM usage_service WHERE district IN (`+districtsOfRegionSQL+`)
+		GROUP BY service_code ORDER BY MAX(service_label)`, region)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []models.UsageService
+	for rows.Next() {
+		var r models.UsageService
+		if err := rows.Scan(&r.ServiceCode, &r.ServiceLabel, &r.NOui, &r.NOuiPasFonc, &r.NNon, &r.NTotal); err != nil {
+			return nil, err
+		}
+		r.District = region
+		if r.NTotal > 0 {
+			r.PctFonctionnel = 100 * float64(r.NOui) / float64(r.NTotal)
+		}
+		out = append(out, r)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].PctFonctionnel > out[j].PctFonctionnel })
+	return out, rows.Err()
+}
+
+func (s *Store) GetUsageEquipementsRegion(region string) ([]models.UsageEquipement, error) {
+	rows, err := s.db.Query(`
+		SELECT equip_root, MAX(label), MAX(category), SUM(sum_total), SUM(sum_fonct)
+		FROM usage_equipement WHERE district IN (`+districtsOfRegionSQL+`)
+		GROUP BY equip_root ORDER BY MAX(label)`, region)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []models.UsageEquipement
+	for rows.Next() {
+		var r models.UsageEquipement
+		if err := rows.Scan(&r.EquipRoot, &r.Label, &r.Category, &r.SumTotal, &r.SumFonct); err != nil {
+			return nil, err
+		}
+		r.District = region
+		if r.SumTotal > 0 {
+			r.PctFonct = 100 * float64(r.SumFonct) / float64(r.SumTotal)
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) GetUsageCommoditesRegion(region string) ([]models.UsageCommodite, error) {
+	rows, err := s.db.Query(`
+		SELECT indicator, SUM(n_oui), SUM(n_total)
+		FROM usage_commodite WHERE district IN (`+districtsOfRegionSQL+`)
+		GROUP BY indicator ORDER BY indicator`, region)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []models.UsageCommodite
+	for rows.Next() {
+		var r models.UsageCommodite
+		if err := rows.Scan(&r.Indicator, &r.NOui, &r.NTotal); err != nil {
+			return nil, err
+		}
+		r.District = region
+		if r.NTotal > 0 {
+			r.Pct = 100 * float64(r.NOui) / float64(r.NTotal)
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+// GetRHSummaryRegion sums the RH figures of a region's districts (ratio per structure
+// and structures without doctor computed on the region's events).
+func (s *Store) GetRHSummaryRegion(region string) (*RHSummaryResult, error) {
+	r := &RHSummaryResult{}
+	if err := s.db.QueryRow(`SELECT COALESCE(SUM(effectif_fonc),0), COALESCE(SUM(effectif_contr),0), COALESCE(SUM(effectif_benev),0), COALESCE(SUM(effectif_asc),0), COALESCE(SUM(effectif_reco),0), COALESCE(SUM(effectif_total),0)
+		FROM usage_rh WHERE district IN (`+districtsOfRegionSQL+`)`, region).
+		Scan(&r.TotalFonc, &r.TotalContr, &r.TotalBenev, &r.TotalASC, &r.TotalRECO, &r.TotalEffectif); err != nil {
+		return nil, err
+	}
+	s.db.QueryRow(`SELECT COUNT(*) FROM event WHERE region = ?`, region).Scan(&r.NStructures)
+	var totalMed int
+	s.db.QueryRow(`SELECT COALESCE(SUM(effectif_total),0) FROM usage_rh WHERE district IN (`+districtsOfRegionSQL+`) AND profil_code LIKE 'ISS_RH_MED_%'`, region).Scan(&totalMed)
+	if r.NStructures > 0 {
+		r.RatioMedPerStr = float64(totalMed) / float64(r.NStructures)
+	}
+	s.db.QueryRow(`
+		SELECT COUNT(*) FROM event e WHERE e.region = ? AND e.event_uid NOT IN (
+			SELECT ev.event_uid FROM event_value ev WHERE ev.de_code LIKE 'ISS_RH_MED_%' AND CAST(ev.value AS REAL) > 0)`, region).Scan(&r.NStrSansMed)
+	if r.NStructures > 0 {
+		r.PctStrSansMed = 100 * float64(r.NStrSansMed) / float64(r.NStructures)
+	}
+	return r, nil
 }
