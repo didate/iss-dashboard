@@ -1,6 +1,6 @@
 # Plan — Carte sanitaire, palier 1
 
-> Statut : **validé le 17/09/2026** — règle « type indéterminé » (R17) en `info`, codes de type et routes tels que proposés. Branche `feat/carte-sanitaire-p1`.
+> Statut : **livré le 18/09/2026** (5 lots, branche `feat/carte-sanitaire-p1`) — validé le 17/09/2026 — règle « type indéterminé » (R17) en `info`, codes de type et routes tels que proposés. Branche `feat/carte-sanitaire-p1`.
 > Décisions verrouillées avec l'utilisateur (17 sept. 2026) :
 > - Deux publics : **grand public** (sans login) et **planificateurs** MSHP/DRS/DPS (login existant).
 > - Fiche publique **réduite (option B)** : identité, type, statut, localisation, rattachement, services offerts.
@@ -321,7 +321,7 @@ README.md   + section « Carte sanitaire » : espaces public/pro, variables, com
 | **B — API** ✅ | endpoints publics + pro, snapshot GeoJSON, ETag | `curl` sur chaque endpoint, taille et temps de `/public/points.geojson` (1,04 Mo brut, 108 Ko gzip, 304 sur ETag) |
 | **C — Espace public** ✅ | PublicLayout, PublicMap, PublicFiche, About | parcours : recherche → marqueur → fiche → lien partagé ; mobile — vérifié dans le navigateur intégré (desktop + 375 px) |
 | **D — Espace pro** ✅ | MapView couches « Couverture géo » (niveaux 3/4, 4 métriques) et « Structures (points) » par score, page Géolocalisation, onglet Couverture, filtres type/GPS, détail enrichi | parcours DPS : « mes structures sans GPS » → export CSV — vérifié dans le navigateur intégré |
-| **E — Doc & conf** | README, `.env.example`, `docker-compose` (rien à changer côté images) | relecture |
+| **E — Doc & conf** ✅ | README, `.env.example`, `docker-compose` (rien à changer côté images) | relecture |
 
 ---
 
