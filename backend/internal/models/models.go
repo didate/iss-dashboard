@@ -485,3 +485,30 @@ type MissingGPSItem struct {
 	SousPrefecture string `json:"sous_prefecture"`
 	EventDate      string `json:"event_date"`
 }
+
+// --- Carte sanitaire : normes (palier 2) ---
+
+// NormeSet is one version of the norms referential.
+type NormeSet struct {
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	Version     int    `json:"version"`
+	Status      string `json:"status"` // draft | active | archived
+	Notes       string `json:"notes"`
+	CreatedAt   string `json:"created_at"`
+	CreatedBy   string `json:"created_by"`
+	ActivatedAt string `json:"activated_at,omitempty"`
+	NRules      int    `json:"n_rules"`
+}
+
+// NormeRule is one requirement: structures of TypeCode must have at least MinValue of Target.
+type NormeRule struct {
+	ID       int64   `json:"id,omitempty"`
+	SetID    int64   `json:"set_id,omitempty"`
+	TypeCode string  `json:"type_code"` // PS | CS | … | * (all types)
+	Kind     string  `json:"kind"`      // service | rh | equipement | infra
+	Target   string  `json:"target"`    // DE code (service/infra), RH profile root or prefix, equipment root
+	Label    string  `json:"label"`
+	MinValue float64 `json:"min_value"` // service: 1 = must be 'oui'; others: minimum count
+	Level    string  `json:"level"`     // essentiel | recommande
+}

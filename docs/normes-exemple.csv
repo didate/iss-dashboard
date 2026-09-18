@@ -1,0 +1,222 @@
+# Référentiel de normes — EXEMPLE NON OFFICIEL
+# Fichier de démonstration pour tester l'import ; les seuils sont des ordres de grandeur inspirés du paquet
+# minimum d'activités de la pyramide sanitaire, PAS des normes du MSHP. À remplacer par le référentiel validé.
+# Format : type_code;kind;target;label;min_value;level
+#   type_code : PS, CS, CSA, CMC, HP, HR, HN, CABINET, CLINIQUE, AUTRE_PRIVE ou * (toutes)
+#   kind      : service (target = code DE ISS_SVC_*), rh (racine de profil ISS_RH_* ; un suffixe _ = préfixe),
+#               equipement (racine du couple total/fonctionnel), infra (code DE ISS_INFRA_*)
+#   min_value : service → 1 (attendu) ; autres → effectif / nombre minimum (fonctionnel pour les équipements)
+#   level     : essentiel (poids 2) ou recommande (poids 1)
+type_code;kind;target;label;min_value;level
+PS;service;ISS_SVC_CURATIF_DE;Consultations primaires curatives;1;essentiel
+PS;service;ISS_SVC_CPN_DE;Consultations prénatales (CPN);1;essentiel
+PS;service;ISS_SVC_PEV_DE;Vaccination (PEV);1;essentiel
+PS;service;ISS_SVC_PANSEMENT_DE;Pansements;1;recommande
+PS;service;ISS_SVC_ACCOUCHEMENT_DE;Accouchement;1;recommande
+PS;rh;ISS_RH_ATS;ATS;1;essentiel
+PS;rh;ISS_RH_AGENT_COMM;Agent de santé communautaire;1;recommande
+PS;equipement;ISS_EQUI_TABLE_CON;Table de consultation fonctionnelle;1;essentiel
+PS;equipement;ISS_NB_PESE_BEBE;Pèse-bébé;1;essentiel
+PS;equipement;ISS_EQUI_PORTE_VACCIN;Porte-vaccins fonctionnel;1;essentiel
+CS;service;ISS_SVC_CURATIF_DE;Consultations primaires curatives;1;essentiel
+CSA;service;ISS_SVC_CURATIF_DE;Consultations primaires curatives;1;essentiel
+CMC;service;ISS_SVC_CURATIF_DE;Consultations primaires curatives;1;essentiel
+CS;service;ISS_SVC_CPN_DE;Consultations prénatales (CPN);1;essentiel
+CSA;service;ISS_SVC_CPN_DE;Consultations prénatales (CPN);1;essentiel
+CMC;service;ISS_SVC_CPN_DE;Consultations prénatales (CPN);1;essentiel
+CS;service;ISS_SVC_PEV_DE;Vaccination (PEV);1;essentiel
+CSA;service;ISS_SVC_PEV_DE;Vaccination (PEV);1;essentiel
+CMC;service;ISS_SVC_PEV_DE;Vaccination (PEV);1;essentiel
+CS;service;ISS_SVC_ACCOUCHEMENT_DE;Accouchement;1;essentiel
+CSA;service;ISS_SVC_ACCOUCHEMENT_DE;Accouchement;1;essentiel
+CMC;service;ISS_SVC_ACCOUCHEMENT_DE;Accouchement;1;essentiel
+CS;service;ISS_SVC_CPO_DE;Consultations postnatales;1;essentiel
+CSA;service;ISS_SVC_CPO_DE;Consultations postnatales;1;essentiel
+CMC;service;ISS_SVC_CPO_DE;Consultations postnatales;1;essentiel
+CS;service;ISS_SVC_PTME_DE;Consultation PTME;1;essentiel
+CSA;service;ISS_SVC_PTME_DE;Consultation PTME;1;essentiel
+CMC;service;ISS_SVC_PTME_DE;Consultation PTME;1;essentiel
+CS;service;ISS_SVC_PHARMACIE_DE;Pharmacie / point de vente;1;essentiel
+CSA;service;ISS_SVC_PHARMACIE_DE;Pharmacie / point de vente;1;essentiel
+CMC;service;ISS_SVC_PHARMACIE_DE;Pharmacie / point de vente;1;essentiel
+CS;service;ISS_SVC_LABO_DE;Service laboratoire;1;recommande
+CSA;service;ISS_SVC_LABO_DE;Service laboratoire;1;recommande
+CMC;service;ISS_SVC_LABO_DE;Service laboratoire;1;recommande
+CS;service;ISS_SVC_PETITE_CHIR_DE;Petite chirurgie;1;recommande
+CSA;service;ISS_SVC_PETITE_CHIR_DE;Petite chirurgie;1;recommande
+CMC;service;ISS_SVC_PETITE_CHIR_DE;Petite chirurgie;1;recommande
+CS;service;ISS_SVC_SURVEILLANCE_COMM_DE;Surveillance communautaire;1;recommande
+CSA;service;ISS_SVC_SURVEILLANCE_COMM_DE;Surveillance communautaire;1;recommande
+CMC;service;ISS_SVC_SURVEILLANCE_COMM_DE;Surveillance communautaire;1;recommande
+CS;rh;ISS_RH_MED_;Médecin (tout profil);1;recommande
+CSA;rh;ISS_RH_MED_;Médecin (tout profil);1;essentiel
+CMC;rh;ISS_RH_MED_;Médecin (tout profil);1;essentiel
+CS;rh;ISS_RH_SAGEF;Sage-femme;1;essentiel
+CSA;rh;ISS_RH_SAGEF;Sage-femme;1;essentiel
+CMC;rh;ISS_RH_SAGEF;Sage-femme;1;essentiel
+CS;rh;ISS_RH_INF;Infirmier;2;essentiel
+CSA;rh;ISS_RH_INF;Infirmier;2;essentiel
+CMC;rh;ISS_RH_INF;Infirmier;2;essentiel
+CS;rh;ISS_RH_ATS;ATS;1;essentiel
+CSA;rh;ISS_RH_ATS;ATS;1;essentiel
+CMC;rh;ISS_RH_ATS;ATS;1;essentiel
+CS;rh;ISS_RH_TECH_LAB;Technicien de laboratoire;1;recommande
+CSA;rh;ISS_RH_TECH_LAB;Technicien de laboratoire;1;recommande
+CMC;rh;ISS_RH_TECH_LAB;Technicien de laboratoire;1;recommande
+CS;equipement;ISS_EQUI_TABLE_ACC;Table d'accouchement fonctionnelle;1;essentiel
+CSA;equipement;ISS_EQUI_TABLE_ACC;Table d'accouchement fonctionnelle;1;essentiel
+CMC;equipement;ISS_EQUI_TABLE_ACC;Table d'accouchement fonctionnelle;1;essentiel
+CS;equipement;ISS_EQUI_FRIGO;Réfrigérateur fonctionnel;1;essentiel
+CSA;equipement;ISS_EQUI_FRIGO;Réfrigérateur fonctionnel;1;essentiel
+CMC;equipement;ISS_EQUI_FRIGO;Réfrigérateur fonctionnel;1;essentiel
+CS;equipement;ISS_EQUI_MICROSCOPE;Microscope fonctionnel;1;recommande
+CSA;equipement;ISS_EQUI_MICROSCOPE;Microscope fonctionnel;1;recommande
+CMC;equipement;ISS_EQUI_MICROSCOPE;Microscope fonctionnel;1;recommande
+CS;equipement;ISS_EQUI_TABLE_CON;Table de consultation fonctionnelle;1;essentiel
+CSA;equipement;ISS_EQUI_TABLE_CON;Table de consultation fonctionnelle;1;essentiel
+CMC;equipement;ISS_EQUI_TABLE_CON;Table de consultation fonctionnelle;1;essentiel
+CS;equipement;ISS_NB_PESE_BEBE;Pèse-bébé;1;essentiel
+CSA;equipement;ISS_NB_PESE_BEBE;Pèse-bébé;1;essentiel
+CMC;equipement;ISS_NB_PESE_BEBE;Pèse-bébé;1;essentiel
+CS;equipement;ISS_EQUI_STERIL;Matériel de stérilisation fonctionnel;1;recommande
+CSA;equipement;ISS_EQUI_STERIL;Matériel de stérilisation fonctionnel;1;recommande
+CMC;equipement;ISS_EQUI_STERIL;Matériel de stérilisation fonctionnel;1;recommande
+CS;infra;ISS_INFRA_SALLE_ACC_DE;Salle d'accouchement;1;essentiel
+CSA;infra;ISS_INFRA_SALLE_ACC_DE;Salle d'accouchement;1;essentiel
+CMC;infra;ISS_INFRA_SALLE_ACC_DE;Salle d'accouchement;1;essentiel
+CS;infra;ISS_INFRA_SALLE_CPN_DE;Salle de CPN;1;essentiel
+CSA;infra;ISS_INFRA_SALLE_CPN_DE;Salle de CPN;1;essentiel
+CMC;infra;ISS_INFRA_SALLE_CPN_DE;Salle de CPN;1;essentiel
+CS;infra;ISS_INFRA_LABO_DE;Salle de laboratoire;1;recommande
+CSA;infra;ISS_INFRA_LABO_DE;Salle de laboratoire;1;recommande
+CMC;infra;ISS_INFRA_LABO_DE;Salle de laboratoire;1;recommande
+CSA;service;ISS_SVC_MED_GEN_DE;Médecine générale;1;essentiel
+CMC;service;ISS_SVC_MED_GEN_DE;Médecine générale;1;essentiel
+CSA;equipement;ISS_EQUI_LIT;Lits d'hospitalisation fonctionnels;10;essentiel
+CMC;equipement;ISS_EQUI_LIT;Lits d'hospitalisation fonctionnels;10;essentiel
+CSA;infra;ISS_INFRA_SALLE_HOSP_DE;Salle d'hospitalisation;1;essentiel
+CMC;infra;ISS_INFRA_SALLE_HOSP_DE;Salle d'hospitalisation;1;essentiel
+CSA;equipement;ISS_EQUI_AMBULANCE;Ambulance fonctionnelle;1;recommande
+CMC;equipement;ISS_EQUI_AMBULANCE;Ambulance fonctionnelle;1;recommande
+HP;service;ISS_SVC_URGENCES_DE;Service d'urgences;1;essentiel
+HR;service;ISS_SVC_URGENCES_DE;Service d'urgences;1;essentiel
+HN;service;ISS_SVC_URGENCES_DE;Service d'urgences;1;essentiel
+HP;service;ISS_SVC_CHIRURGIE_DE;Service chirurgie;1;essentiel
+HR;service;ISS_SVC_CHIRURGIE_DE;Service chirurgie;1;essentiel
+HN;service;ISS_SVC_CHIRURGIE_DE;Service chirurgie;1;essentiel
+HP;service;ISS_SVC_MATERNITE_DE;Maternité (y compris césarienne);1;essentiel
+HR;service;ISS_SVC_MATERNITE_DE;Maternité (y compris césarienne);1;essentiel
+HN;service;ISS_SVC_MATERNITE_DE;Maternité (y compris césarienne);1;essentiel
+HP;service;ISS_SVC_PEDIATRIE_DE;Pédiatrie;1;essentiel
+HR;service;ISS_SVC_PEDIATRIE_DE;Pédiatrie;1;essentiel
+HN;service;ISS_SVC_PEDIATRIE_DE;Pédiatrie;1;essentiel
+HP;service;ISS_SVC_MED_GEN_DE;Médecine générale;1;essentiel
+HR;service;ISS_SVC_MED_GEN_DE;Médecine générale;1;essentiel
+HN;service;ISS_SVC_MED_GEN_DE;Médecine générale;1;essentiel
+HP;service;ISS_SVC_LABO_DE;Service laboratoire;1;essentiel
+HR;service;ISS_SVC_LABO_DE;Service laboratoire;1;essentiel
+HN;service;ISS_SVC_LABO_DE;Service laboratoire;1;essentiel
+HP;service;ISS_SVC_TRANSFUSION_DE;Transfusion sanguine;1;essentiel
+HR;service;ISS_SVC_TRANSFUSION_DE;Transfusion sanguine;1;essentiel
+HN;service;ISS_SVC_TRANSFUSION_DE;Transfusion sanguine;1;essentiel
+HP;service;ISS_SVC_PHARMACIE_DE;Pharmacie / point de vente;1;essentiel
+HR;service;ISS_SVC_PHARMACIE_DE;Pharmacie / point de vente;1;essentiel
+HN;service;ISS_SVC_PHARMACIE_DE;Pharmacie / point de vente;1;essentiel
+HP;service;ISS_SVC_IMAGERIE_DE;Imagerie médicale;1;recommande
+HR;service;ISS_SVC_IMAGERIE_DE;Imagerie médicale;1;essentiel
+HN;service;ISS_SVC_IMAGERIE_DE;Imagerie médicale;1;essentiel
+HP;service;ISS_SVC_ANESTH_REA_DE;Anesthésie-réanimation;1;recommande
+HR;service;ISS_SVC_ANESTH_REA_DE;Anesthésie-réanimation;1;essentiel
+HN;service;ISS_SVC_ANESTH_REA_DE;Anesthésie-réanimation;1;essentiel
+HP;service;ISS_SVC_NEONAT_DE;Néonatologie;1;recommande
+HR;service;ISS_SVC_NEONAT_DE;Néonatologie;1;recommande
+HN;service;ISS_SVC_NEONAT_DE;Néonatologie;1;recommande
+HP;service;ISS_SVC_STERIL_DE;Stérilisation;1;recommande
+HR;service;ISS_SVC_STERIL_DE;Stérilisation;1;recommande
+HN;service;ISS_SVC_STERIL_DE;Stérilisation;1;recommande
+HP;rh;ISS_RH_MED_;Médecin (tout profil);3;essentiel
+HR;rh;ISS_RH_MED_;Médecin (tout profil);8;essentiel
+HN;rh;ISS_RH_MED_;Médecin (tout profil);20;essentiel
+HP;rh;ISS_RH_MED_CHIR;Médecin chirurgien;1;essentiel
+HR;rh;ISS_RH_MED_CHIR;Médecin chirurgien;2;essentiel
+HN;rh;ISS_RH_MED_CHIR;Médecin chirurgien;2;essentiel
+HP;rh;ISS_RH_MED_ANESTH;Médecin anesthésiste;1;essentiel
+HR;rh;ISS_RH_MED_ANESTH;Médecin anesthésiste;1;essentiel
+HN;rh;ISS_RH_MED_ANESTH;Médecin anesthésiste;1;essentiel
+HP;rh;ISS_RH_MED_GYNE;Médecin gynécologue;1;recommande
+HR;rh;ISS_RH_MED_GYNE;Médecin gynécologue;1;essentiel
+HN;rh;ISS_RH_MED_GYNE;Médecin gynécologue;1;essentiel
+HR;rh;ISS_RH_MED_PED;Médecin pédiatre;1;essentiel
+HN;rh;ISS_RH_MED_PED;Médecin pédiatre;1;essentiel
+HP;rh;ISS_RH_SAGEF;Sage-femme;3;essentiel
+HR;rh;ISS_RH_SAGEF;Sage-femme;6;essentiel
+HN;rh;ISS_RH_SAGEF;Sage-femme;6;essentiel
+HP;rh;ISS_RH_INF;Infirmier;10;essentiel
+HR;rh;ISS_RH_INF;Infirmier;25;essentiel
+HN;rh;ISS_RH_INF;Infirmier;50;essentiel
+HP;rh;ISS_RH_TECH_LAB;Technicien de laboratoire;2;essentiel
+HR;rh;ISS_RH_TECH_LAB;Technicien de laboratoire;2;essentiel
+HN;rh;ISS_RH_TECH_LAB;Technicien de laboratoire;2;essentiel
+HP;rh;ISS_RH_PHARM;Pharmacien;1;recommande
+HR;rh;ISS_RH_PHARM;Pharmacien;1;recommande
+HN;rh;ISS_RH_PHARM;Pharmacien;1;recommande
+HP;equipement;ISS_EQUI_TABLE_OP;Table opératoire fonctionnelle;1;essentiel
+HR;equipement;ISS_EQUI_TABLE_OP;Table opératoire fonctionnelle;1;essentiel
+HN;equipement;ISS_EQUI_TABLE_OP;Table opératoire fonctionnelle;1;essentiel
+HP;equipement;ISS_EQUI_LIT;Lits d'hospitalisation fonctionnels;30;essentiel
+HR;equipement;ISS_EQUI_LIT;Lits d'hospitalisation fonctionnels;80;essentiel
+HN;equipement;ISS_EQUI_LIT;Lits d'hospitalisation fonctionnels;150;essentiel
+HP;equipement;ISS_EQUI_AMBULANCE;Ambulance fonctionnelle;1;essentiel
+HR;equipement;ISS_EQUI_AMBULANCE;Ambulance fonctionnelle;1;essentiel
+HN;equipement;ISS_EQUI_AMBULANCE;Ambulance fonctionnelle;1;essentiel
+HP;equipement;ISS_EQUI_FRIGO;Réfrigérateur fonctionnel;1;essentiel
+HR;equipement;ISS_EQUI_FRIGO;Réfrigérateur fonctionnel;1;essentiel
+HN;equipement;ISS_EQUI_FRIGO;Réfrigérateur fonctionnel;1;essentiel
+HP;equipement;ISS_EQUI_MICROSCOPE;Microscope fonctionnel;1;essentiel
+HR;equipement;ISS_EQUI_MICROSCOPE;Microscope fonctionnel;1;essentiel
+HN;equipement;ISS_EQUI_MICROSCOPE;Microscope fonctionnel;1;essentiel
+HP;equipement;ISS_EQUI_STERIL;Matériel de stérilisation fonctionnel;1;essentiel
+HR;equipement;ISS_EQUI_STERIL;Matériel de stérilisation fonctionnel;1;essentiel
+HN;equipement;ISS_EQUI_STERIL;Matériel de stérilisation fonctionnel;1;essentiel
+HP;equipement;ISS_EQUI_GENERATEUR;Générateur fonctionnel;1;essentiel
+HR;equipement;ISS_EQUI_GENERATEUR;Générateur fonctionnel;1;essentiel
+HN;equipement;ISS_EQUI_GENERATEUR;Générateur fonctionnel;1;essentiel
+HP;equipement;ISS_EQUI_ECHO;Échographe fonctionnel;1;recommande
+HR;equipement;ISS_EQUI_ECHO;Échographe fonctionnel;1;essentiel
+HN;equipement;ISS_EQUI_ECHO;Échographe fonctionnel;1;essentiel
+HP;equipement;ISS_EQUI_RADIO;Appareil de radiologie fonctionnel;1;recommande
+HR;equipement;ISS_EQUI_RADIO;Appareil de radiologie fonctionnel;1;essentiel
+HN;equipement;ISS_EQUI_RADIO;Appareil de radiologie fonctionnel;1;essentiel
+HP;equipement;ISS_EQUI_OXYGENE;Extracteur d'oxygène fonctionnel;1;recommande
+HR;equipement;ISS_EQUI_OXYGENE;Extracteur d'oxygène fonctionnel;1;recommande
+HN;equipement;ISS_EQUI_OXYGENE;Extracteur d'oxygène fonctionnel;1;recommande
+HR;equipement;ISS_EQUI_SCANNER;Scanner fonctionnel;1;recommande
+HN;equipement;ISS_EQUI_SCANNER;Scanner fonctionnel;1;essentiel
+HP;infra;ISS_INFRA_BLOC_OP_DE;Bloc opératoire;1;essentiel
+HR;infra;ISS_INFRA_BLOC_OP_DE;Bloc opératoire;1;essentiel
+HN;infra;ISS_INFRA_BLOC_OP_DE;Bloc opératoire;1;essentiel
+HP;infra;ISS_INFRA_BANQUE_SANG_DE;Banque de sang;1;essentiel
+HR;infra;ISS_INFRA_BANQUE_SANG_DE;Banque de sang;1;essentiel
+HN;infra;ISS_INFRA_BANQUE_SANG_DE;Banque de sang;1;essentiel
+HP;infra;ISS_INFRA_LABO_DE;Salle de laboratoire;1;essentiel
+HR;infra;ISS_INFRA_LABO_DE;Salle de laboratoire;1;essentiel
+HN;infra;ISS_INFRA_LABO_DE;Salle de laboratoire;1;essentiel
+HP;infra;ISS_INFRA_SALLE_HOSP_DE;Salle d'hospitalisation;1;essentiel
+HR;infra;ISS_INFRA_SALLE_HOSP_DE;Salle d'hospitalisation;1;essentiel
+HN;infra;ISS_INFRA_SALLE_HOSP_DE;Salle d'hospitalisation;1;essentiel
+HP;infra;ISS_INFRA_MORGUE_DE;Morgue;1;essentiel
+HR;infra;ISS_INFRA_MORGUE_DE;Morgue;1;essentiel
+HN;infra;ISS_INFRA_MORGUE_DE;Morgue;1;essentiel
+HR;service;ISS_SVC_ORL_DE;Service ORL;1;recommande
+HN;service;ISS_SVC_ORL_DE;Service ORL;1;recommande
+HR;service;ISS_SVC_OPHTALMO_DE;Service ophtalmologie;1;recommande
+HN;service;ISS_SVC_OPHTALMO_DE;Service ophtalmologie;1;recommande
+HR;service;ISS_SVC_DENTAIRE_DE;Cabinet dentaire;1;recommande
+HN;service;ISS_SVC_DENTAIRE_DE;Cabinet dentaire;1;recommande
+HN;service;ISS_SVC_CARDIO_DE;Service cardiologie;1;recommande
+HN;service;ISS_SVC_NEURO_DE;Service neurologique;1;recommande
+HN;service;ISS_SVC_UROLOGIE_DE;Service urologie;1;recommande
+HN;service;ISS_SVC_HEMODIALYSE_DE;Service d'hémodialyse;1;recommande
+HN;service;ISS_SVC_SOINS_INTENSIFS_DE;Service soins intensifs;1;recommande
+*;infra;ISS_INFRA_LATRINES_DE;Latrines;1;essentiel
+*;service;ISS_SVC_PHARMACIE_DE;Pharmacie / point de vente;1;recommande

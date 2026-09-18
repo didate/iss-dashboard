@@ -230,4 +230,30 @@ CREATE TABLE IF NOT EXISTS snapshot_blob (
     json            BLOB NOT NULL,
     built_at        TEXT NOT NULL
 );
+
+-- Normes (palier 2) ------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS norme_set (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    name            TEXT NOT NULL,
+    version         INTEGER NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'draft',
+    notes           TEXT DEFAULT '',
+    created_at      TEXT NOT NULL,
+    created_by      TEXT DEFAULT '',
+    activated_at    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS norme_rule (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    set_id          INTEGER NOT NULL REFERENCES norme_set(id) ON DELETE CASCADE,
+    type_code       TEXT NOT NULL,
+    kind            TEXT NOT NULL,
+    target          TEXT NOT NULL,
+    label           TEXT NOT NULL,
+    min_value       REAL NOT NULL DEFAULT 1,
+    level           TEXT NOT NULL DEFAULT 'essentiel',
+    UNIQUE (set_id, type_code, kind, target)
+);
+CREATE INDEX IF NOT EXISTS idx_norme_rule_set ON norme_rule(set_id);
 `

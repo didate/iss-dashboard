@@ -44,6 +44,8 @@ func SetupRouter(cfg *config.Config, st *store.Store, client *dhis2.Client) *gin
 		pub.GET("/summary", ph.GetSummary)
 	}
 
+	normesH := &NormesHandlers{Store: st}
+
 	// Public/protected read endpoints
 	read := api.Group("")
 	read.Use(DashboardAuth(cfg.DashboardPublic, jwtSecret, st))
@@ -76,6 +78,8 @@ func SetupRouter(cfg *config.Config, st *store.Store, client *dhis2.Client) *gin
 		read.GET("/map/geo", gh.GetMapGeo)
 		read.GET("/map/points", gh.GetMapPoints)
 
+		read.GET("/meta/normes", normesH.Active)
+
 		pdfH := &PDFHandlers{Store: st}
 		read.GET("/export/pdf", pdfH.ExportDistrictPDF)
 		read.GET("/export/pdf/structure/:uid", pdfH.ExportStructurePDF)
@@ -100,6 +104,20 @@ func SetupRouter(cfg *config.Config, st *store.Store, client *dhis2.Client) *gin
 		admin.GET("/users", auth.ListUsers)
 		admin.POST("/users", auth.CreateUser)
 		admin.DELETE("/users/:id", auth.DeleteUser)
+
+		// Référentiel de normes (palier 2)
+		admin.GET("/normes", normesH.List)
+		admin.POST("/normes", normesH.Create)
+		admin.GET("/normes/targets", normesH.Targets)
+		admin.POST("/normes/recompute", normesH.RecomputeNow)
+		admin.PUT("/normes/:id", normesH.Update)
+		admin.DELETE("/normes/:id", normesH.Delete)
+		admin.POST("/normes/:id/duplicate", normesH.Duplicate)
+		admin.POST("/normes/:id/activate", normesH.Activate)
+		admin.GET("/normes/:id/rules", normesH.GetRules)
+		admin.PUT("/normes/:id/rules", normesH.PutRules)
+		admin.POST("/normes/:id/rules/import", normesH.ImportRules)
+		admin.GET("/normes/:id/rules/export.csv", normesH.ExportRules)
 	}
 
 	// Serve the embedded React SPA (built Vite output) under the same base path.
