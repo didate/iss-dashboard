@@ -203,10 +203,11 @@ func (s *Store) getIssuesForEvent(eventUID string) ([]models.Issue, error) {
 // --- Event Detail ---
 
 type EventDetail struct {
-	Event   models.Event         `json:"event"`
-	Values  []EventValueDisplay  `json:"values"`
-	Issues  []models.Issue       `json:"issues"`
-	Quality *models.EventQuality `json:"quality"`
+	Event      models.Event         `json:"event"`
+	Values     []EventValueDisplay  `json:"values"`
+	Issues     []models.Issue       `json:"issues"`
+	Quality    *models.EventQuality `json:"quality"`
+	Conformite *EventConformite     `json:"conformite"` // nil = pas de référentiel actif / non évalué
 }
 
 type EventValueDisplay struct {
@@ -377,7 +378,8 @@ func (s *Store) GetEventDetail(eventUID string) (*EventDetail, error) {
 		return nil, err
 	}
 
-	return &EventDetail{Event: evt, Values: values, Issues: issues, Quality: &eq}, nil
+	conf, _ := s.GetEventConformite(eventUID)
+	return &EventDetail{Event: evt, Values: values, Issues: issues, Quality: &eq, Conformite: conf}, nil
 }
 
 // --- Usage queries ---

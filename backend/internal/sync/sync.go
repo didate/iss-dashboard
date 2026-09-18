@@ -236,6 +236,11 @@ func RunSync(st *store.Store, client *dhis2.Client, opts Options) (*models.SyncR
 		return finishErr(fmt.Sprintf("persist data: %v", err))
 	}
 
+	// Step 8: conformity to the active norms referential (reads back from SQLite; not fatal)
+	if err := RecomputeConformite(st); err != nil {
+		log.Printf("[SYNC] WARN: conformité non recalculée : %v", err)
+	}
+
 	duration := time.Since(start).Milliseconds()
 	if err := st.FinishSyncRun(syncRunID, "success", len(events), totalIssues, duration, ""); err != nil {
 		log.Printf("[SYNC] WARN: finish sync run: %v", err)

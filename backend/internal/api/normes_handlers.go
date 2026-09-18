@@ -293,5 +293,6 @@ func (h *NormesHandlers) Active(c *gin.Context) {
 		internalError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"active": ns})
+	run, _ := h.Store.GetConformiteRun()
+	c.JSON(http.StatusOK, gin.H{"active": ns, "last_run": run})
 }

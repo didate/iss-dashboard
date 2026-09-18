@@ -44,7 +44,8 @@ func SetupRouter(cfg *config.Config, st *store.Store, client *dhis2.Client) *gin
 		pub.GET("/summary", ph.GetSummary)
 	}
 
-	normesH := &NormesHandlers{Store: st}
+	normesH := &NormesHandlers{Store: st, Recompute: func() error { return syncer.RecomputeConformite(st) }}
+	confH := &ConformiteHandlers{Store: st}
 
 	// Public/protected read endpoints
 	read := api.Group("")
@@ -79,6 +80,9 @@ func SetupRouter(cfg *config.Config, st *store.Store, client *dhis2.Client) *gin
 		read.GET("/map/points", gh.GetMapPoints)
 
 		read.GET("/meta/normes", normesH.Active)
+		read.GET("/conformite/summary", confH.GetSummary)
+		read.GET("/conformite/gaps", confH.GetGaps)
+		read.GET("/conformite/structures", confH.GetStructures)
 
 		pdfH := &PDFHandlers{Store: st}
 		read.GET("/export/pdf", pdfH.ExportDistrictPDF)

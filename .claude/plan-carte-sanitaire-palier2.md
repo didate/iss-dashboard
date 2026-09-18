@@ -246,7 +246,7 @@ README.md               section « Normes et conformité » (cycle brouillon →
 | Lot | Contenu | Vérification |
 |---|---|---|
 | **A — Référentiel** ✅ | tables, CRUD, import/export CSV avec validation des cibles, catalogue des cibles, tests | `curl` : créer, importer l'exemple (212 règles, 0 erreur contre le catalogue réel), exporter, dupliquer, activer, supprimer un brouillon, validation PUT, 401 sans droit |
-| **B — Évaluation** | `normes.Evaluate`, agrégats, `RecomputeConformite`, hook dans RunSync, endpoints de lecture, tests | recalcul sur la base réelle avec le CSV d'exemple : distribution des scores, écarts par district plausibles |
+| **B — Évaluation** ✅ | `normes.Evaluate`, agrégats, `RecomputeConformite`, hook dans RunSync, endpoints de lecture, tests | recalcul réel : 212 règles, 3 097 structures évaluées en 1,1 s, 409 conformes ; PS 70 (8 % conformes), CS 86 (37 %), HP 87 (7 %) ; écarts par district cohérents (Kankan CS : 19/28 sans médecin) ; détail HN Donka |
 | **C — Front** | onglet Admin Normes, page Conformité, couche carte, détail structure, KPI | parcours : importer → activer → lire les écarts d'un district → ouvrir une structure |
 | **D — Doc** | README, CSV d'exemple annoté | relecture |
 

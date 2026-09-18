@@ -256,4 +256,71 @@ CREATE TABLE IF NOT EXISTS norme_rule (
     UNIQUE (set_id, type_code, kind, target)
 );
 CREATE INDEX IF NOT EXISTS idx_norme_rule_set ON norme_rule(set_id);
+
+CREATE TABLE IF NOT EXISTS conformite_item (
+    event_uid       TEXT NOT NULL,
+    rule_id         INTEGER NOT NULL,
+    type_code       TEXT DEFAULT '',
+    kind            TEXT NOT NULL,
+    target          TEXT NOT NULL,
+    label           TEXT NOT NULL,
+    level           TEXT NOT NULL,
+    expected        REAL NOT NULL,
+    observed        REAL,
+    status          TEXT NOT NULL,
+    PRIMARY KEY (event_uid, rule_id)
+);
+
+CREATE TABLE IF NOT EXISTS event_conformite (
+    event_uid       TEXT PRIMARY KEY,
+    set_id          INTEGER NOT NULL,
+    n_rules         INTEGER DEFAULT 0,
+    n_ok            INTEGER DEFAULT 0,
+    n_manque        INTEGER DEFAULT 0,
+    n_inconnu       INTEGER DEFAULT 0,
+    n_manque_essentiel INTEGER DEFAULT 0,
+    score           REAL,
+    conforme        INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS conformite_summary (
+    dimension       TEXT NOT NULL,
+    key             TEXT NOT NULL,
+    label           TEXT DEFAULT '',
+    type_code       TEXT NOT NULL DEFAULT '',
+    n_structures    INTEGER DEFAULT 0,
+    n_evaluees      INTEGER DEFAULT 0,
+    avg_score       REAL,
+    n_conformes     INTEGER DEFAULT 0,
+    pct_conformes   REAL,
+    PRIMARY KEY (dimension, key, type_code)
+);
+
+CREATE TABLE IF NOT EXISTS conformite_gap (
+    dimension       TEXT NOT NULL,
+    key             TEXT NOT NULL,
+    type_code       TEXT NOT NULL,
+    kind            TEXT NOT NULL,
+    target          TEXT NOT NULL,
+    label           TEXT DEFAULT '',
+    level           TEXT DEFAULT '',
+    n_concernees    INTEGER DEFAULT 0,
+    n_manque        INTEGER DEFAULT 0,
+    n_inconnu       INTEGER DEFAULT 0,
+    deficit         REAL DEFAULT 0,
+    PRIMARY KEY (dimension, key, type_code, kind, target)
+);
+CREATE INDEX IF NOT EXISTS idx_conf_gap_dim ON conformite_gap(dimension, key);
+
+-- Trace du dernier recalcul de conformité
+CREATE TABLE IF NOT EXISTS conformite_run (
+    id              INTEGER PRIMARY KEY CHECK (id = 1),
+    set_id          INTEGER,
+    set_version     INTEGER,
+    n_rules         INTEGER,
+    n_structures    INTEGER,
+    n_evaluees      INTEGER,
+    n_conformes     INTEGER,
+    computed_at     TEXT
+);
 `

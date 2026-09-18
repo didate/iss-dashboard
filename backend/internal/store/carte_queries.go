@@ -497,6 +497,9 @@ type MapGeoProperties struct {
 	// Ratios pour 10 000 hab. par indicateur de couverture (lits, medecins, sages_femmes, …)
 	Ratios     map[string]*float64 `json:"ratios"`
 	Numerators map[string]float64  `json:"numerators"`
+	// Conformité aux normes (nil sans référentiel actif)
+	ConformiteScore *float64 `json:"conformite_score"`
+	PctConformes    *float64 `json:"pct_conformes"`
 }
 
 type MapGeoFeature struct {
@@ -566,6 +569,11 @@ func (s *Store) GetMapGeo(level int) (*MapGeoCollection, error) {
 		return nil, err
 	}
 
+	conformite, err := s.ConformiteByOrgUnit(level)
+	if err != nil {
+		return nil, err
+	}
+
 	fc := &MapGeoCollection{Type: "FeatureCollection", Features: []MapGeoFeature{}}
 	for _, g := range units {
 		geom, ok := geoms[g.OrgUnitUID]
@@ -573,6 +581,9 @@ func (s *Store) GetMapGeo(level int) (*MapGeoCollection, error) {
 			continue
 		}
 		props := MapGeoProperties{UsageGeo: g, Ratios: ratios[g.OrgUnitUID], Numerators: numerators[g.OrgUnitUID]}
+		if cf, ok := conformite[g.Name]; ok {
+			props.ConformiteScore, props.PctConformes = cf.AvgScore, cf.PctConforme
+		}
 		if props.Ratios == nil {
 			props.Ratios = map[string]*float64{}
 			props.Numerators = map[string]float64{}
