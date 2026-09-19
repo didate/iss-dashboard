@@ -38,12 +38,12 @@ cp .env.example .env
 cd backend
 go mod tidy
 go run .
-# Le backend ecoute sur http://localhost:8080
+# Le backend ecoute sur http://localhost:8081 (PORT dans .env ; 8080 est souvent pris par une autre appli)
 
 # 2. Frontend (dans un autre terminal)
 cd frontend
 npm install
-VITE_API_BASE_URL=http://localhost:8080/iss npm run dev
+VITE_API_BASE_URL=http://localhost:8081/iss npm run dev
 # Le frontend ecoute sur http://localhost:3000/iss/
 ```
 
@@ -126,8 +126,8 @@ La fiche publique est volontairement **reduite** : pas de RH, pas d'equipements 
 | `SYNC_CRON` | Expression cron pour la synchro auto | `0 */6 * * *` |
 | `ADMIN_TOKEN` | Mot de passe du compte admin par defaut | — |
 | `DASHBOARD_PUBLIC` | `true` = tout lisible sans auth (dev), `false` = espace planification derriere JWT ; `/api/public/*` reste toujours ouvert | `true` |
-| `PORT` | Port du backend | `8080` |
-| `VITE_API_BASE_URL` | URL du backend **avec le prefixe `/iss`** (build-time frontend) | `http://localhost:8080` |
+| `PORT` | Port du backend (en Docker, le conteneur reste sur 8080 : `docker-compose*.yml`) | `8081` |
+| `VITE_API_BASE_URL` | URL du backend **avec le prefixe `/iss`** (build-time frontend) | `http://localhost:8081/iss` |
 
 ### Carte sanitaire (UIDs et noms propres a l'instance DHIS2)
 
@@ -327,7 +327,7 @@ Connectez-vous en admin → page **Admin** → bouton **Export Excel**. Le fichi
 pip3 install openpyxl
 
 # Lancer une synchro puis exporter
-curl -X POST http://localhost:8080/iss/api/admin/sync -H "Authorization: Bearer <token>"
+curl -X POST http://localhost:8081/iss/api/admin/sync -H "Authorization: Bearer <token>"
 python3 scripts/export_excel.py
 ```
 

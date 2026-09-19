@@ -26,7 +26,7 @@ import type {
   UsageCouverture,
 } from '../types';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/iss';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = getToken();
