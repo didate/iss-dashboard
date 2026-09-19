@@ -118,7 +118,7 @@ export default function PublicMap() {
         lat: f.geometry.coordinates[1],
         lng: f.geometry.coordinates[0],
         color: typeColor(f.properties.type),
-        popup: popupHtml(f.properties),
+        popup: () => popupHtml(f.properties),
       })),
     [visibleFeatures],
   );

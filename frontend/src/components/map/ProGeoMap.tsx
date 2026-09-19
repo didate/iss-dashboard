@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MapContainer, GeoJSON, TileLayer } from 'react-leaflet';
+import GeoLabels from './GeoLabels';
 import type { Layer, PathOptions } from 'leaflet';
 import type { Feature, Geometry } from 'geojson';
 import { api } from '../../api/client';
@@ -60,6 +61,14 @@ function rampColor(v: number | null, breaks: number[]): string {
   if (v === null || v === undefined) return GREY;
   for (let i = 0; i < breaks.length; i++) if (v <= breaks[i]) return RAMP[i];
   return RAMP[RAMP.length - 1];
+}
+
+function formatMetric(v: number | null, key: string): string {
+  if (v === null) return '—';
+  if (key === 'pct_gps' || key === 'pct_conformes') return `${v.toFixed(0)}%`;
+  if (key === 'n_structures') return String(Math.round(v));
+  if (key === 'avg_score' || key === 'conformite_score') return v.toFixed(0);
+  return v.toFixed(2);
 }
 
 function metricValue(p: MapGeoFeature['properties'], key: string): number | null {
@@ -155,7 +164,7 @@ export default function ProGeoMap({ mode }: Props) {
           lat: f.geometry.coordinates[1],
           lng: f.geometry.coordinates[0],
           color: scoreColor(p.score),
-          popup: `
+          popup: () => `
             <div style="min-width:180px;font-size:12px">
               <div style="font-weight:600;font-size:13px">${escapeHtml(p.name)}</div>
               <div style="color:#374151">${escapeHtml(p.type_label)} · ${escapeHtml(p.district)}</div>
@@ -218,12 +227,19 @@ export default function ProGeoMap({ mode }: Props) {
             <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           )}
           {mode === 'gps' && geo && (
-            <GeoJSON
-              key={`${level}-${metric}-${breaks.join(',')}`}
-              data={geo as unknown as GeoJSON.FeatureCollection}
-              style={style as (f?: Feature) => PathOptions}
-              onEachFeature={onEachFeature as (f: Feature, l: Layer) => void}
-            />
+            <>
+              <GeoJSON
+                key={`${level}-${metric}-${breaks.join(',')}`}
+                data={geo as unknown as GeoJSON.FeatureCollection}
+                style={style as (f?: Feature) => PathOptions}
+                onEachFeature={onEachFeature as (f: Feature, l: Layer) => void}
+              />
+              <GeoLabels
+                features={geo.features}
+                minZoom={level === '4' ? 9 : 0}
+                text={(p) => formatMetric(metricValue(p, metric), metric)}
+              />
+            </>
           )}
           {mode === 'points' && points && <ClusterLayer points={markers} cluster={cluster} />}
         </MapContainer>
