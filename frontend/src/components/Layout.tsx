@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, ShieldAlert, BarChart3, Building2, ArrowLeftRight, Map, MapPin, Settings, LogOut, User, Menu, X, Globe, ClipboardCheck, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, ShieldAlert, BarChart3, Building2, ArrowLeftRight, Map, MapPin, Settings, LogOut, User, Menu, X, Globe, ClipboardCheck } from 'lucide-react';
+import PrototypeBanner from './PrototypeBanner';
 import type { AuthUser } from '../api/auth';
 
 const navItems = [
@@ -120,13 +121,7 @@ export default function Layout({ user, onLogout }: Props) {
         )}
       </header>
 
-      {/* Bandeau prototype : retirer quand les données et le référentiel de normes seront validés par le MSHP */}
-      <div className="shrink-0 bg-amber-50 border-b border-amber-200 text-amber-900 text-xs px-4 py-1.5 flex items-center gap-2">
-        <AlertTriangle size={14} className="shrink-0" />
-        <span>
-          <strong>Prototype</strong> — données du recensement ISS en cours de validation ; le référentiel de normes utilisé pour la conformité est un exemple non officiel. Les indicateurs ne constituent pas une position du Ministère.
-        </span>
-      </div>
+      <PrototypeBanner />
 
       {/* Main content */}
       <main className="flex-1 overflow-auto bg-gray-50 p-3 sm:p-6">

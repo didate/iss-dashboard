@@ -106,8 +106,8 @@ La fiche publique est volontairement **reduite** : pas de detail RH ni d'equipem
 ### Espace planification
 
 Ouvert en lecture quand `DASHBOARD_PUBLIC=true` (choix actuel, phase prototype) avec deux garde-fous : un bandeau
-« Prototype » en tete de chaque page (`frontend/src/components/Layout.tsx`, a retirer quand le MSHP aura valide
-donnees et normes) et le masquage du nom / telephone du responsable dans le detail et le PDF d'une structure pour
+« Prototype » en tete de chaque page des deux espaces (`frontend/src/components/PrototypeBanner.tsx`, a retirer quand le
+MSHP aura valide donnees et normes) et le masquage du nom / telephone du responsable dans le detail et le PDF d'une structure pour
 les lecteurs non connectes (`store.StripPersonalValues`, codes `ISS_GEN_NOM_RESP_DE` / `ISS_GEN_TEL_RESP_DE`).
 
 | Page | Description |

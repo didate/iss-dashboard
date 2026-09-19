@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { MapPin, Info, LockKeyhole, List, LayoutDashboard } from 'lucide-react';
 import { publicApi } from '../api/public';
+import PrototypeBanner from './PrototypeBanner';
 
 interface Props {
   isLoggedIn: boolean;
@@ -59,6 +60,8 @@ export default function PublicLayout({ isLoggedIn }: Props) {
           </nav>
         </div>
       </header>
+
+      <PrototypeBanner />
 
       <main className="flex-1 min-h-0 overflow-auto">
         <Outlet />
