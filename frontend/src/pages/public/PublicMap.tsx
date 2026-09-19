@@ -86,7 +86,7 @@ export default function PublicMap() {
   const [focus, setFocus] = useState<{ uid: string; nonce: number } | null>(null);
   const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
   const [clusterParam, setClusterParam] = useUrlState('cluster');
-  const cluster = clusterParam !== 'off';
+  const cluster = clusterParam === 'on'; // désactivé par défaut ; ?cluster=on pour regrouper
 
   // Chargement unique : points (cache navigateur), filtres, résumé.
   useEffect(() => {
@@ -346,7 +346,7 @@ export default function PublicMap() {
             <input
               type="checkbox"
               checked={cluster}
-              onChange={(e) => setClusterParam(e.target.checked ? '' : 'off')}
+              onChange={(e) => setClusterParam(e.target.checked ? 'on' : '')}
               className="accent-emerald-600"
             />
             Regrouper les points

@@ -85,7 +85,7 @@ const METRICS: Metric[] = [
 const POINTS_HELP = [
   'Chaque cercle est une structure géolocalisée (dernier recensement), colorée par son score qualité des données : vert ≥ 80, jaune 65–80, orange 50–65, rouge < 50.',
   'Le score mesure la fiabilité de la saisie ISS (règles R1–R18), pas l\'état de la structure. Clic sur un point → score et nombre de problèmes → détail.',
-  'Les structures sans coordonnées GPS ne sont pas représentées (voir la page GPS). Le regroupement en clusters est désactivable.',
+  'Les structures sans coordonnées GPS ne sont pas représentées (voir la page GPS). Le regroupement en clusters est optionnel (case « Regrouper les points »).',
 ];
 
 const GREY = '#d1d5db';
@@ -147,7 +147,7 @@ export default function ProGeoMap({ mode }: Props) {
   const [level, setLevel] = useUrlState('level', '3');
   const [metric, setMetric] = useUrlState('metric', 'pct_gps');
   const [clusterParam, setClusterParam] = useUrlState('cluster');
-  const cluster = clusterParam !== 'off';
+  const cluster = clusterParam === 'on'; // désactivé par défaut ; ?cluster=on pour regrouper
 
   const [geo, setGeo] = useState<MapGeoCollection | null>(null);
   const [points, setPoints] = useState<ProPointCollection | null>(null);
@@ -280,7 +280,7 @@ export default function ProGeoMap({ mode }: Props) {
         )}
         {mode === 'points' && (
           <label className="flex items-center gap-1.5 text-sm text-gray-700">
-            <input type="checkbox" checked={cluster} onChange={(e) => setClusterParam(e.target.checked ? '' : 'off')} className="accent-blue-600" />
+            <input type="checkbox" checked={cluster} onChange={(e) => setClusterParam(e.target.checked ? 'on' : '')} className="accent-blue-600" />
             Regrouper les points
             {points && <span className="text-xs text-gray-400 ml-2">{points.features.length.toLocaleString('fr-FR')} structures géolocalisées</span>}
           </label>
