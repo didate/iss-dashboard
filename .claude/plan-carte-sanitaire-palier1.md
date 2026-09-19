@@ -4,7 +4,9 @@
 > Décisions verrouillées avec l'utilisateur (17 sept. 2026) :
 > - Deux publics : **grand public** (sans login) et **planificateurs** MSHP/DRS/DPS (login existant).
 > - Fiche publique **réduite (option B)** : identité, type, statut, localisation, rattachement, services offerts.
->   Pas de RH, pas d'équipements chiffrés, pas de nom/téléphone du responsable, pas de qualité.
+>   Pas de RH détaillées, pas d'équipements chiffrés, pas de nom/téléphone du responsable, pas de qualité.
+>   Amendement du 19/09 : agrégats RH (total, médecins, soignants), eau/énergie et score « 7 services principaux »
+>   ajoutés au popup et à la fiche, sur le modèle du popup MFL de la carte OpenHEXA.
 > - Structures privées visibles du public.
 > - Normes/écarts (palier 2) et accessibilité routière (palier 3) hors périmètre ici.
 

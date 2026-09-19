@@ -296,7 +296,34 @@ func (s *Store) GetPublicStructure(ouUID string) (*models.PublicStructure, error
 		}
 	}
 	sort.Slice(ps.Services, func(i, j int) bool { return ps.Services[i].Label < ps.Services[j].Label })
-	return ps, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Agrégats calculés au sync (mêmes chiffres que le popup de la carte)
+	var rhT, rhM, rhS, eau, en, sc sql.NullInt64
+	err = s.db.QueryRow(`SELECT niveau, rh_total, rh_medecins, rh_soignants, eau, energie, score_services, score_services_max FROM public_extra WHERE ou_uid = ?`, ouUID).
+		Scan(&ps.Niveau, &rhT, &rhM, &rhS, &eau, &en, &sc, &ps.ScoreServicesN)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	toInt := func(v sql.NullInt64) *int {
+		if !v.Valid {
+			return nil
+		}
+		i := int(v.Int64)
+		return &i
+	}
+	toBool := func(v sql.NullInt64) *bool {
+		if !v.Valid {
+			return nil
+		}
+		b := v.Int64 == 1
+		return &b
+	}
+	ps.RhTotal, ps.RhMedecins, ps.RhSoignants = toInt(rhT), toInt(rhM), toInt(rhS)
+	ps.Eau, ps.Energie, ps.ScoreServices = toBool(eau), toBool(en), toInt(sc)
+	return ps, nil
 }
 
 func (s *Store) GetPublicSummary() (*models.PublicSummary, error) {

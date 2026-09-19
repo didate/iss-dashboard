@@ -207,7 +207,7 @@ func RunSync(st *store.Store, client *dhis2.Client, opts Options) (*models.SyncR
 	popIndex := usage.BuildPopulationIndex(population)
 	usageGeo := usage.ComputeGeo(eventPtrs, orgUnits, eventQualities, popIndex)
 	usageCouverture := usage.ComputeCouverture(eventPtrs, orgUnits, ctx, popIndex)
-	blobs, err := usage.BuildPublicSnapshot(eventPtrs, ctx)
+	blobs, publicExtras, err := usage.BuildPublicSnapshot(eventPtrs, ctx, orgUnits)
 	if err != nil {
 		return finishErr(fmt.Sprintf("build public snapshot: %v", err))
 	}
@@ -230,6 +230,7 @@ func RunSync(st *store.Store, client *dhis2.Client, opts Options) (*models.SyncR
 		UsageGeo:         usageGeo,
 		UsageCouverture:  usageCouverture,
 		Blobs:            blobs,
+		PublicExtras:     publicExtras,
 	}
 
 	if err := st.PersistSyncData(syncRunID, data); err != nil {

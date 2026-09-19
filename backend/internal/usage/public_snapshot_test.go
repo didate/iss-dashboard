@@ -33,7 +33,7 @@ func TestBuildPublicSnapshot_ReducedProjection(t *testing.T) {
 		}}
 	noGPS := &models.Event{EventUID: "e2", OrgUnitUID: "ou2", OrgUnitName: "PS Beta", EventDate: "2025-06-01", Region: "R", District: "D2", TypeCode: "PS"}
 
-	blobs, err := BuildPublicSnapshot([]*models.Event{old, recent, noGPS}, ctx)
+	blobs, extras, err := BuildPublicSnapshot([]*models.Event{old, recent, noGPS}, ctx, []models.OrgUnit{{UID: "ou1", Level: 5}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,10 +53,21 @@ func TestBuildPublicSnapshot_ReducedProjection(t *testing.T) {
 		t.Fatalf("services must list only 'oui' with short keys, got %v (the older event said non)", p.Services)
 	}
 	raw := string(blobs[BlobPublicPoints])
-	for _, secret := range []string{"Dr Secret", "rhInf", "\"12\""} {
+	for _, secret := range []string{"Dr Secret", "rhInf"} {
 		if strings.Contains(raw, secret) {
 			t.Fatalf("public payload leaks %q", secret)
 		}
+	}
+	// Agrégats publics : effectif RH total (12 infirmiers), niveau, score de services (maternité n'en fait pas partie)
+	if p.Niveau != 5 || p.RhTotal == nil || *p.RhTotal != 12 || *p.RhSoignants != 12 || *p.RhMedecins != 0 {
+		t.Fatalf("extras: %+v", p.PublicExtras)
+	}
+	// Labo (service principal) répondu « prévu mais non fonctionnel » → score 0 / 7
+	if p.ScoreServices == nil || *p.ScoreServices != 0 || p.ScoreServicesN != 7 {
+		t.Fatalf("score services: %v / %d", p.ScoreServices, p.ScoreServicesN)
+	}
+	if len(extras) != 2 {
+		t.Fatalf("one extras row per org unit, got %d", len(extras))
 	}
 	var geom struct {
 		Coordinates []float64 `json:"coordinates"`

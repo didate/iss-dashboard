@@ -399,6 +399,21 @@ type PublicPointProperties struct {
 	District       string   `json:"district"`
 	SousPrefecture string   `json:"sp"`
 	Services       []string `json:"svc"` // short service keys declared "oui"
+	PublicExtras
+}
+
+// PublicExtras are the aggregate figures shown in the public popup / fiche
+// (inspired by the MFL popup of the Guinea OpenHEXA map). Aggregates only —
+// never a person. Nil = not declared in ISS.
+type PublicExtras struct {
+	Niveau         int   `json:"niveau"`             // niveau de l'unité d'organisation DHIS2
+	RhTotal        *int  `json:"rh_total"`           // tous profils, tous statuts d'emploi
+	RhMedecins     *int  `json:"rh_medecins"`        // ISS_RH_MED_*
+	RhSoignants    *int  `json:"rh_soignants"`       // médecins + sages-femmes + infirmiers + ATS
+	Eau            *bool `json:"eau"`                // eau aux points critiques
+	Energie        *bool `json:"energie"`            // dispose d'une source d'énergie
+	ScoreServices  *int  `json:"score_services"`     // nb de services principaux fonctionnels
+	ScoreServicesN int   `json:"score_services_max"` // taille du panier de services principaux
 }
 
 type PublicPointFeature struct {
@@ -432,6 +447,13 @@ type PublicFilters struct {
 	Districts []PublicFilterDistrict `json:"districts"`
 }
 
+// PublicExtrasRow persists the extras per org unit (table public_extra), so the
+// public fiche shows the same figures as the popup without recomputing.
+type PublicExtrasRow struct {
+	OrgUnitUID string
+	PublicExtras
+}
+
 // PublicStructure is the reduced public record (fiche) of one structure.
 type PublicStructure struct {
 	UID            string          `json:"uid"`
@@ -449,6 +471,7 @@ type PublicStructure struct {
 	Services       []PublicService `json:"services"`
 	Plateau        map[string]bool `json:"plateau"` // labo, maternite, imagerie, urgences, pharmacie, chirurgie
 	RecenseLe      string          `json:"recense_le"`
+	PublicExtras
 }
 
 // PublicStructureItem is one public search result.

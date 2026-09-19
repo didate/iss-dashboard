@@ -101,7 +101,7 @@ La synchro est aussi lancee automatiquement par le scheduler (par defaut toutes 
 | **Annuaire** (`/annuaire`) | Registre en tableau, memes filtres que la carte, pagine, **export CSV** (open data) avec les filtres actifs. |
 | **A propos** (`/a-propos`) | Sources, chiffres cles, limites. |
 
-La fiche publique est volontairement **reduite** : pas de RH, pas d'equipements chiffres, pas de nom/telephone du responsable, pas de qualite. Cette frontiere est garantie par l'API (`/api/public/*` ne lit que `structure_latest` et les blobs pre-calcules) et par un test (`usage/public_snapshot_test.go`) qui verifie que le GeoJSON public ne fuit rien.
+La fiche publique est volontairement **reduite** : pas de detail RH ni d'equipements chiffres, pas de nom/telephone du responsable, pas de qualite. Elle expose des **agregats** (effectif RH total, medecins, personnel soignant, eau aux points critiques, source d'energie, score de disponibilite des 7 services principaux — curatif, CPN, accouchement, PEV, PTME, laboratoire, pharmacie), calcules au sync (`usage.ExtrasComputer`, table `public_extra`) et montres dans le popup de la carte comme dans la fiche. Cette frontiere est garantie par l'API (`/api/public/*` ne lit que `structure_latest` et les blobs pre-calcules) et par un test (`usage/public_snapshot_test.go`) qui verifie que le GeoJSON public ne fuit rien.
 
 ### Espace planification
 

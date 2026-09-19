@@ -343,6 +343,7 @@ type SyncData struct {
 	UsageGeo         []models.UsageGeo
 	UsageCouverture  []models.UsageCouverture
 	Blobs            map[string][]byte // pre-serialized public payloads, keyed by blob name
+	PublicExtras     []models.PublicExtrasRow
 }
 
 // PersistSyncData atomically replaces all derived data within a single transaction.
@@ -354,7 +355,7 @@ func (s *Store) PersistSyncData(syncRunID int64, data *SyncData) error {
 	defer tx.Rollback()
 
 	// Clear derived tables (order matters for FK)
-	for _, table := range []string{"event_value", "quality_issue", "event_quality", "quality_summary", "usage_recensement", "usage_service", "usage_equipement", "usage_rh", "usage_commodite", "reporting_rate", "population", "usage_geo", "usage_couverture", "event"} {
+	for _, table := range []string{"event_value", "quality_issue", "event_quality", "quality_summary", "usage_recensement", "usage_service", "usage_equipement", "usage_rh", "usage_commodite", "reporting_rate", "population", "usage_geo", "usage_couverture", "public_extra", "event"} {
 		res, err := tx.Exec("DELETE FROM " + table)
 		if err != nil {
 			return fmt.Errorf("clear %s: %w", table, err)
@@ -542,6 +543,27 @@ func (s *Store) PersistSyncData(syncRunID int64, data *SyncData) error {
 	for _, c := range data.UsageCouverture {
 		if _, err := covStmt.Exec(c.Dimension, c.Key, c.OrgUnitUID, c.Label, c.Indicator, c.Numerator, c.Population, c.Ratio10k); err != nil {
 			log.Printf("WARN: insert usage_couverture: %v", err)
+		}
+	}
+
+	// Public extras per org unit
+	pxStmt, err := tx.Prepare(`INSERT OR REPLACE INTO public_extra (ou_uid, niveau, rh_total, rh_medecins, rh_soignants, eau, energie, score_services, score_services_max) VALUES (?,?,?,?,?,?,?,?,?)`)
+	if err != nil {
+		return err
+	}
+	defer pxStmt.Close()
+	b2i := func(b *bool) any {
+		if b == nil {
+			return nil
+		}
+		if *b {
+			return 1
+		}
+		return 0
+	}
+	for _, x := range data.PublicExtras {
+		if _, err := pxStmt.Exec(x.OrgUnitUID, x.Niveau, x.RhTotal, x.RhMedecins, x.RhSoignants, b2i(x.Eau), b2i(x.Energie), x.ScoreServices, x.ScoreServicesN); err != nil {
+			log.Printf("WARN: insert public_extra: %v", err)
 		}
 	}
 

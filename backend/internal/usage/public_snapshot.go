@@ -54,6 +54,86 @@ func DiscoverServices(ctx *quality.QualityContext) []ServiceDE {
 	return out
 }
 
+// PublicCoreServices is the basket of « services principaux » counted in the
+// public popup score (x / 7) : the primary-care minimum package.
+var PublicCoreServices = []string{
+	"ISS_SVC_CURATIF_DE", "ISS_SVC_CPN_DE", "ISS_SVC_ACCOUCHEMENT_DE", "ISS_SVC_PEV_DE",
+	"ISS_SVC_PTME_DE", "ISS_SVC_LABO_DE", "ISS_SVC_PHARMACIE_DE",
+}
+
+// rhSoignantsPrefixes are the profile roots counted as « personnel soignant ».
+var rhSoignantsPrefixes = []string{"ISS_RH_MED_", "ISS_RH_SAGEF", "ISS_RH_INF", "ISS_RH_ATS"}
+
+// ExtrasComputer derives PublicExtras from an event; built once per sync.
+type ExtrasComputer struct {
+	rhDEs     []RHDataElement
+	levelOf   map[string]int
+	codeToUID map[string]string
+}
+
+func NewExtrasComputer(ctx *quality.QualityContext, orgUnits []models.OrgUnit) *ExtrasComputer {
+	ec := &ExtrasComputer{levelOf: make(map[string]int, len(orgUnits)), codeToUID: ctx.CodeToUID}
+	ec.rhDEs, _ = DiscoverRHProfiles(ctx)
+	for _, ou := range orgUnits {
+		ec.levelOf[ou.UID] = ou.Level
+	}
+	return ec
+}
+
+func (ec *ExtrasComputer) Compute(e *models.Event) models.PublicExtras {
+	vals := e.Values()
+	x := models.PublicExtras{Niveau: ec.levelOf[e.OrgUnitUID], ScoreServicesN: len(PublicCoreServices)}
+
+	total, med, soign, any := 0, 0, 0, false
+	for _, de := range ec.rhDEs {
+		v := strings.TrimSpace(vals[de.UID])
+		if v == "" {
+			continue
+		}
+		any = true
+		n := int(quality.ParseNum(v))
+		total += n
+		if strings.HasPrefix(de.Root, "ISS_RH_MED_") {
+			med += n
+		}
+		for _, p := range rhSoignantsPrefixes {
+			if strings.HasPrefix(de.Root, p) {
+				soign += n
+				break
+			}
+		}
+	}
+	if any {
+		x.RhTotal, x.RhMedecins, x.RhSoignants = &total, &med, &soign
+	}
+
+	boolOf := func(code string) *bool {
+		v := strings.TrimSpace(vals[ec.codeToUID[code]])
+		if v == "" {
+			return nil
+		}
+		b := quality.IsTruthy(v)
+		return &b
+	}
+	x.Eau = boolOf("ISS_EAU_DISPO_PTS_CRITIQUES")
+	x.Energie = boolOf("ISS_ENERGIE_OUI_NON_DE")
+
+	score, answered := 0, false
+	for _, code := range PublicCoreServices {
+		v := vals[ec.codeToUID[code]]
+		if v != "" {
+			answered = true
+		}
+		if v == "oui" {
+			score++
+		}
+	}
+	if answered {
+		x.ScoreServices = &score
+	}
+	return x
+}
+
 // LatestPerOrgUnit keeps the most recent event of each org unit (a structure may
 // have been censused several times; the public projection shows one record).
 func LatestPerOrgUnit(events []*models.Event) []*models.Event {
@@ -75,8 +155,10 @@ func LatestPerOrgUnit(events []*models.Event) []*models.Event {
 // BuildPublicSnapshot pre-computes the public map payloads: the GeoJSON of every
 // geolocated structure with reduced properties, and the filter lists. Returned
 // as serialized JSON keyed by blob name, ready to be stored and served with an ETag.
-func BuildPublicSnapshot(events []*models.Event, ctx *quality.QualityContext) (map[string][]byte, error) {
+func BuildPublicSnapshot(events []*models.Event, ctx *quality.QualityContext, orgUnits []models.OrgUnit) (map[string][]byte, []models.PublicExtrasRow, error) {
 	services := DiscoverServices(ctx)
+	extras := NewExtrasComputer(ctx, orgUnits)
+	var extraRows []models.PublicExtrasRow
 	structUID := ctx.CodeToUID["ISS_STATUT_STRUCT_DE"]
 	opUID := ctx.CodeToUID["ISS_STATUT_OP_DE"]
 
@@ -98,6 +180,8 @@ func BuildPublicSnapshot(events []*models.Event, ctx *quality.QualityContext) (m
 		if e.District != "" {
 			districts[e.District] = e.Region
 		}
+		ex := extras.Compute(e)
+		extraRows = append(extraRows, models.PublicExtrasRow{OrgUnitUID: e.OrgUnitUID, PublicExtras: ex})
 		if !e.HasGPS() {
 			continue
 		}
@@ -123,13 +207,14 @@ func BuildPublicSnapshot(events []*models.Event, ctx *quality.QualityContext) (m
 				District:       e.District,
 				SousPrefecture: e.SousPrefecture,
 				Services:       svc,
+				PublicExtras:   ex,
 			},
 		})
 	}
 
 	points, err := json.Marshal(models.PublicPointCollection{Type: "FeatureCollection", Features: features})
 	if err != nil {
-		return nil, fmt.Errorf("marshal public points: %w", err)
+		return nil, nil, fmt.Errorf("marshal public points: %w", err)
 	}
 
 	filters := models.PublicFilters{}
@@ -150,8 +235,8 @@ func BuildPublicSnapshot(events []*models.Event, ctx *quality.QualityContext) (m
 	sort.Slice(filters.Districts, func(i, j int) bool { return filters.Districts[i].Name < filters.Districts[j].Name })
 	filtersJSON, err := json.Marshal(filters)
 	if err != nil {
-		return nil, fmt.Errorf("marshal public filters: %w", err)
+		return nil, nil, fmt.Errorf("marshal public filters: %w", err)
 	}
 
-	return map[string][]byte{BlobPublicPoints: points, BlobPublicFilters: filtersJSON}, nil
+	return map[string][]byte{BlobPublicPoints: points, BlobPublicFilters: filtersJSON}, extraRows, nil
 }

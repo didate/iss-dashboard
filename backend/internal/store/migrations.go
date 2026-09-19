@@ -323,4 +323,17 @@ CREATE TABLE IF NOT EXISTS conformite_run (
     n_conformes     INTEGER,
     computed_at     TEXT
 );
+
+-- Agrégats publics par structure (popup / fiche) : RH, WASH, services principaux
+CREATE TABLE IF NOT EXISTS public_extra (
+    ou_uid          TEXT PRIMARY KEY,
+    niveau          INTEGER DEFAULT 0,
+    rh_total        INTEGER,
+    rh_medecins     INTEGER,
+    rh_soignants    INTEGER,
+    eau             INTEGER,
+    energie         INTEGER,
+    score_services  INTEGER,
+    score_services_max INTEGER DEFAULT 0
+);
 `

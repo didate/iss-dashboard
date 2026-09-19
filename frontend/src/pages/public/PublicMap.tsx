@@ -12,17 +12,39 @@ const GUINEA_CENTER: [number, number] = [10.4, -11.3];
 const NEAR_RADIUS_KM = 25;
 const FICHE_BASE = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/fs/`;
 
+// Popup de structure : identité, rattachement, niveau/statut, RH, services & accès —
+// même lecture que le popup MFL de la carte OpenHEXA, avec les données ISS.
 function popupHtml(p: PublicPointCollection['features'][number]['properties']): string {
-  const where = [p.sp, p.district].filter(Boolean).join(' · ');
+  const e = escapeHtml;
+  const badge = (txt: string, cls: string) => `<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;${cls}">${e(txt)}</span>`;
+  const statut = p.statut === 'privée' ? badge('Privé', 'background:#ede9fe;color:#5b21b6') : p.statut === 'publique' ? badge('Public', 'background:#dbeafe;color:#1e40af') : '';
+  const crumb = [p.region, p.district, p.sp].filter(Boolean).map((x, i, a) => (i === a.length - 1 ? `<span style="color:#6b7280">${e(x)}</span>` : `<b>${e(x)}</b>`)).join(' <span style="color:#9ca3af">›</span> ');
+  const num = (v: number | null) => (v === null ? '<span style="color:#9ca3af">—</span>' : `<b>${v}</b>`);
+  const yn = (v: boolean | null) => (v === null ? '<span style="color:#9ca3af">—</span>' : v ? '<span style="color:#16a34a;font-weight:700">✓</span>' : '<span style="color:#dc2626;font-weight:700">✗</span>');
+  const row = (label: string, val: string) => `<div style="display:flex;justify-content:space-between;gap:12px;padding:2px 0"><span>${e(label)}</span><span>${val}</span></div>`;
+  const section = (t: string) => `<div style="margin:8px 0 2px;font-size:10px;letter-spacing:.06em;color:#6b7280;text-transform:uppercase">${e(t)}</div>`;
+  const opCls = p.op === 'operationnel' ? '#15803d' : p.op === 'ferme_temporairement' ? '#b45309' : p.op ? '#b91c1c' : '#6b7280';
+  const score = p.score_services === null ? '' : `${row('Score disponibilité services', `<b>${p.score_services} / ${p.score_services_max}</b>`)}
+      <div style="height:5px;border-radius:3px;background:#e5e7eb;margin-top:2px"><div style="height:5px;border-radius:3px;width:${Math.round((100 * p.score_services) / Math.max(1, p.score_services_max))}%;background:${p.score_services >= p.score_services_max * 0.7 ? '#16a34a' : p.score_services >= p.score_services_max * 0.4 ? '#f59e0b' : '#dc2626'}"></div></div>`;
   return `
-    <div style="min-width:180px">
-      <div style="font-weight:600;font-size:14px;margin-bottom:2px">${escapeHtml(p.name)}</div>
-      <div style="font-size:12px;color:#374151">
-        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${typeColor(p.type)};margin-right:4px"></span>${escapeHtml(p.type_label)}
+    <div style="min-width:250px;font-size:12px;color:#111827">
+      <div style="font-weight:700;font-size:15px;margin-bottom:6px">${e(p.name)}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${badge(p.type_label, `background:#dcfce7;color:#166534;border-left:4px solid ${typeColor(p.type)}`)}${statut}</div>
+      <div style="font-size:12px;margin-bottom:6px">${crumb}</div>
+      <div style="display:flex;gap:24px;border-top:1px solid #e5e7eb;padding-top:6px">
+        <div><div style="font-size:10px;letter-spacing:.06em;color:#6b7280;text-transform:uppercase">Niveau</div><b>${p.niveau || '—'}</b></div>
+        <div><div style="font-size:10px;letter-spacing:.06em;color:#6b7280;text-transform:uppercase">Statut</div><b style="color:${opCls}">${e(opLabel(p.op))}</b></div>
       </div>
-      <div style="font-size:12px;color:#6b7280">${escapeHtml(where)}</div>
-      <div style="font-size:12px;color:#6b7280;margin-bottom:6px">${escapeHtml(opLabel(p.op))}</div>
-      <a href="${FICHE_BASE}${encodeURIComponent(p.uid)}" style="font-size:12px;color:#047857;font-weight:500">Voir la fiche →</a>
+      <div style="border-top:1px solid #e5e7eb;margin-top:6px">
+        ${section('Ressources humaines')}
+        ${row('Total RH', num(p.rh_total))}${row('Médecins', num(p.rh_medecins))}${row('Personnel soignant', num(p.rh_soignants))}
+      </div>
+      <div style="border-top:1px solid #e5e7eb;margin-top:6px">
+        ${section('Services & accès')}
+        ${row('Eau aux points critiques', yn(p.eau))}${row("Source d'énergie", yn(p.energie))}
+        ${score}
+      </div>
+      <a href="${FICHE_BASE}${encodeURIComponent(p.uid)}" style="display:inline-block;margin-top:10px;font-size:12px;color:#047857;font-weight:600">Voir la fiche →</a>
     </div>`;
 }
 

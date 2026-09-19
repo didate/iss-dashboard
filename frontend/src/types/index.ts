@@ -322,7 +322,18 @@ export interface PublicService {
   label: string;
 }
 
-export interface PublicPointProperties {
+export interface PublicExtras {
+  niveau: number;
+  rh_total: number | null;
+  rh_medecins: number | null;
+  rh_soignants: number | null;
+  eau: boolean | null;
+  energie: boolean | null;
+  score_services: number | null;
+  score_services_max: number;
+}
+
+export interface PublicPointProperties extends PublicExtras {
   uid: string;
   name: string;
   type: string;
@@ -359,7 +370,7 @@ export interface PublicFilters {
   districts: { name: string; region: string }[];
 }
 
-export interface PublicStructure {
+export interface PublicStructure extends PublicExtras {
   uid: string;
   name: string;
   type: string;

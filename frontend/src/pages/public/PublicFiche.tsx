@@ -144,6 +144,54 @@ export default function PublicFiche() {
           </div>
         </div>
 
+        {/* Ressources humaines et accès (agrégats) */}
+        <div className="p-5 border-t border-gray-100 grid sm:grid-cols-2 gap-6">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-800 mb-2">Ressources humaines</h2>
+            <dl className="text-sm divide-y divide-gray-100">
+              {[
+                ['Total RH', data.rh_total],
+                ['Médecins', data.rh_medecins],
+                ['Personnel soignant', data.rh_soignants],
+              ].map(([l, v]) => (
+                <div key={String(l)} className="flex justify-between py-1.5">
+                  <dt className="text-gray-600">{l}</dt>
+                  <dd className="font-semibold text-gray-900">{v === null || v === undefined ? '—' : String(v)}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-gray-800 mb-2">Services & accès</h2>
+            <dl className="text-sm divide-y divide-gray-100">
+              {[
+                ['Eau aux points critiques', data.eau],
+                ["Source d'énergie", data.energie],
+              ].map(([l, v]) => (
+                <div key={String(l)} className="flex justify-between py-1.5">
+                  <dt className="text-gray-600">{l}</dt>
+                  <dd className={`font-bold ${v === null ? 'text-gray-400' : v ? 'text-green-600' : 'text-red-600'}`}>{v === null || v === undefined ? '—' : v ? '✓' : '✗'}</dd>
+                </div>
+              ))}
+              <div className="py-1.5">
+                <div className="flex justify-between">
+                  <dt className="text-gray-600">Score disponibilité services</dt>
+                  <dd className="font-semibold text-gray-900">{data.score_services === null ? '—' : `${data.score_services} / ${data.score_services_max}`}</dd>
+                </div>
+                {data.score_services !== null && (
+                  <div className="mt-1 h-1.5 rounded bg-gray-200">
+                    <div
+                      className={`h-1.5 rounded ${data.score_services >= data.score_services_max * 0.7 ? 'bg-green-500' : data.score_services >= data.score_services_max * 0.4 ? 'bg-amber-500' : 'bg-red-500'}`}
+                      style={{ width: `${Math.round((100 * data.score_services) / Math.max(1, data.score_services_max))}%` }}
+                    />
+                  </div>
+                )}
+                <p className="text-[11px] text-gray-400 mt-1">Services principaux : curatif, CPN, accouchement, PEV, PTME, laboratoire, pharmacie.</p>
+              </div>
+            </dl>
+          </div>
+        </div>
+
         {/* Plateau technique */}
         <div className="p-5 border-t border-gray-100">
           <h2 className="text-sm font-semibold text-gray-800 mb-3">Plateau technique</h2>
