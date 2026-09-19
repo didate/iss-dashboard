@@ -8,6 +8,8 @@ import { api } from '../api/client';
 import type { MapDistrictCollection, MapDistrictProperties } from '../types';
 import MethodNote from '../components/MethodNote';
 import ProGeoMap from '../components/map/ProGeoMap';
+import IndicatorHelp from '../components/map/IndicatorHelp';
+import ConakryInset, { isConakry } from '../components/map/ConakryInset';
 
 type LayerKey = 'rapportage' | 'qualite' | 'services' | 'equipements' | 'wash' | 'rh' | 'gps' | 'points';
 
@@ -23,6 +25,40 @@ const LAYERS: { key: LayerKey; label: string }[] = [
   { key: 'points', label: 'Structures (points)' },
 ];
 const GEO_LAYERS: LayerKey[] = ['gps', 'points'];
+
+// Textes du panneau « Comprendre l'indicateur » (définition, calcul, lecture, limites).
+const LAYER_HELP: Record<string, string[]> = {
+  rapportage: [
+    'Part des structures attendues du district ayant soumis au moins un recensement ISS.',
+    'Calcul : unités d\'organisation avec un event ÷ unités assignées au programme ISS dans DHIS2 (structures fermées exclues) × 100.',
+    'Lecture : vert > 80 %, jaune 50–80 %, orange 30–50 %, rouge < 30 %. Un district rouge est d\'abord un district où le recensement n\'a pas été fait, pas un district mal doté.',
+  ],
+  qualite: [
+    'Moyenne du score qualité des données des structures du district (0–100).',
+    'Score par structure : 100 − 15 par erreur − 5 par avertissement − 1 par info (règles R1–R18), plancher 0.',
+    'Lecture : vert > 80, jaune 65–80, orange 50–65, rouge < 50. Mesure la fiabilité de la saisie, pas l\'état de la structure ; le détail des problèmes est dans la page Qualité.',
+  ],
+  services: [
+    'Nombre de structures du district ayant déclaré le service sélectionné comme fonctionnel (réponse « oui »).',
+    'Les réponses « prévu mais non fonctionnel » et « non » ne comptent pas ; le % dans la bulle rapporte ce nombre aux structures ayant répondu.',
+    'Lecture : échelle à quantiles (5 classes calculées sur les districts affichés) — les seuils changent avec le service choisi. Un grand district a mécaniquement plus de structures : comparer aussi le %.',
+  ],
+  equipements: [
+    'Nombre total d\'équipements déclarés dans la catégorie sélectionnée, et nombre fonctionnels (bulle).',
+    'Calcul : somme des « total » et des « fonctionnel » de chaque couple d\'équipement de la catégorie, sur les structures du district.',
+    'Lecture : échelle à quantiles sur le total ; dépend de la taille du district. Le taux de fonctionnalité (fonctionnel ÷ total) est dans l\'onglet Équipements.',
+  ],
+  wash: [
+    'Part des structures alimentées en eau par un forage (motricité humaine ou électrique) ou par le réseau public.',
+    'Calcul : structures avec source d\'eau FMH, FME ou réseau ÷ structures ayant renseigné leur source × 100.',
+    'Lecture : vert > 80 %, jaune 50–80 %, orange 30–50 %, rouge < 30 %. La bulle donne aussi l\'eau disponible aux points critiques.',
+  ],
+  rh: [
+    'Effectif du profil RH sélectionné (ou cumul) rapporté au nombre de structures du district : agents par structure.',
+    'Calcul : Σ effectifs déclarés (tous statuts d\'emploi) ÷ nombre de structures recensées du district.',
+    'Lecture : échelle à quantiles sur les districts affichés. Pour un ratio par habitant, utiliser la couche Couverture géo (pour 10 000 hab.).',
+  ],
+};
 
 function getColorPct(value: number | null): string {
   if (value === null || value === undefined) return '#d1d5db';
@@ -278,8 +314,6 @@ export default function MapView() {
   const [selectedRhProfil, setSelectedRhProfil] = useUrlState('profil');
   const geoJsonRef = useRef<L.GeoJSON | null>(null);
   const mapRef = useRef<L.Map | null>(null);
-  const insetRef = useRef<HTMLDivElement | null>(null);
-  const dragState = useRef<{ dragging: boolean; offsetX: number; offsetY: number }>({ dragging: false, offsetX: 0, offsetY: 0 });
 
   useEffect(() => {
     api.getMapData()
@@ -569,10 +603,7 @@ export default function MapView() {
   // Filter Conakry districts for inset map
   const conakryData = useMemo(() => {
     if (!data) return null;
-    const conakryNames = ['dixinn', 'kaloum', 'matam', 'matoto', 'ratoma'];
-    const conakryFeatures = data.features.filter(f =>
-      conakryNames.some(n => f.properties.district_name.toLowerCase().includes(n))
-    );
+    const conakryFeatures = data.features.filter(f => isConakry(f.properties.district_name));
     if (conakryFeatures.length === 0) return null;
     return { type: 'FeatureCollection' as const, features: conakryFeatures };
   }, [data]);
@@ -674,69 +705,25 @@ export default function MapView() {
           <MapControls />
         </MapContainer>
 
+        <IndicatorHelp title={LAYERS.find((l) => l.key === activeLayer)?.label ?? ''} lines={LAYER_HELP[activeLayer] ?? []} />
+
         {/* Inset map — Conakry zoom (draggable) */}
         {conakryData && (
-          <div
-            ref={insetRef}
-            className="absolute z-[1000] rounded-lg overflow-hidden border-2 border-gray-400 shadow-lg hidden sm:block"
-            style={{ width: '300px', height: '250px', bottom: '12px', left: '12px', cursor: 'move' }}
-            onMouseDown={(e) => {
-              const el = insetRef.current;
-              if (!el) return;
-              // Only drag from the title bar area (first 20px)
-              const rect = el.getBoundingClientRect();
-              if (e.clientY - rect.top > 22) return;
-              e.preventDefault();
-              dragState.current = { dragging: true, offsetX: e.clientX - rect.left, offsetY: e.clientY - rect.top };
-              const onMove = (ev: MouseEvent) => {
-                if (!dragState.current.dragging || !el.parentElement) return;
-                const parent = el.parentElement.getBoundingClientRect();
-                let x = ev.clientX - parent.left - dragState.current.offsetX;
-                let y = ev.clientY - parent.top - dragState.current.offsetY;
-                x = Math.max(0, Math.min(x, parent.width - el.offsetWidth));
-                y = Math.max(0, Math.min(y, parent.height - el.offsetHeight));
-                el.style.left = `${x}px`;
-                el.style.top = `${y}px`;
-                el.style.right = 'auto';
-              };
-              const onUp = () => {
-                dragState.current.dragging = false;
-                document.removeEventListener('mousemove', onMove);
-                document.removeEventListener('mouseup', onUp);
-              };
-              document.addEventListener('mousemove', onMove);
-              document.addEventListener('mouseup', onUp);
-            }}
-          >
-            <div className="bg-gray-700 text-white text-[10px] font-semibold px-2 py-0.5 text-center select-none" style={{ cursor: 'grab' }}>
-              Conakry
-            </div>
-            <MapContainer
-              key={`inset-${geoJsonKey}`}
-              center={[9.6, -13.58]}
-              zoom={10}
-              style={{ height: 'calc(100% - 20px)', width: '100%', background: '#ffffff' }}
-              scrollWheelZoom={false}
-              dragging={false}
-              zoomControl={false}
-              doubleClickZoom={false}
-              attributionControl={false}
-            >
-              <GeoJSON
-                data={conakryData as unknown as GeoJSON.FeatureCollection}
-                style={style as (feature?: Feature) => PathOptions}
-                onEachFeature={onEachFeature as (feature: Feature, layer: Layer) => void}
-              />
-              <DistrictLabels
-                features={conakryData.features}
-                activeLayer={activeLayer}
-                selectedService={selectedService}
-                selectedEquipCategory={selectedEquipCategory}
-                selectedRhProfil={selectedRhProfil}
-                fontSize="small"
-              />
-            </MapContainer>
-          </div>
+          <ConakryInset mapKey={geoJsonKey}>
+            <GeoJSON
+              data={conakryData as unknown as GeoJSON.FeatureCollection}
+              style={style as (feature?: Feature) => PathOptions}
+              onEachFeature={onEachFeature as (feature: Feature, layer: Layer) => void}
+            />
+            <DistrictLabels
+              features={conakryData.features}
+              activeLayer={activeLayer}
+              selectedService={selectedService}
+              selectedEquipCategory={selectedEquipCategory}
+              selectedRhProfil={selectedRhProfil}
+              fontSize="small"
+            />
+          </ConakryInset>
         )}
 
         {/* Legend */}

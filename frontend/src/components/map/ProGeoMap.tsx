@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MapContainer, GeoJSON, TileLayer } from 'react-leaflet';
-import { ChevronDown, ChevronUp, Info } from 'lucide-react';
 import GeoLabels from './GeoLabels';
+import IndicatorHelp from './IndicatorHelp';
+import ConakryInset, { isConakry } from './ConakryInset';
 import type { Layer, PathOptions } from 'leaflet';
 import type { Feature, Geometry } from 'geojson';
 import { api } from '../../api/client';
@@ -147,7 +148,6 @@ export default function ProGeoMap({ mode }: Props) {
   const [metric, setMetric] = useUrlState('metric', 'pct_gps');
   const [clusterParam, setClusterParam] = useUrlState('cluster');
   const cluster = clusterParam !== 'off';
-  const [helpOpen, setHelpOpen] = useState(false);
 
   const [geo, setGeo] = useState<MapGeoCollection | null>(null);
   const [points, setPoints] = useState<ProPointCollection | null>(null);
@@ -250,6 +250,12 @@ export default function ProGeoMap({ mode }: Props) {
               [GREY, 'Pas de données'],
             ];
 
+  // Communes de Conakry (niveau 3) ou leurs sous-préfectures (niveau 4, via le district parent)
+  const conakry = useMemo(
+    () => (geo ? { type: 'FeatureCollection' as const, features: geo.features.filter((f) => isConakry(f.properties.name, f.properties.parent_name)) } : null),
+    [geo],
+  );
+
   const metricDef = METRICS.find((m) => m.key === metric);
   const metricLabel = metricDef?.label ?? '';
   const helpTitle = mode === 'points' ? 'Structures (points) — score qualité' : metricLabel;
@@ -306,26 +312,18 @@ export default function ProGeoMap({ mode }: Props) {
           {mode === 'points' && points && <ClusterLayer points={markers} cluster={cluster} />}
         </MapContainer>
 
-        {/* Explication de l'indicateur (pliable) */}
-        <div className="absolute top-3 right-3 z-[1000] max-w-sm" style={{ maxWidth: 'min(24rem, calc(100% - 4.5rem))' }}>
-          <button
-            onClick={() => setHelpOpen((o) => !o)}
-            className="flex items-center gap-1.5 bg-white/95 rounded-lg shadow px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-white"
-            title={helpOpen ? "Masquer l'explication" : "Comprendre l'indicateur"}
-          >
-            <Info size={14} className="text-blue-600" />
-            Comprendre l'indicateur
-            {helpOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </button>
-          {helpOpen && (
-            <div className="mt-1 bg-white/95 rounded-lg shadow-lg p-3 text-xs text-gray-700 space-y-1.5">
-              <div className="font-semibold text-gray-900">{helpTitle}</div>
-              {helpLines.map((l, i) => (
-                <p key={i}>{l}</p>
-              ))}
-            </div>
-          )}
-        </div>
+        <IndicatorHelp title={helpTitle} lines={helpLines} />
+
+        {mode === 'gps' && conakry && conakry.features.length > 0 && (
+          <ConakryInset mapKey={`${level}-${metric}-${breaks.join(',')}`}>
+            <GeoJSON
+              data={conakry as unknown as GeoJSON.FeatureCollection}
+              style={style as (f?: Feature) => PathOptions}
+              onEachFeature={onEachFeature as (f: Feature, l: Layer) => void}
+            />
+            <GeoLabels features={conakry.features} text={(p) => formatMetric(metricValue(p, metric), metric)} small />
+          </ConakryInset>
+        )}
 
         <div className="absolute bottom-4 right-4 bg-white rounded-lg shadow-lg p-3 z-[1000] text-xs">
           <h4 className="font-semibold mb-2 text-gray-700">{mode === 'points' ? 'Score qualité' : metricLabel}</h4>
