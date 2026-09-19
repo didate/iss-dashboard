@@ -24,6 +24,14 @@ import type {
   ProPointCollection,
   MissingGPSResult,
   UsageCouverture,
+  NormeSet,
+  NormeRule,
+  NormeTargets,
+  NormeLineError,
+  NormesMeta,
+  ConformiteSummaryRow,
+  ConformiteGap,
+  ConformiteStructureResult,
 } from '../types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/iss';
@@ -214,4 +222,60 @@ export const api = {
 
   deleteUser: (id: number) =>
     request<{ message: string }>(`/api/admin/users/${id}`, { method: 'DELETE' }),
+
+  // Normes (admin)
+  getNormeSets: () => request<NormeSet[]>('/api/admin/normes'),
+  createNormeSet: (data: { name: string; notes: string }) =>
+    request<NormeSet>('/api/admin/normes', { method: 'POST', body: JSON.stringify(data) }),
+  updateNormeSet: (id: number, data: { name: string; notes: string }) =>
+    request<NormeSet>(`/api/admin/normes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  duplicateNormeSet: (id: number) => request<NormeSet>(`/api/admin/normes/${id}/duplicate`, { method: 'POST' }),
+  activateNormeSet: (id: number) => request<NormeSet>(`/api/admin/normes/${id}/activate`, { method: 'POST' }),
+  deleteNormeSet: (id: number) => request<{ deleted: number }>(`/api/admin/normes/${id}`, { method: 'DELETE' }),
+  getNormeRules: (id: number) => request<NormeRule[]>(`/api/admin/normes/${id}/rules`),
+  putNormeRules: (id: number, rules: NormeRule[]) =>
+    request<NormeRule[]>(`/api/admin/normes/${id}/rules`, { method: 'PUT', body: JSON.stringify(rules) }),
+  getNormeTargets: () => request<NormeTargets>('/api/admin/normes/targets'),
+  recomputeConformite: () => request<{ status: string }>('/api/admin/normes/recompute', { method: 'POST' }),
+  importNormeRules: async (id: number, file: File, mode: 'replace' | 'append' = 'replace') => {
+    const token = (await import('./auth')).getToken();
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${BASE_URL}/api/admin/normes/${id}/rules/import?mode=${mode}`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+    const body = (await res.json()) as { imported?: number; total?: number; error?: string; errors?: NormeLineError[]; valid?: number };
+    if (!res.ok) {
+      const err = new Error(body.error || `Import failed: ${res.status}`) as Error & { errors?: NormeLineError[] };
+      err.errors = body.errors;
+      throw err;
+    }
+    return body as { imported: number; total: number; errors: NormeLineError[] | null };
+  },
+  exportNormeRulesCSV: async (id: number, version: number) => {
+    const token = (await import('./auth')).getToken();
+    const res = await fetch(`${BASE_URL}/api/admin/normes/${id}/rules/export.csv`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `normes_v${version}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+
+  // Conformité (lecture)
+  getNormesMeta: () => request<NormesMeta>('/api/meta/normes'),
+  getConformiteSummary: (by: string, type?: string) =>
+    request<ConformiteSummaryRow[]>(`/api/conformite/summary${qs({ by, type })}`),
+  getConformiteGaps: (params: { by?: string; key?: string; type?: string; kind?: string; level?: string; limit?: number }) =>
+    request<ConformiteGap[]>(`/api/conformite/gaps${qs(params)}`),
+  getConformiteStructures: (params: {
+    region?: string; district?: string; sous_prefecture?: string; type?: string; status?: string; search?: string; page?: number; pageSize?: number;
+  }) => request<ConformiteStructureResult>(`/api/conformite/structures${qs(params)}`),
 };

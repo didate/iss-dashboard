@@ -4,11 +4,14 @@ import { RefreshCw, CheckCircle, XCircle, Clock, UserPlus, Trash2, Download, Fil
 import { api } from '../api/client';
 import { getToken } from '../api/auth';
 import type { SyncStatus } from '../types';
+import NormesEditor from './admin/NormesEditor';
+import { useUrlState } from '../hooks/useUrlState';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/iss';
 
 export default function Admin() {
   const navigate = useNavigate();
+  const [tab, setTab] = useUrlState('tab', 'general');
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState('');
@@ -122,6 +125,17 @@ export default function Admin() {
           Rapport National
         </button>
       </div>
+
+      <div className="flex bg-white rounded-lg border border-gray-200 p-0.5 w-fit">
+        {[['general', 'Synchronisation & utilisateurs'], ['normes', 'Normes']].map(([k, l]) => (
+          <button key={k} onClick={() => setTab(k)} className={`px-3 py-1.5 text-sm rounded ${tab === k ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'normes' && <NormesEditor />}
+      {tab === 'general' && (<>
 
       {/* Sync + Export */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -281,6 +295,8 @@ export default function Admin() {
           </table>
         </div>
       )}
+      </>)}
     </div>
   );
 }
+

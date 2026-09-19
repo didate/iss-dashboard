@@ -152,6 +152,55 @@ export default function StructureDetail() {
         </div>
       </div>
 
+      {/* Conformité aux normes */}
+      {detail.conformite && (
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <h3 className="font-semibold text-gray-800">
+              Conformité aux normes{' '}
+              <span className="text-gray-400 font-normal text-sm">({detail.conformite.summary.n_rules} exigences)</span>
+            </h3>
+            {detail.conformite.summary.score !== null ? (
+              <span className={`text-sm font-semibold ${detail.conformite.summary.conforme ? 'text-green-700' : 'text-red-700'}`}>
+                Score {detail.conformite.summary.score.toFixed(0)} · {detail.conformite.summary.conforme ? 'conforme' : `non conforme (${detail.conformite.summary.n_manque_essentiel} manque${detail.conformite.summary.n_manque_essentiel > 1 ? 's' : ''} essentiel${detail.conformite.summary.n_manque_essentiel > 1 ? 's' : ''})`}
+              </span>
+            ) : (
+              <span className="text-sm text-gray-400">non évaluable (données non renseignées)</span>
+            )}
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-gray-50 text-left text-xs text-gray-500">
+                  <th className="px-2 py-1.5 font-medium">Statut</th>
+                  <th className="px-2 py-1.5 font-medium">Exigence</th>
+                  <th className="px-2 py-1.5 font-medium">Famille</th>
+                  <th className="px-2 py-1.5 font-medium">Niveau</th>
+                  <th className="px-2 py-1.5 font-medium text-right">Attendu</th>
+                  <th className="px-2 py-1.5 font-medium text-right">Observé</th>
+                </tr>
+              </thead>
+              <tbody>
+                {detail.conformite.items.map((it) => (
+                  <tr key={it.rule_id} className={`border-b border-gray-100 ${it.status === 'manque' ? 'bg-red-50/40' : ''}`}>
+                    <td className="px-2 py-1.5">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${it.status === 'ok' ? 'bg-green-100 text-green-800' : it.status === 'manque' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-500'}`}>
+                        {it.status === 'ok' ? 'OK' : it.status === 'manque' ? 'Manque' : 'Non renseigné'}
+                      </span>
+                    </td>
+                    <td className="px-2 py-1.5 text-gray-800">{it.label}</td>
+                    <td className="px-2 py-1.5 text-gray-500 text-xs">{it.kind}</td>
+                    <td className="px-2 py-1.5 text-xs">{it.level === 'essentiel' ? <span className="text-red-700">essentiel</span> : <span className="text-gray-500">recommandé</span>}</td>
+                    <td className="px-2 py-1.5 text-right text-gray-700">{it.kind === 'service' ? 'oui' : it.expected}</td>
+                    <td className="px-2 py-1.5 text-right text-gray-700">{it.observed === null ? '—' : it.kind === 'service' ? (it.observed ? 'oui' : 'non') : it.observed}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Quality issues */}
       {detail.issues && detail.issues.length > 0 && (
         <div className="bg-white rounded-lg border border-gray-200 p-4">

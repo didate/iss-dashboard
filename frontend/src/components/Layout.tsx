@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, ShieldAlert, BarChart3, Building2, ArrowLeftRight, Map, MapPin, Settings, LogOut, User, Menu, X, Globe } from 'lucide-react';
+import { LayoutDashboard, ShieldAlert, BarChart3, Building2, ArrowLeftRight, Map, MapPin, Settings, LogOut, User, Menu, X, Globe, ClipboardCheck } from 'lucide-react';
 import type { AuthUser } from '../api/auth';
 
 const navItems = [
@@ -11,6 +11,7 @@ const navItems = [
   { to: '/comparaison', icon: ArrowLeftRight, label: 'Comparaison' },
   { to: '/carte', icon: Map, label: 'Carte' },
   { to: '/geolocalisation', icon: MapPin, label: 'GPS' },
+  { to: '/conformite', icon: ClipboardCheck, label: 'Normes' },
   { to: '/admin', icon: Settings, label: 'Admin' },
 ];
 

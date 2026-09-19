@@ -23,6 +23,9 @@ const METRICS: { key: string; label: string; unit: string }[] = [
   { key: 'ratio:infirmiers', label: 'Infirmiers pour 10 000 hab.', unit: '' },
   { key: 'ratio:ats', label: 'ATS pour 10 000 hab.', unit: '' },
   { key: 'ratio:lits', label: "Lits d'hospitalisation pour 10 000 hab.", unit: '' },
+  // conformité aux normes (référentiel actif)
+  { key: 'conformite_score', label: 'Score de conformité aux normes', unit: '' },
+  { key: 'pct_conformes', label: '% de structures conformes', unit: '%' },
 ];
 
 const GREY = '#d1d5db';
@@ -93,7 +96,7 @@ export default function ProGeoMap({ mode }: Props) {
     api.getMapPoints().then(setPoints).catch((e) => setError(e.message));
   }, [mode, points]);
 
-  const isPct = metric === 'pct_gps' || metric === 'avg_score';
+  const isPct = metric === 'pct_gps' || metric === 'avg_score' || metric === 'conformite_score' || metric === 'pct_conformes';
   const breaks = useMemo(() => {
     if (!geo || isPct) return [];
     return quantileBreaks(geo.features.map((f) => metricValue(f.properties, metric) ?? 0), 5);
@@ -103,7 +106,8 @@ export default function ProGeoMap({ mode }: Props) {
     (v: number | null): string => {
       if (v === null) return GREY;
       if (metric === 'pct_gps') return v < 50 ? '#ef4444' : v < 80 ? '#eab308' : '#22c55e';
-      if (metric === 'avg_score') return scoreColor(v);
+      if (metric === 'avg_score' || metric === 'conformite_score') return scoreColor(v);
+      if (metric === 'pct_conformes') return v < 20 ? '#ef4444' : v < 50 ? '#f97316' : v < 80 ? '#eab308' : '#22c55e';
       return rampColor(v, breaks);
     },
     [metric, breaks],
@@ -133,6 +137,7 @@ export default function ProGeoMap({ mode }: Props) {
         <div>Score qualité moyen : <b>${p.avg_score === null ? '—' : p.avg_score.toFixed(1)}</b></div>
         <div>Population : <b>${p.population === null ? '—' : Math.round(p.population).toLocaleString('fr-FR')}</b></div>
         <div>Structures /10 000 hab. : <b>${p.ratio_structures_10k === null ? '—' : p.ratio_structures_10k.toFixed(2)}</b></div>
+        ${p.conformite_score != null ? `<div>Conformité aux normes : <b>${p.conformite_score.toFixed(0)}</b> · ${p.pct_conformes?.toFixed(0) ?? '—'}% conformes</div>` : ''}
         ${['personnel_soignant', 'medecins', 'sages_femmes', 'infirmiers', 'lits']
           .filter((k) => p.numerators?.[k] !== undefined)
           .map((k) => `<div>${escapeHtml(RATIO_LABELS[k] ?? k)} : <b>${p.numerators[k]}</b>${p.ratios?.[k] != null ? ` (${p.ratios[k]!.toFixed(2)} /10 000)` : ''}</div>`)
@@ -167,8 +172,10 @@ export default function ProGeoMap({ mode }: Props) {
       ? [['#22c55e', '≥ 80'], ['#eab308', '65 – 80'], ['#f97316', '50 – 65'], ['#ef4444', '< 50']]
       : metric === 'pct_gps'
         ? [['#22c55e', '≥ 80 %'], ['#eab308', '50 – 80 %'], ['#ef4444', '< 50 %'], [GREY, 'Aucune structure']]
-        : metric === 'avg_score'
+        : metric === 'avg_score' || metric === 'conformite_score'
           ? [['#22c55e', '≥ 80'], ['#eab308', '65 – 80'], ['#f97316', '50 – 65'], ['#ef4444', '< 50'], [GREY, 'Pas de données']]
+          : metric === 'pct_conformes'
+            ? [['#22c55e', '≥ 80 %'], ['#eab308', '50 – 80 %'], ['#f97316', '20 – 50 %'], ['#ef4444', '< 20 %'], [GREY, 'Pas de données']]
           : [
               ...breaks.map((b, i) => [RAMP[i], `≤ ${b.toFixed(metric === 'n_structures' ? 0 : 2)}`]),
               [RAMP[RAMP.length - 1], `> ${(breaks[breaks.length - 1] ?? 0).toFixed(metric === 'n_structures' ? 0 : 2)}`],

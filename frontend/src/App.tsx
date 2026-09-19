@@ -12,6 +12,7 @@ import NationalReport from './pages/NationalReport';
 import MapView from './pages/MapView';
 import Admin from './pages/Admin';
 import Geolocalisation from './pages/Geolocalisation';
+import Conformite from './pages/Conformite';
 import Login from './pages/Login';
 import PublicLayout from './components/PublicLayout';
 import PublicMap from './pages/public/PublicMap';
@@ -49,6 +50,7 @@ export default function App() {
         } />
         <Route path="/carte" element={<MapView />} />
         <Route path="/geolocalisation" element={<Geolocalisation />} />
+        <Route path="/conformite" element={<Conformite />} />
         <Route path="/admin" element={
           isLoggedIn ? <Admin /> : <Navigate to="/login" />
         } />

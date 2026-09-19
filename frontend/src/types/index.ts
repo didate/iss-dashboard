@@ -118,6 +118,7 @@ export interface EventDetail {
   values: EventValueDisplay[];
   issues: Issue[];
   quality: EventQuality;
+  conformite?: EventConformite | null;
 }
 
 export interface UsageRecensement {
@@ -418,6 +419,8 @@ export interface MapGeoFeature {
     ratio_structures_10k: number | null;
     ratios: Record<string, number | null>; // /10 000 hab. par indicateur de couverture
     numerators: Record<string, number>;
+    conformite_score: number | null;
+    pct_conformes: number | null;
   };
 }
 
@@ -494,4 +497,136 @@ export interface PublicAnnuaireResult {
   total: number;
   page: number;
   page_size: number;
+}
+
+// --- Normes et conformité (palier 2) ---
+
+export interface NormeSet {
+  id: number;
+  name: string;
+  version: number;
+  status: 'draft' | 'active' | 'archived';
+  notes: string;
+  created_at: string;
+  created_by: string;
+  activated_at?: string;
+  n_rules: number;
+}
+
+export interface NormeRule {
+  id?: number;
+  set_id?: number;
+  type_code: string;
+  kind: string; // service | rh | equipement | infra
+  target: string;
+  label: string;
+  min_value: number;
+  level: string; // essentiel | recommande
+}
+
+export interface NormeTarget {
+  kind: string;
+  code: string;
+  label: string;
+  prefix?: boolean;
+}
+
+export interface NormeTargets {
+  targets: NormeTarget[];
+  kinds: string[];
+  levels: string[];
+}
+
+export interface NormeLineError {
+  line: number;
+  message: string;
+}
+
+export interface ConformiteRun {
+  set_id: number;
+  set_version: number;
+  n_rules: number;
+  n_structures: number;
+  n_evaluees: number;
+  n_conformes: number;
+  computed_at: string;
+}
+
+export interface NormesMeta {
+  active: NormeSet | null;
+  last_run: ConformiteRun | null;
+}
+
+export interface ConformiteSummaryRow {
+  dimension: string;
+  key: string;
+  label: string;
+  type_code: string;
+  n_structures: number;
+  n_evaluees: number;
+  avg_score: number | null;
+  n_conformes: number;
+  pct_conformes: number | null;
+}
+
+export interface ConformiteGap {
+  dimension: string;
+  key: string;
+  type_code: string;
+  kind: string;
+  target: string;
+  label: string;
+  level: string;
+  n_concernees: number;
+  n_manque: number;
+  n_inconnu: number;
+  deficit: number;
+}
+
+export interface ConformiteStructureItem {
+  event_uid: string;
+  org_unit_uid: string;
+  name: string;
+  type_code: string;
+  region: string;
+  district: string;
+  sous_prefecture: string;
+  score: number | null;
+  conforme: boolean;
+  n_manque: number;
+  n_manque_essentiel: number;
+  n_inconnu: number;
+  n_rules: number;
+}
+
+export interface ConformiteStructureResult {
+  data: ConformiteStructureItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface ConformiteItem {
+  rule_id: number;
+  type_code: string;
+  kind: string;
+  target: string;
+  label: string;
+  level: string;
+  expected: number;
+  observed: number | null;
+  status: 'ok' | 'manque' | 'inconnu';
+}
+
+export interface EventConformite {
+  summary: {
+    n_rules: number;
+    n_ok: number;
+    n_manque: number;
+    n_inconnu: number;
+    n_manque_essentiel: number;
+    score: number | null;
+    conforme: boolean;
+  };
+  items: ConformiteItem[];
 }
