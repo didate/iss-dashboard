@@ -170,15 +170,15 @@ export default function PublicFiche() {
               ].map(([l, v]) => (
                 <div key={String(l)} className="flex justify-between py-1.5">
                   <dt className="text-gray-600">{l}</dt>
-                  <dd className={`font-bold ${v === null ? 'text-gray-400' : v ? 'text-green-600' : 'text-red-600'}`}>{v === null || v === undefined ? '—' : v ? '✓' : '✗'}</dd>
+                  <dd className={`font-bold ${v == null ? 'text-gray-400' : v ? 'text-green-600' : 'text-red-600'}`}>{v == null ? '—' : v ? '✓' : '✗'}</dd>
                 </div>
               ))}
               <div className="py-1.5">
                 <div className="flex justify-between">
                   <dt className="text-gray-600">Score disponibilité services</dt>
-                  <dd className="font-semibold text-gray-900">{data.score_services === null ? '—' : `${data.score_services} / ${data.score_services_max}`}</dd>
+                  <dd className="font-semibold text-gray-900">{data.score_services == null ? '—' : `${data.score_services} / ${data.score_services_max}`}</dd>
                 </div>
-                {data.score_services !== null && (
+                {data.score_services != null && data.score_services_max > 0 && (
                   <div className="mt-1 h-1.5 rounded bg-gray-200">
                     <div
                       className={`h-1.5 rounded ${data.score_services >= data.score_services_max * 0.7 ? 'bg-green-500' : data.score_services >= data.score_services_max * 0.4 ? 'bg-amber-500' : 'bg-red-500'}`}

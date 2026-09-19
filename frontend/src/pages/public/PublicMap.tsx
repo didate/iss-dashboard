@@ -19,12 +19,13 @@ function popupHtml(p: PublicPointCollection['features'][number]['properties']): 
   const badge = (txt: string, cls: string) => `<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;${cls}">${e(txt)}</span>`;
   const statut = p.statut === 'privée' ? badge('Privé', 'background:#ede9fe;color:#5b21b6') : p.statut === 'publique' ? badge('Public', 'background:#dbeafe;color:#1e40af') : '';
   const crumb = [p.region, p.district, p.sp].filter(Boolean).map((x, i, a) => (i === a.length - 1 ? `<span style="color:#6b7280">${e(x)}</span>` : `<b>${e(x)}</b>`)).join(' <span style="color:#9ca3af">›</span> ');
-  const num = (v: number | null) => (v === null ? '<span style="color:#9ca3af">—</span>' : `<b>${v}</b>`);
-  const yn = (v: boolean | null) => (v === null ? '<span style="color:#9ca3af">—</span>' : v ? '<span style="color:#16a34a;font-weight:700">✓</span>' : '<span style="color:#dc2626;font-weight:700">✗</span>');
+  // `== null` couvre aussi undefined : un GeoJSON antérieur (cache) ou une synchro pas encore refaite n'a pas ces champs.
+  const num = (v: number | null | undefined) => (v == null ? '<span style="color:#9ca3af">—</span>' : `<b>${v}</b>`);
+  const yn = (v: boolean | null | undefined) => (v == null ? '<span style="color:#9ca3af">—</span>' : v ? '<span style="color:#16a34a;font-weight:700">✓</span>' : '<span style="color:#dc2626;font-weight:700">✗</span>');
   const row = (label: string, val: string) => `<div style="display:flex;justify-content:space-between;gap:12px;padding:2px 0"><span>${e(label)}</span><span>${val}</span></div>`;
   const section = (t: string) => `<div style="margin:8px 0 2px;font-size:10px;letter-spacing:.06em;color:#6b7280;text-transform:uppercase">${e(t)}</div>`;
   const opCls = p.op === 'operationnel' ? '#15803d' : p.op === 'ferme_temporairement' ? '#b45309' : p.op ? '#b91c1c' : '#6b7280';
-  const score = p.score_services === null ? '' : `${row('Score disponibilité services', `<b>${p.score_services} / ${p.score_services_max}</b>`)}
+  const score = p.score_services == null || !p.score_services_max ? '' : `${row('Score disponibilité services', `<b>${p.score_services} / ${p.score_services_max}</b>`)}
       <div style="height:5px;border-radius:3px;background:#e5e7eb;margin-top:2px"><div style="height:5px;border-radius:3px;width:${Math.round((100 * p.score_services) / Math.max(1, p.score_services_max))}%;background:${p.score_services >= p.score_services_max * 0.7 ? '#16a34a' : p.score_services >= p.score_services_max * 0.4 ? '#f59e0b' : '#dc2626'}"></div></div>`;
   return `
     <div style="min-width:250px;font-size:12px;color:#111827">
