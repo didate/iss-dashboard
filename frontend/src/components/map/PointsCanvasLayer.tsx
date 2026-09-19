@@ -16,7 +16,7 @@ interface Props {
   points: MarkerSpec[];
   /** Regrouper les points proches (grille de ~60 px) ; sinon tous les points sont dessinés. */
   cluster: boolean;
-  /** Point à mettre en avant depuis une liste : déplacement + popup. */
+  /** Point à mettre en avant depuis une liste : recentrage (sans zoom) + popup. */
   focus?: { uid: string; nonce: number } | null;
   onMarkerClick?: (uid: string) => void;
 }
@@ -203,13 +203,16 @@ export default function PointsCanvasLayer({ points, cluster, focus, onMarkerClic
     if (!focus) return;
     const p = points.find((x) => x.uid === focus.uid);
     if (!p) return;
-    const ll: [number, number] = [p.lat, p.lng];
-    if (map.getZoom() < 13) map.setView(ll, 13);
-    else map.panTo(ll);
+    // On recentre sans changer le zoom : l'utilisateur garde son niveau de lecture,
+    // la popup s'ouvre sur la position de la structure (même si elle est dans un regroupement).
+    const ll = L.latLng(p.lat, p.lng);
     const open = () => canvasRef.current?.__openPopup?.(p);
-    // après le déplacement, pour que le point soit dessiné et la popup bien placée
-    map.once('moveend', open);
-    if (map.getCenter().equals(L.latLng(ll))) open();
+    if (map.getCenter().distanceTo(ll) < 1) {
+      open();
+    } else {
+      map.once('moveend', open);
+      map.panTo(ll);
+    }
   }, [focus, map, points]);
 
   return null;
