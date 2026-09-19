@@ -13,7 +13,8 @@ export default function PublicLayout({ isLoggedIn }: Props) {
   // directement ; sinon on passe par la connexion.
   const [dashboardPublic, setDashboardPublic] = useState(true);
   useEffect(() => {
-    publicApi.getSummary().then((s) => setDashboardPublic(s.dashboard_public)).catch(() => {});
+    // champ absent (réponse encore en cache d'une version antérieure) = ouvert
+    publicApi.getSummary().then((s) => setDashboardPublic(s.dashboard_public !== false)).catch(() => {});
   }, []);
   const proOpen = isLoggedIn || dashboardPublic;
   const link = ({ isActive }: { isActive: boolean }) =>

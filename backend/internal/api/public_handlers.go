@@ -160,7 +160,8 @@ func (h *PublicHandlers) GetSummary(c *gin.Context) {
 		return
 	}
 	sum.DashboardPublic = h.DashboardPublic
-	c.Header("Cache-Control", publicCacheControl)
+	// Résumé court et porteur du mode d'accès : cache bref pour qu'un changement de configuration soit vu vite.
+	c.Header("Cache-Control", "public, max-age=60")
 	c.JSON(http.StatusOK, sum)
 }
 
