@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MapContainer, GeoJSON, TileLayer } from 'react-leaflet';
+import { ChevronDown, ChevronUp, Info } from 'lucide-react';
 import GeoLabels from './GeoLabels';
 import type { Layer, PathOptions } from 'leaflet';
 import type { Feature, Geometry } from 'geojson';
@@ -12,21 +13,78 @@ import InvalidateOnResize from './InvalidateOnResize';
 
 type Props = { mode: 'gps' | 'points' };
 
-const METRICS: { key: string; label: string; unit: string }[] = [
-  { key: 'pct_gps', label: 'Couverture GPS', unit: '%' },
-  { key: 'avg_score', label: 'Score qualité moyen', unit: '' },
-  { key: 'n_structures', label: 'Nombre de structures', unit: '' },
-  { key: 'ratio_structures_10k', label: 'Structures pour 10 000 hab.', unit: '' },
+interface Metric {
+  key: string;
+  label: string;
+  unit: string;
+  /** Explication affichée dans le panneau pliable de la carte (définition, calcul, lecture). */
+  help: string[];
+}
+
+const RATIO_HELP = (quoi: string, source: string) => [
+  `Nombre de ${quoi} pour 10 000 habitants de l'unité administrative.`,
+  `Calcul : ${source} ÷ population de l'unité × 10 000. Une structure est comptée une fois (dernier recensement).`,
+  'Population : data set DHIS2 SIS_POPULATION, dernière période mensuelle renseignée × 12. Gris = population inconnue.',
+  'Lecture : échelle à quantiles (5 classes calculées sur les unités affichées), du rouge (les 20 % les moins dotés) au vert (les 20 % les mieux dotés). Les seuils changent donc selon le niveau et le filtre.',
+];
+
+const METRICS: Metric[] = [
+  {
+    key: 'pct_gps', label: 'Couverture GPS', unit: '%',
+    help: [
+      "Part des structures recensées dont l'unité d'organisation DHIS2 porte un point GPS.",
+      'Calcul : structures avec coordonnées ÷ structures recensées de l\'unité × 100.',
+      'Lecture : vert ≥ 80 %, jaune 50–80 %, rouge < 50 %. Les structures sans point n\'apparaissent pas sur la carte des points ; la liste à saisir est dans la page GPS.',
+    ],
+  },
+  {
+    key: 'avg_score', label: 'Score qualité moyen', unit: '',
+    help: [
+      'Moyenne du score qualité des données des structures de l\'unité (0–100).',
+      'Score par structure : 100 − 15 par erreur − 5 par avertissement − 1 par info, plancher 0 (règles R1–R18).',
+      'Lecture : vert ≥ 80, jaune 65–80, orange 50–65, rouge < 50. Mesure la fiabilité des données saisies, pas l\'état de la structure.',
+    ],
+  },
+  {
+    key: 'n_structures', label: 'Nombre de structures', unit: '',
+    help: ['Nombre de structures recensées rattachées à l\'unité (une par unité d\'organisation, dernier recensement).', 'Lecture : échelle à quantiles sur les unités affichées.'],
+  },
+  {
+    key: 'ratio_structures_10k', label: 'Structures pour 10 000 hab.', unit: '',
+    help: RATIO_HELP('structures sanitaires', 'structures recensées'),
+  },
   // ratios de couverture (usage_couverture) : clé = ratio:<indicateur>
-  { key: 'ratio:personnel_soignant', label: 'Personnel soignant pour 10 000 hab.', unit: '' },
-  { key: 'ratio:medecins', label: 'Médecins pour 10 000 hab.', unit: '' },
-  { key: 'ratio:sages_femmes', label: 'Sages-femmes pour 10 000 hab.', unit: '' },
-  { key: 'ratio:infirmiers', label: 'Infirmiers pour 10 000 hab.', unit: '' },
-  { key: 'ratio:ats', label: 'ATS pour 10 000 hab.', unit: '' },
-  { key: 'ratio:lits', label: "Lits d'hospitalisation pour 10 000 hab.", unit: '' },
+  { key: 'ratio:personnel_soignant', label: 'Personnel soignant pour 10 000 hab.', unit: '', help: RATIO_HELP('soignants (médecins, sages-femmes, infirmiers, ATS)', 'effectifs déclarés, tous statuts d\'emploi') },
+  { key: 'ratio:medecins', label: 'Médecins pour 10 000 hab.', unit: '', help: RATIO_HELP('médecins (généralistes et spécialistes)', 'effectifs déclarés ISS_RH_MED_*, tous statuts') },
+  { key: 'ratio:sages_femmes', label: 'Sages-femmes pour 10 000 hab.', unit: '', help: RATIO_HELP('sages-femmes', 'effectifs déclarés, tous statuts') },
+  { key: 'ratio:infirmiers', label: 'Infirmiers pour 10 000 hab.', unit: '', help: RATIO_HELP('infirmiers', 'effectifs déclarés, tous statuts') },
+  { key: 'ratio:ats', label: 'ATS pour 10 000 hab.', unit: '', help: RATIO_HELP('agents techniques de santé', 'effectifs déclarés, tous statuts') },
+  { key: 'ratio:lits', label: "Lits d'hospitalisation pour 10 000 hab.", unit: '', help: RATIO_HELP('lits', 'nombre total de lits déclarés') },
   // conformité aux normes (référentiel actif)
-  { key: 'conformite_score', label: 'Score de conformité aux normes', unit: '' },
-  { key: 'pct_conformes', label: '% de structures conformes', unit: '%' },
+  {
+    key: 'conformite_score', label: 'Score de conformité aux normes', unit: '',
+    help: [
+      'Moyenne, sur les structures de l\'unité, du score de conformité au référentiel de normes actif (0–100).',
+      'Score par structure : 100 × Σ poids des exigences satisfaites ÷ Σ poids des exigences satisfaites + manquantes ; poids 2 pour une exigence essentielle, 1 pour une recommandée. Une exigence non renseignée dans ISS n\'entre pas dans le calcul.',
+      'Lecture : vert ≥ 80, jaune 65–80, orange 50–65, rouge < 50. Un score élevé n\'implique pas la conformité : il suffit d\'une exigence essentielle manquante pour ne pas être conforme.',
+      'Dépend du référentiel actif (Admin → Normes) — avec l\'exemple non officiel, les seuils sont indicatifs.',
+    ],
+  },
+  {
+    key: 'pct_conformes', label: '% de structures conformes', unit: '%',
+    help: [
+      'Part des structures de l\'unité sans aucune exigence essentielle manquante (référentiel actif).',
+      'Calcul : structures conformes ÷ structures évaluées × 100.',
+      'Lecture : vert ≥ 80 %, jaune 50–80 %, orange 20–50 %, rouge < 20 %. Critère binaire et sévère : une seule exigence essentielle absente suffit.',
+      'Un « manque » peut aussi être une erreur de saisie (valeur 0 dans ISS) : vérifier dans le détail de la structure avant de conclure.',
+    ],
+  },
+];
+
+const POINTS_HELP = [
+  'Chaque cercle est une structure géolocalisée (dernier recensement), colorée par son score qualité des données : vert ≥ 80, jaune 65–80, orange 50–65, rouge < 50.',
+  'Le score mesure la fiabilité de la saisie ISS (règles R1–R18), pas l\'état de la structure. Clic sur un point → score et nombre de problèmes → détail.',
+  'Les structures sans coordonnées GPS ne sont pas représentées (voir la page GPS). Le regroupement en clusters est désactivable.',
 ];
 
 const GREY = '#d1d5db';
@@ -89,6 +147,7 @@ export default function ProGeoMap({ mode }: Props) {
   const [metric, setMetric] = useUrlState('metric', 'pct_gps');
   const [clusterParam, setClusterParam] = useUrlState('cluster');
   const cluster = clusterParam !== 'off';
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const [geo, setGeo] = useState<MapGeoCollection | null>(null);
   const [points, setPoints] = useState<ProPointCollection | null>(null);
@@ -191,7 +250,10 @@ export default function ProGeoMap({ mode }: Props) {
               [GREY, 'Pas de données'],
             ];
 
-  const metricLabel = METRICS.find((m) => m.key === metric)?.label ?? '';
+  const metricDef = METRICS.find((m) => m.key === metric);
+  const metricLabel = metricDef?.label ?? '';
+  const helpTitle = mode === 'points' ? 'Structures (points) — score qualité' : metricLabel;
+  const helpLines = mode === 'points' ? POINTS_HELP : metricDef?.help ?? [];
 
   return (
     <div className="space-y-3">
@@ -243,6 +305,27 @@ export default function ProGeoMap({ mode }: Props) {
           )}
           {mode === 'points' && points && <ClusterLayer points={markers} cluster={cluster} />}
         </MapContainer>
+
+        {/* Explication de l'indicateur (pliable) */}
+        <div className="absolute top-3 right-3 z-[1000] max-w-sm" style={{ maxWidth: 'min(24rem, calc(100% - 4.5rem))' }}>
+          <button
+            onClick={() => setHelpOpen((o) => !o)}
+            className="flex items-center gap-1.5 bg-white/95 rounded-lg shadow px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-white"
+            title={helpOpen ? "Masquer l'explication" : "Comprendre l'indicateur"}
+          >
+            <Info size={14} className="text-blue-600" />
+            Comprendre l'indicateur
+            {helpOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+          {helpOpen && (
+            <div className="mt-1 bg-white/95 rounded-lg shadow-lg p-3 text-xs text-gray-700 space-y-1.5">
+              <div className="font-semibold text-gray-900">{helpTitle}</div>
+              {helpLines.map((l, i) => (
+                <p key={i}>{l}</p>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="absolute bottom-4 right-4 bg-white rounded-lg shadow-lg p-3 z-[1000] text-xs">
           <h4 className="font-semibold mb-2 text-gray-700">{mode === 'points' ? 'Score qualité' : metricLabel}</h4>
