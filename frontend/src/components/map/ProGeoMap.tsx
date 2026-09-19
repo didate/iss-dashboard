@@ -9,7 +9,7 @@ import { api } from '../../api/client';
 import { useUrlState } from '../../hooks/useUrlState';
 import type { MapGeoCollection, MapGeoFeature, ProPointCollection } from '../../types';
 import { typologieLabel } from '../../utils/typologie';
-import ClusterLayer, { escapeHtml, type MarkerSpec } from './ClusterLayer';
+import PointsCanvasLayer, { escapeHtml, type MarkerSpec } from './PointsCanvasLayer';
 import InvalidateOnResize from './InvalidateOnResize';
 
 type Props = { mode: 'gps' | 'points' };
@@ -309,7 +309,7 @@ export default function ProGeoMap({ mode }: Props) {
               />
             </>
           )}
-          {mode === 'points' && points && <ClusterLayer points={markers} cluster={cluster} />}
+          {mode === 'points' && points && <PointsCanvasLayer points={markers} cluster={cluster} />}
         </MapContainer>
 
         <IndicatorHelp title={helpTitle} lines={helpLines} />

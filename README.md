@@ -96,7 +96,7 @@ La synchro est aussi lancee automatiquement par le scheduler (par defaut toutes 
 
 | Page | Description |
 |---|---|
-| **Carte** (`/`) | Fond OpenStreetMap, structures geolocalisees en clusters colores par type (regroupement desactivable). Recherche par nom, filtres type / service / region / district (dans l'URL, partageables), « Autour de moi » (geolocalisation du navigateur, tri par distance cote serveur). Clic marqueur → popup ; clic dans la liste → deplacement + popup. |
+| **Carte** (`/`) | Fond OpenStreetMap, structures geolocalisees dessinees sur un canvas unique, colorees par type, regroupees par grille (regroupement desactivable). Recherche par nom, filtres type / service / region / district (dans l'URL, partageables), « Autour de moi » (geolocalisation du navigateur, tri par distance cote serveur). Clic marqueur → popup ; clic dans la liste → deplacement + popup. |
 | **Fiche** (`/fs/:uid`) | Identite, type, statut juridique et operationnel, rattachement, mini-carte, plateau technique, services fonctionnels, QR code, copie du lien, itineraire OSM. `uid` = UID de l'unite d'organisation DHIS2 (stable entre recensements). |
 | **Annuaire** (`/annuaire`) | Registre en tableau, memes filtres que la carte, pagine, **export CSV** (open data) avec les filtres actifs. |
 | **A propos** (`/a-propos`) | Sources, chiffres cles, limites. |
@@ -457,7 +457,7 @@ frontend/
     pages/admin/  NormesEditor
     pages/public/ PublicMap, PublicFiche, About
     components/   Layout, PublicLayout, KpiCard, DataTable, ScoreBar, SeverityBadge, ExportCSV, MethodNote, charts/
-    components/map/ ClusterLayer (clusters, partage public/pro), ProGeoMap, InvalidateOnResize
+    components/map/ PointsCanvasLayer (points sur canvas unique, partage public/pro), ProGeoMap, GeoLabels, IndicatorHelp, ConakryInset, InvalidateOnResize
     types/        Types TypeScript miroir de l'API
     utils/        Helpers (formatage nombres)
   Dockerfile
