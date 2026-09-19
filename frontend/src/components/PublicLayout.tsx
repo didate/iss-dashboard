@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { MapPin, Info, LockKeyhole, List } from 'lucide-react';
+import { MapPin, Info, LockKeyhole, List, LayoutDashboard } from 'lucide-react';
+import { publicApi } from '../api/public';
 
 interface Props {
   isLoggedIn: boolean;
@@ -7,6 +9,13 @@ interface Props {
 
 // En-tête léger de l'espace grand public : pas de barre latérale, trois entrées.
 export default function PublicLayout({ isLoggedIn }: Props) {
+  // L'espace planification est-il ouvert en lecture (DASHBOARD_PUBLIC) ? Si oui, on y va
+  // directement ; sinon on passe par la connexion.
+  const [dashboardPublic, setDashboardPublic] = useState(true);
+  useEffect(() => {
+    publicApi.getSummary().then((s) => setDashboardPublic(s.dashboard_public)).catch(() => {});
+  }, []);
+  const proOpen = isLoggedIn || dashboardPublic;
   const link = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
       isActive ? 'bg-emerald-50 text-emerald-800 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
@@ -40,10 +49,10 @@ export default function PublicLayout({ isLoggedIn }: Props) {
               <span className="hidden sm:inline">À propos</span>
             </NavLink>
             <NavLink
-              to={isLoggedIn ? '/tableau-de-bord' : '/login'}
+              to={proOpen ? '/tableau-de-bord' : '/login'}
               className="ml-2 flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
             >
-              <LockKeyhole size={14} />
+              {proOpen ? <LayoutDashboard size={14} /> : <LockKeyhole size={14} />}
               <span className="hidden sm:inline">Espace planification</span>
             </NavLink>
           </nav>

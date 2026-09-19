@@ -34,7 +34,7 @@ func SetupRouter(cfg *config.Config, st *store.Store, client *dhis2.Client) *gin
 	// Carte sanitaire : espace public, toujours ouvert, projections réduites uniquement
 	pub := api.Group("/public")
 	{
-		ph := &PublicHandlers{Store: st}
+		ph := &PublicHandlers{Store: st, DashboardPublic: cfg.DashboardPublic}
 		pub.GET("/points.geojson", ph.GetPoints)
 		pub.GET("/filters", ph.GetFilters)
 		pub.GET("/structures", ph.SearchStructures)

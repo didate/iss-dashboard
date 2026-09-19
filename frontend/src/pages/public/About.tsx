@@ -56,7 +56,7 @@ export default function About() {
 
       <p className="text-sm text-gray-500 mt-8">
         Les agents du Ministère disposent d’un{' '}
-        <Link to="/login" className="text-emerald-700 hover:underline">
+        <Link to={summary?.dashboard_public === false ? '/login' : '/tableau-de-bord'} className="text-emerald-700 hover:underline">
           espace planification
         </Link>{' '}
         avec les indicateurs détaillés (qualité des données, ressources humaines, équipements, couverture).

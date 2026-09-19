@@ -18,7 +18,8 @@ import (
 // sanitaire. They read pre-computed blobs and the structure_latest view only;
 // nothing here may join RH, equipment, responsible-person or quality data.
 type PublicHandlers struct {
-	Store *store.Store
+	Store           *store.Store
+	DashboardPublic bool
 }
 
 const publicCacheControl = "public, max-age=3600"
@@ -158,6 +159,7 @@ func (h *PublicHandlers) GetSummary(c *gin.Context) {
 		internalError(c, err)
 		return
 	}
+	sum.DashboardPublic = h.DashboardPublic
 	c.Header("Cache-Control", publicCacheControl)
 	c.JSON(http.StatusOK, sum)
 }

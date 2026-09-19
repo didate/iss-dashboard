@@ -395,6 +395,7 @@ export interface PublicSummary {
   n_par_type: Record<string, number>;
   pct_gps: number;
   derniere_synchro: string;
+  dashboard_public: boolean;
 }
 
 // --- Carte sanitaire : espace pro (géo, couverture) ---

@@ -471,6 +471,8 @@ type PublicSummary struct {
 	NParType        map[string]int `json:"n_par_type"`
 	PctGPS          float64        `json:"pct_gps"`
 	DerniereSynchro string         `json:"derniere_synchro"`
+	// true = l'espace planification est lisible sans connexion (DASHBOARD_PUBLIC)
+	DashboardPublic bool `json:"dashboard_public"`
 }
 
 // MissingGPSItem is one structure without coordinates (pro geolocation screen).
