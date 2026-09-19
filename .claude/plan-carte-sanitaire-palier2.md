@@ -1,6 +1,6 @@
 # Plan — Carte sanitaire, palier 2 : normes et écarts
 
-> Statut : **validé le 18/09/2026** (privé soumis aux normes du type ; essentiel ×2 ; inconnu hors score ; édition admin ; CSV d'exemple non officiel avec seuils chiffrés, médecin en CS recommandé).
+> Statut : **livré le 19/09/2026** (4 lots) — validé le 18/09/2026 (privé soumis aux normes du type ; essentiel ×2 ; inconnu hors score ; édition admin ; CSV d'exemple non officiel avec seuils chiffrés, médecin en CS recommandé).
 > Contexte : aucun document officiel de normes n'est disponible (voir mémoire `carte-sanitaire-normes`).
 > Le palier est donc conçu autour d'un **référentiel de normes éditable dans l'app**, versionné, à remplir
 > progressivement et à valider par le MSHP. Le jour où le texte officiel arrive, on l'importe dans ce référentiel.
@@ -248,7 +248,7 @@ README.md               section « Normes et conformité » (cycle brouillon →
 | **A — Référentiel** ✅ | tables, CRUD, import/export CSV avec validation des cibles, catalogue des cibles, tests | `curl` : créer, importer l'exemple (212 règles, 0 erreur contre le catalogue réel), exporter, dupliquer, activer, supprimer un brouillon, validation PUT, 401 sans droit |
 | **B — Évaluation** ✅ | `normes.Evaluate`, agrégats, `RecomputeConformite`, hook dans RunSync, endpoints de lecture, tests | recalcul réel : 212 règles, 3 097 structures évaluées en 1,1 s, 409 conformes ; PS 70 (8 % conformes), CS 86 (37 %), HP 87 (7 %) ; écarts par district cohérents (Kankan CS : 19/28 sans médecin) ; détail HN Donka |
 | **C — Front** ✅ | onglet Admin Normes, page Conformité, couche carte, détail structure, KPI | vérifié dans le navigateur : éditeur en grille (212 règles, catalogue des cibles), page Conformité (KPI, par type, par zone, écarts Kankan/CS, structures), détail HN Donka (46 exigences, 7 manques), lien depuis la vue d'ensemble |
-| **D — Doc** | README, CSV d'exemple annoté | relecture |
+| **D — Doc** ✅ | README, CSV d'exemple annoté | relecture |
 
 ---
 

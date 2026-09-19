@@ -7,6 +7,10 @@
 #               equipement (racine du couple total/fonctionnel), infra (code DE ISS_INFRA_*)
 #   min_value : service → 1 (attendu) ; autres → effectif / nombre minimum (fonctionnel pour les équipements)
 #   level     : essentiel (poids 2) ou recommande (poids 1)
+# Contenu : paquet minimum PS / CS (socle commun a CS, CSA, CMC ; CSA et CMC ajoutent hospitalisation et medecin
+# essentiel) / hopitaux (socle HP, renforce pour HR et HN : effectifs, lits, imagerie, scanner) / regles « * ».
+# Le prive (CABINET, CLINIQUE, AUTRE_PRIVE) n'a aucune regle specifique : seules les regles « * » s'appliquent.
+# Documentation : README, section « Normes et conformite ».
 type_code;kind;target;label;min_value;level
 PS;service;ISS_SVC_CURATIF_DE;Consultations primaires curatives;1;essentiel
 PS;service;ISS_SVC_CPN_DE;Consultations prénatales (CPN);1;essentiel

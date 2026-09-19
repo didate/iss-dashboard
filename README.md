@@ -119,7 +119,8 @@ les lecteurs non connectes (`store.StripPersonalValues`, codes `ISS_GEN_NOM_RESP
 | **Comparaison** | Comparaison de districts |
 | **Carte** | Choropletes par district (rapportage, qualite, services, equipements, WASH, RH) + **Couverture geo** (district ou sous-prefecture : % GPS, score, structures /10 000 hab., nombre) + **Structures (points)** colores par score qualite |
 | **GPS** (`/geolocalisation`) | Couverture GPS nationale et par district / sous-prefecture, liste des structures sans coordonnees, export CSV pour les equipes terrain |
-| **Admin** | Synchronisation manuelle, export Excel, gestion des utilisateurs, historique des synchros |
+| **Normes** (`/conformite`) | Conformite des structures au referentiel de normes actif : score et % conformes par type et par zone, table des ecarts « il manque X de Y dans Z » exportable, liste des structures par statut → detail (chaque exigence attendu / observe) |
+| **Admin** | Synchronisation manuelle, export Excel, gestion des utilisateurs, historique des synchros ; onglet **Normes** (versions du referentiel, editeur, import/export CSV, activation) |
 
 ## Configuration
 
@@ -168,6 +169,31 @@ Groupes d'OU : ils sont lus via les group sets (champs imbriques), ce qui contou
 | `GET` | `/iss/api/admin/users` | Liste des utilisateurs |
 | `POST` | `/iss/api/admin/users` | Creer un utilisateur |
 | `DELETE` | `/iss/api/admin/users/:id` | Supprimer un utilisateur |
+
+### Normes (JWT + role admin)
+
+| Methode | Route | Description |
+|---|---|---|
+| `GET` / `POST` | `/iss/api/admin/normes` | Liste des versions / creation d'un brouillon `{name, notes}` |
+| `PUT` / `DELETE` | `/iss/api/admin/normes/:id` | Nom et notes / suppression (brouillon seulement) |
+| `POST` | `/iss/api/admin/normes/:id/duplicate` | Nouvelle version brouillon copiee |
+| `POST` | `/iss/api/admin/normes/:id/activate` | Archive l'actif, active celui-ci, recalcule la conformite |
+| `GET` / `PUT` | `/iss/api/admin/normes/:id/rules` | Regles / remplacement complet (chaque regle validee contre le catalogue) |
+| `POST` | `/iss/api/admin/normes/:id/rules/import?mode=replace\|append` | Import CSV (`file` multipart), strict : une ligne invalide → rien n'est importe, erreurs par ligne |
+| `GET` | `/iss/api/admin/normes/:id/rules/export.csv` | Export CSV au format d'import |
+| `GET` | `/iss/api/admin/normes/targets` | Catalogue des cibles admissibles (services, profils RH, equipements, infra) |
+| `POST` | `/iss/api/admin/normes/recompute` | Recalcul manuel de la conformite |
+
+### Conformite (lecture, meme regle d'acces que l'espace planification)
+
+| Methode | Route | Description |
+|---|---|---|
+| `GET` | `/iss/api/meta/normes` | Referentiel actif et dernier calcul |
+| `GET` | `/iss/api/conformite/summary?by=global\|region\|district\|sous_prefecture\|type&type=` | Score moyen, structures evaluees, % conformes |
+| `GET` | `/iss/api/conformite/gaps?by=&key=&type=&kind=&level=&limit=` | Ecarts tries par deficit |
+| `GET` | `/iss/api/conformite/structures?region=&district=&sous_prefecture=&type=&status=conforme\|non_conforme\|non_evalue&search=&page=` | Structures avec score et manques |
+| `GET` | `/iss/api/quality/event/:uid` | Existant, + bloc `conformite` (exigences attendu / observe / statut) |
+| `GET` | `/iss/api/map/geo?level=` | Existant, + `conformite_score`, `pct_conformes` |
 
 ### Export (JWT requis)
 
@@ -320,6 +346,71 @@ Tout ce qui n'est pas « un seul groupe » remonte en issue **R17** : le nettoya
 
 Pour **ajouter un type ou un prefixe** : `backend/internal/typologie/mapping.go` (`groupNameToCode`, `prefixToCode`, `Labels`, `groupPriority`) + `typologie_test.go` ; cote front, `frontend/src/utils/typologie.ts` (libelles) et `typeColor()` dans `frontend/src/api/public.ts` (couleur). Les codes sont structurants (le palier « normes » s'indexera dessus) : ne renommez pas un code existant sans migration.
 
+## Normes et conformite
+
+Le palier « normes » compare chaque structure a ce qu'elle *devrait* avoir pour son type. Le referentiel est une
+**donnee editee par l'administration**, pas du code : aucun document officiel n'etant disponible, il est saisi et
+versionne dans l'app, et le texte du MSHP s'y importera le jour venu.
+
+### Cycle de vie d'un referentiel
+
+```
+Creer (brouillon) → importer un CSV ou editer la grille → Activer
+                                                          ↓
+                   l'ancien actif est archive ; la conformite est recalculee
+                                                          ↓
+      pour modifier sans casser l'actif : Dupliquer → nouvelle version brouillon → … → Activer
+```
+
+Une seule version est active ; les versions archivees restent consultables (tracabilite : « ce rapport a ete
+produit avec le referentiel v2 »). La conformite est recalculee a chaque activation, a chaque modification du
+referentiel actif, en fin de synchronisation, ou a la demande — sans appel a DHIS2 (`sync.RecomputeConformite`).
+
+### Format CSV (`;`, UTF-8, lignes `#` ignorees)
+
+```
+type_code;kind;target;label;min_value;level
+CS;service;ISS_SVC_CPN_DE;;1;essentiel
+CS;rh;ISS_RH_SAGEF;Sage-femme;1;essentiel
+HP;rh;ISS_RH_MED_;Medecin (tout profil);3;essentiel
+HP;equipement;ISS_EQUI_TABLE_OP;;1;essentiel
+*;infra;ISS_INFRA_LATRINES_DE;Latrines;1;essentiel
+```
+
+| Colonne | Valeurs |
+|---|---|
+| `type_code` | `PS`, `CS`, `CSA`, `CMC`, `HP`, `HR`, `HN`, `CABINET`, `CLINIQUE`, `AUTRE_PRIVE` ou `*` (tous types). Une regle specifique au type prime sur `*` pour la meme cible |
+| `kind` | `service` (cible = code DE `ISS_SVC_*`, attendu = `oui`), `rh` (racine de profil `ISS_RH_*` ; un suffixe `_` = prefixe, ex. `ISS_RH_MED_` = tout medecin ; tous statuts d'emploi sommes), `equipement` (racine du couple total/fonctionnel ; le minimum porte sur les unites **fonctionnelles**), `infra` (code DE `ISS_INFRA_*`) |
+| `target` | Doit exister dans le catalogue (`GET /admin/normes/targets`, construit depuis les metadonnees ISS) — sinon la ligne est rejetee |
+| `label` | Libelle affiche ; vide = repris du catalogue |
+| `min_value` | Minimum ; force a 1 pour un service |
+| `level` | `essentiel` (poids 2) ou `recommande` (poids 1) |
+
+`docs/normes-exemple.csv` est un referentiel de demonstration **explicitement non officiel** (212 regles, seuils
+indicatifs) qui s'importe tel quel ; il sert a voir l'outil vivre, pas a evaluer le pays.
+
+### Evaluation
+
+- Par structure (dernier recensement de l'org unit), chaque exigence de son type donne un statut : **ok**,
+  **manque** (observe < minimum) ou **inconnu** (donnee non renseignee dans ISS).
+- **Score** = 100 × Σ poids(ok) ÷ Σ poids(ok + manque). Les inconnus sont hors denominateur : la qualite des
+  donnees ne contamine pas la conformite (elle est traitee par le moteur qualite).
+- **Conforme** = aucune exigence essentielle manquante. Critere binaire et severe par construction.
+- Agregats (`conformite_summary`, `conformite_gap`) par region / district / sous-prefecture / type ; le deficit
+  d'un ecart = total a combler (effectifs, unites) pour que toutes les structures concernees atteignent le minimum.
+- Structures privees : memes normes que le public du meme type (aucune regle privee dans l'exemple : seules les
+  regles `*` s'appliquent, d'ou des taux de conformite trompeurs a 100 %).
+
+Un « manque » peut etre une erreur de saisie (valeur 0 dans ISS) : verifier le detail de la structure avant de
+conclure a un deficit reel.
+
+### Etendre
+
+- Nouvelle famille d'exigence : `normes.Kinds` + `Evaluator.observe` (`backend/internal/normes/evaluate.go`) +
+  `BuildNormeCatalog` (`backend/internal/store/normes_store.go`) + un test dans `evaluate_test.go`.
+- Ponderation ou definition de « conforme » : `normes.Summarize`.
+- Nouveau type de structure : voir « Typologie des structures » — les regles s'indexent sur ces codes.
+
 ## Export Excel
 
 ### Depuis l'interface
@@ -348,11 +439,12 @@ backend/
     config/       Configuration (.env)
     models/       Structs Go (Event, User, Issue, etc.)
     dhis2/        Client HTTP DHIS2 (pagination, auth PAT)
-    store/        SQLite (migrations, persistance transactionnelle, queries, users)
+    store/        SQLite (migrations, persistance transactionnelle, queries, users, normes_store, conformite_store)
     typologie/    Resolution du type de structure (groupes d'OU, prefixe du nom) et du statut juridique
     quality/      Moteur de regles (R1-R18, score, tests)
+    normes/       Referentiel de normes (format CSV, catalogue, evaluation, agregats, tests)
     usage/        Agregateurs (recensement, services, equipements, RH, commodites, rapportage, geo, couverture, snapshot public)
-    sync/         Orchestrateur RunSync()
+    sync/         Orchestrateur RunSync(), RecomputeConformite()
     api/          Handlers Gin + middleware JWT + export Excel
     scheduler/    Cron (robfig/cron)
   Dockerfile
@@ -361,7 +453,8 @@ frontend/
   src/
     api/          Client API type + auth JWT
     api/          Client API type + auth JWT ; public.ts = client sans jeton de l'espace public
-    pages/        Dashboard, Quality, Usage, Structures, StructureDetail, Comparison, MapView, Geolocalisation, Admin, Login
+    pages/        Dashboard, Quality, Usage, Structures, StructureDetail, Comparison, MapView, Geolocalisation, Conformite, Admin, Login
+    pages/admin/  NormesEditor
     pages/public/ PublicMap, PublicFiche, About
     components/   Layout, PublicLayout, KpiCard, DataTable, ScoreBar, SeverityBadge, ExportCSV, MethodNote, charts/
     components/map/ ClusterLayer (clusters, partage public/pro), ProGeoMap, InvalidateOnResize
@@ -373,6 +466,9 @@ frontend/
 scripts/
   export_excel.py   Export Excel en ligne de commande
   README.md
+
+docs/
+  normes-exemple.csv    Referentiel de normes de demonstration (non officiel)
 
 docker-compose.yml        Dev (build local)
 docker-compose.prod.yml   Production (images GHCR)
@@ -396,7 +492,8 @@ RunSync()
   |-- Agregats d'utilisation (recensement, services, equipements, RH, commodites, rapportage)
   |-- Agregats geo (usage_geo niveaux 3-4) et couverture demographique (usage_couverture)
   |-- Snapshot public (GeoJSON des points + filtres, serialise une fois, ETag)
-  +-- Persistance atomique (DELETE + INSERT dans une seule transaction SQLite)
+  |-- Persistance atomique (DELETE + INSERT dans une seule transaction SQLite)
+  +-- Conformite au referentiel de normes actif (RecomputeConformite, non bloquant)
 ```
 
 La synchro est **idempotente** et **transactionnelle** : en cas d'erreur, le rollback preserve le dernier snapshot valide. Les sync_run orphelines (crash) sont auto-nettoyees au demarrage.
@@ -427,7 +524,7 @@ La synchro est **idempotente** et **transactionnelle** : en cas d'erreur, le rol
 cd backend && go test ./... -v
 ```
 
-Les tests couvrent les regles qualite, le calcul de score, l'integration du moteur, la typologie, les agregats geo / couverture, l'enrichissement des events, le parsing de configuration et la non-fuite de donnees dans le snapshot public.
+Les tests couvrent les regles qualite, le calcul de score, l'integration du moteur, la typologie, les agregats geo / couverture, l'enrichissement des events, le parsing de configuration, la non-fuite de donnees dans le snapshot public, le format et la validation des normes, l'evaluation de la conformite (statuts, priorite des regles, ponderation) et ses agregats, et le middleware d'acces (mode public / protege).
 
 Pour rejouer une synchro complete en ligne de commande (meme configuration que le serveur) :
 
