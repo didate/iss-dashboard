@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, ChevronRight, FileDown, MapPin, Globe } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight, FileDown, MapPin, Globe, Lock } from 'lucide-react';
 import { typeColor } from '../api/public';
+import { getToken } from '../api/auth';
 import { typologieLabel, typeSourceLabel } from '../utils/typologie';
 import { api } from '../api/client';
 import type { EventDetail } from '../types';
@@ -151,6 +152,12 @@ export default function StructureDetail() {
           </div>
         </div>
       </div>
+
+      {!getToken() && (
+        <p className="text-xs text-gray-500 flex items-center gap-1">
+          <Lock size={12} /> Le nom et le téléphone du responsable ne sont visibles qu'après connexion.
+        </p>
+      )}
 
       {/* Conformité aux normes */}
       {detail.conformite && (

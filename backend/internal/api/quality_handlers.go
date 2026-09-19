@@ -53,5 +53,8 @@ func (h *ReadHandlers) GetEventDetail(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "event not found"})
 		return
 	}
+	if !IsAuthenticated(c) {
+		detail.Values = store.StripPersonalValues(detail.Values)
+	}
 	c.JSON(http.StatusOK, detail)
 }

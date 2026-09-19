@@ -210,6 +210,25 @@ type EventDetail struct {
 	Conformite *EventConformite     `json:"conformite"` // nil = pas de référentiel actif / non évalué
 }
 
+// personalDECodes are the ISS fields that identify a person (the facility's
+// responsible). They are only shown to authenticated users: the planning space
+// may be public, the person behind a structure is not.
+var personalDECodes = map[string]bool{
+	"ISS_GEN_NOM_RESP_DE": true,
+	"ISS_GEN_TEL_RESP_DE": true,
+}
+
+// StripPersonalValues removes personal data fields from a structure's values.
+func StripPersonalValues(values []EventValueDisplay) []EventValueDisplay {
+	out := make([]EventValueDisplay, 0, len(values))
+	for _, v := range values {
+		if !personalDECodes[v.DECode] {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
 type EventValueDisplay struct {
 	DECode        string `json:"de_code"`
 	DEName        string `json:"de_name"`

@@ -174,6 +174,9 @@ func (h *PDFHandlers) writeAreaPDF(c *gin.Context, r areaReport) {
 func (h *PDFHandlers) ExportStructurePDF(c *gin.Context) {
 	uid := c.Param("uid")
 	detail, err := h.Store.GetEventDetail(uid)
+	if err == nil && detail != nil && !IsAuthenticated(c) {
+		detail.Values = store.StripPersonalValues(detail.Values)
+	}
 	if err != nil {
 		internalError(c, err)
 		return

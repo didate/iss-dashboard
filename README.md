@@ -64,8 +64,9 @@ DHIS2_PROGRAM_ID=AJy1cnAA50U
 SQLITE_PATH=/data/iss.db
 SYNC_CRON=0 */6 * * *
 ADMIN_TOKEN=votre_mot_de_passe_admin
-# false en production : la carte publique reste ouverte, le reste exige un login
-DASHBOARD_PUBLIC=false
+# true = espace planification ouvert en lecture (bandeau « prototype », donnees personnelles masquees) ;
+# false = login obligatoire pour l'espace planification. La carte publique reste ouverte dans les deux cas.
+DASHBOARD_PUBLIC=true
 PORT=8080
 # Carte sanitaire (voir section Configuration)
 DHIS2_POPULATION_DX=total:ksBi2JIApqW+oVYNP4fGnTo,moins5:hLcbHlNiRqP,fap:vRIHUMcfSnT,grossesses:IYeo7xNzEWy,accouchements:UQxlKligKNQ
@@ -104,6 +105,11 @@ La fiche publique est volontairement **reduite** : pas de RH, pas d'equipements 
 
 ### Espace planification
 
+Ouvert en lecture quand `DASHBOARD_PUBLIC=true` (choix actuel, phase prototype) avec deux garde-fous : un bandeau
+« Prototype » en tete de chaque page (`frontend/src/components/Layout.tsx`, a retirer quand le MSHP aura valide
+donnees et normes) et le masquage du nom / telephone du responsable dans le detail et le PDF d'une structure pour
+les lecteurs non connectes (`store.StripPersonalValues`, codes `ISS_GEN_NOM_RESP_DE` / `ISS_GEN_TEL_RESP_DE`).
+
 | Page | Description |
 |---|---|
 | **Vue d'ensemble** (`/tableau-de-bord`) | KPIs (structures, score qualite, erreurs, taux de rapportage, derniere synchro), graphes score par district et issues par region |
@@ -125,7 +131,7 @@ La fiche publique est volontairement **reduite** : pas de RH, pas d'equipements 
 | `SQLITE_PATH` | Chemin du fichier SQLite | `./iss.db` |
 | `SYNC_CRON` | Expression cron pour la synchro auto | `0 */6 * * *` |
 | `ADMIN_TOKEN` | Mot de passe du compte admin par defaut | — |
-| `DASHBOARD_PUBLIC` | `true` = tout lisible sans auth (dev), `false` = espace planification derriere JWT ; `/api/public/*` reste toujours ouvert | `true` |
+| `DASHBOARD_PUBLIC` | `true` = espace planification lisible sans connexion (le nom et le telephone du responsable restent masques aux anonymes, l'export Excel et l'admin exigent un login) ; `false` = tout l'espace planification derriere JWT. `/api/public/*` reste toujours ouvert | `true` |
 | `PORT` | Port du backend (en Docker, le conteneur reste sur 8080 : `docker-compose*.yml`) | `8081` |
 | `VITE_API_BASE_URL` | URL du backend **avec le prefixe `/iss`** (build-time frontend) | `http://localhost:8081/iss` |
 

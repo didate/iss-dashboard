@@ -16,25 +16,36 @@ import (
 )
 
 // DashboardAuth optionally protects read endpoints.
+// hasValidJWT reports whether the request carries a valid bearer token.
+func hasValidJWT(c *gin.Context, jwtSecret string) bool {
+	auth := c.GetHeader("Authorization")
+	if auth == "" || !strings.HasPrefix(auth, "Bearer ") {
+		return false
+	}
+	token, err := jwt.Parse(strings.TrimPrefix(auth, "Bearer "), func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+		}
+		return []byte(jwtSecret), nil
+	})
+	return err == nil && token.Valid
+}
+
+// IsAuthenticated is true when DashboardAuth saw a valid token — even in public
+// mode, where it lets read handlers hide personal data from anonymous readers.
+func IsAuthenticated(c *gin.Context) bool {
+	v, _ := c.Get("authenticated")
+	b, _ := v.(bool)
+	return b
+}
+
 func DashboardAuth(isPublic bool, jwtSecret string, st *store.Store) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if isPublic {
+		authenticated := hasValidJWT(c, jwtSecret)
+		c.Set("authenticated", authenticated)
+		if isPublic || authenticated {
 			c.Next()
 			return
-		}
-		auth := c.GetHeader("Authorization")
-		if auth != "" && strings.HasPrefix(auth, "Bearer ") {
-			tokenStr := strings.TrimPrefix(auth, "Bearer ")
-			token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
-				if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-					return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
-				}
-				return []byte(jwtSecret), nil
-			})
-			if err == nil && token.Valid {
-				c.Next()
-				return
-			}
 		}
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "authentification requise"})
 	}
@@ -64,8 +75,8 @@ func CORS() gin.HandlerFunc {
 // LoginRateLimit limits login attempts per IP (max 5 per minute).
 func LoginRateLimit() gin.HandlerFunc {
 	type attempt struct {
-		count    int
-		resetAt  time.Time
+		count   int
+		resetAt time.Time
 	}
 	var mu sync.Mutex
 	attempts := make(map[string]*attempt)
