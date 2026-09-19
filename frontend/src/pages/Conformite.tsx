@@ -32,6 +32,7 @@ export default function Conformite() {
   const [byType, setByType] = useState<ConformiteSummaryRow[]>([]);
   const [rows, setRows] = useState<ConformiteSummaryRow[]>([]);
   const [gaps, setGaps] = useState<ConformiteGap[]>([]);
+  const [essentialTotal, setEssentialTotal] = useState<number | null>(null);
   const [structures, setStructures] = useState<ConformiteStructureResult | null>(null);
   const [error, setError] = useState('');
 
@@ -52,6 +53,15 @@ export default function Conformite() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [district, region, type, kind, level]);
 
+  // KPI « manques essentiels » : périmètre géographique + type, mais indépendant des filtres du tableau des écarts.
+  useEffect(() => {
+    api
+      .getConformiteGaps({ ...gapScope, type, level: 'essentiel' })
+      .then((rows) => setEssentialTotal(rows.reduce((a, g) => a + g.n_manque, 0)))
+      .catch(() => setEssentialTotal(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [district, region, type]);
+
   useEffect(() => {
     api.getConformiteStructures({ region, district, type, status, page, pageSize: 25 }).then(setStructures).catch((e) => setError(e.message));
   }, [region, district, type, status, page]);
@@ -68,7 +78,6 @@ export default function Conformite() {
   const run = meta?.last_run;
   const pctConf = run && run.n_evaluees > 0 ? (100 * run.n_conformes) / run.n_evaluees : null;
   const national = byType.reduce((acc, r) => acc + (r.avg_score ?? 0) * r.n_evaluees, 0) / Math.max(1, byType.reduce((a, r) => a + r.n_evaluees, 0));
-  const essentialGapsNational = gaps.filter((g) => g.level === 'essentiel').reduce((a, g) => a + g.n_manque, 0);
 
   if (meta && !meta.active) {
     return (
@@ -123,7 +132,7 @@ export default function Conformite() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard title="Score de conformité moyen" value={fmt(national, 1)} subtitle="sur 100, pondéré essentiel ×2" color={national >= 85 ? 'text-green-600' : national >= 70 ? 'text-yellow-600' : 'text-red-600'} />
         <KpiCard title="Structures conformes" value={pctConf === null ? '—' : `${pctConf.toFixed(1)}%`} subtitle={run ? `${run.n_conformes} / ${run.n_evaluees} évaluées — aucun manque essentiel` : ''} />
-        <KpiCard title={`Manques essentiels — ${scopeLabel}`} value={essentialGapsNational.toLocaleString('fr-FR')} subtitle="structure × exigence essentielle" color="text-red-600" icon={<AlertTriangle size={18} />} />
+        <KpiCard title={`Manques essentiels — ${scopeLabel}${type ? ` · ${typologieLabel(type)}` : ''}`} value={essentialTotal === null ? '—' : essentialTotal.toLocaleString('fr-FR')} subtitle="structure × exigence essentielle non satisfaite" color="text-red-600" icon={<AlertTriangle size={18} />} />
         <KpiCard title="Structures évaluées" value={run?.n_evaluees ?? '—'} subtitle={run ? `sur ${run.n_structures}` : ''} />
       </div>
 
