@@ -11,3 +11,10 @@ backend/internal/webui/dist/*
 backend/tmp/
 backend/data/
 .claude/output/
+
+# Artefacts locaux (captures de vérification, binaires compilés, données de travail)
+.DS_Store
+*.tsbuildinfo
+backend/fixdata
+.verify-shots/
+data/
