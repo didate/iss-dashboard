@@ -31,6 +31,11 @@ type Config struct {
 	TypologyGroupSet  string
 	HospitalGroupSet  string
 	OwnershipGroupSet string
+
+	// Personnel de l'État : âge de départ à la retraite. Aucune référence
+	// officielle n'ayant été trouvée pour la fonction publique guinéenne, le
+	// seuil est paramétrable et vaut 60 ans par défaut.
+	DrhAgeRetraite int
 }
 
 func Load() *Config {
@@ -50,6 +55,8 @@ func Load() *Config {
 		TypologyGroupSet:  getEnv("DHIS2_TYPOLOGY_GROUPSET", "01 TOUTES LES STRUCTURES"),
 		HospitalGroupSet:  getEnv("DHIS2_HOSPITAL_GROUPSET", "07 HÖPITAUX"),
 		OwnershipGroupSet: getEnv("DHIS2_OWNERSHIP_GROUPSET", "02 PUBLIC PRIVEE"),
+
+		DrhAgeRetraite: parseInt(getEnv("DRH_AGE_RETRAITE", "60"), 60),
 	}
 }
 
@@ -97,6 +104,14 @@ func parseFloat(raw string, fallback float64) float64 {
 		return f
 	}
 	log.Printf("WARN: valeur numérique invalide %q, utilisation de %v", raw, fallback)
+	return fallback
+}
+
+func parseInt(raw string, fallback int) int {
+	if n, err := strconv.Atoi(strings.TrimSpace(raw)); err == nil && n > 0 {
+		return n
+	}
+	log.Printf("WARN: entier invalide %q, utilisation de %d", raw, fallback)
 	return fallback
 }
 

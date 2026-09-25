@@ -68,6 +68,9 @@ func (s *Store) migrate() error {
 		                     ORDER BY e2.event_date DESC, e2.event_uid DESC LIMIT 1)`)
 	// Clean up orphan "running" sync_runs from previous crashes
 	s.db.Exec(`UPDATE sync_run SET status='error', error_text='interrupted by restart' WHERE status='running'`)
+	if err := s.SeedDrhCorrespondances(); err != nil {
+		log.Printf("WARN: seed des correspondances DRH: %v", err)
+	}
 	return nil
 }
 

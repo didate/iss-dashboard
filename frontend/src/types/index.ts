@@ -642,3 +642,53 @@ export interface EventConformite {
   };
   items: ConformiteItem[];
 }
+
+// --- Personnel de l'État (DRH/CNPS) ---
+
+export interface DrhImport {
+  id: number;
+  label: string;
+  annee: number;
+  status: 'active' | 'archived';
+  age_retraite: number;
+  n_agents: number;
+  n_structure: number;
+  n_bureau: number;
+  n_centrale: number;
+  n_non_rattache: number;
+  n_structures: number;
+  imported_at: string;
+  imported_by: string;
+  source_file: string;
+}
+
+export interface DrhInconnu {
+  libelle: string;
+  prefecture: string;
+  n_agents: number;
+}
+
+export interface DrhReport {
+  n_agents: number;
+  n_structure: number;
+  n_bureau: number;
+  n_centrale: number;
+  n_non_rattache: number;
+  n_structures_couvertes: number;
+  par_source: Record<string, number>;
+  inconnus: DrhInconnu[] | null;
+}
+
+export interface DrhImportResult {
+  import: DrhImport;
+  report: DrhReport;
+  duree_ms: number;
+}
+
+export interface DrhCorrespondance {
+  libelle_norm: string;
+  libelle_drh: string;
+  org_unit_uid: string;
+  statut: 'ok' | 'bureau_district' | 'non_rattache' | 'a_trancher';
+  district: string;
+}

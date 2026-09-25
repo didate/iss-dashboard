@@ -133,6 +133,7 @@ les lecteurs non connectes (`store.StripPersonalValues`, codes `ISS_GEN_NOM_RESP
 | `SYNC_CRON` | Expression cron pour la synchro auto | `0 */6 * * *` |
 | `ADMIN_TOKEN` | Mot de passe du compte admin par defaut | — |
 | `DASHBOARD_PUBLIC` | `true` = espace planification lisible sans connexion (le nom et le telephone du responsable restent masques aux anonymes, l'export Excel et l'admin exigent un login) ; `false` = tout l'espace planification derriere JWT. `/api/public/*` reste toujours ouvert | `true` |
+| `DRH_AGE_RETRAITE` | Age de depart a la retraite retenu pour les projections de depart (aucune reference officielle trouvee pour la fonction publique guineenne) | `60` |
 | `PORT` | Port du backend (en Docker, le conteneur reste sur 8080 : `docker-compose*.yml`) | `8081` |
 | `VITE_API_BASE_URL` | URL du backend **avec le prefixe `/iss`** (build-time frontend) | `http://localhost:8081/iss` |
 
@@ -169,6 +170,18 @@ Groupes d'OU : ils sont lus via les group sets (champs imbriques), ce qui contou
 | `GET` | `/iss/api/admin/users` | Liste des utilisateurs |
 | `POST` | `/iss/api/admin/users` | Creer un utilisateur |
 | `DELETE` | `/iss/api/admin/users/:id` | Supprimer un utilisateur |
+
+### Personnel de l'Etat — DRH/CNPS (JWT + role admin)
+
+| Methode | Route | Description |
+|---|---|---|
+| `POST` | `/iss/api/admin/drh/import` | Importe un millesime (`file` multipart + `annee`, `label`, `age_retraite`), strict : une ligne invalide → rien n'est importe |
+| `GET` | `/iss/api/admin/drh/imports` | Liste des millesimes |
+| `POST` | `/iss/api/admin/drh/imports/:id/activate` | Rend ce millesime actif (les autres sont archives) |
+| `DELETE` | `/iss/api/admin/drh/imports/:id` | Supprime un millesime et ses agregats |
+| `GET` | `/iss/api/admin/drh/imports/:id/non-reconnus[.csv]` | Libelles non rattaches, avec leur effectif |
+| `GET` / `PUT` | `/iss/api/admin/drh/correspondances` | Table DRH → ISS / remplacement complet par CSV |
+| `GET` | `/iss/api/admin/drh/correspondances/export.csv` | Export au format d'import |
 
 ### Normes (JWT + role admin)
 
@@ -411,6 +424,74 @@ conclure a un deficit reel.
 - Ponderation ou definition de « conforme » : `normes.Summarize`.
 - Nouveau type de structure : voir « Typologie des structures » — les regles s'indexent sur ces codes.
 
+## Personnel de l'Etat (DRH/CNPS)
+
+Deuxieme source de donnees, independante de DHIS2 : le fichier annuel des agents **payes par l'Etat**,
+transmis par la DRH du Ministere. A ne pas confondre avec l'effectif **present** declare par les structures
+dans ISS — l'ecart entre les deux est justement une information (part du personnel hors fonction publique,
+defaut de declaration, agents affectes mais absents).
+
+### Confidentialite
+
+Le fichier source est nominatif ; l'application n'en a besoin qu'en effectifs.
+
+1. Le `.xlsx` de la DRH est converti en **CSV normalise** par `scripts/drh_xlsx_to_csv.py`, qui laisse de cote
+   matricule, nom, date de naissance exacte et poste occupe (seule l'**annee** de naissance est gardee).
+2. L'import **rejette toute colonne inconnue** : un fichier nominatif ne peut pas entrer par inadvertance.
+3. **Aucune ligne par agent n'est persistee.** L'ingestion calcule les agregats et ne garde qu'eux
+   (`drh_effectif`, `drh_pyramide`), croises zone x profession x tranche d'age x sexe.
+4. Rien n'est expose dans l'espace public.
+
+Le format des colonnes est decrit dans [`docs/drh-format.md`](docs/drh-format.md) — c'est le document a
+transmettre a la DRH pour les millesimes suivants.
+
+### Importer un millesime
+
+```bash
+python3 scripts/drh_xlsx_to_csv.py "CNPS DRH 2026.xlsx" drh-2026.csv
+```
+
+Puis **Admin → Personnel (DRH)** → millesime → *Importer un fichier*. L'ecran affiche le rapport : agents lus,
+rattaches a une structure, en bureau de district, en administration centrale, non rattaches, et les libelles
+non reconnus (exportables en CSV pour arbitrage). Chaque import cree un millesime ; le precedent est archive,
+pas supprime, ce qui permet de comparer dans le temps.
+
+Pour un essai a blanc, sans toucher la base de production :
+
+```bash
+cd backend && go run ./cmd/drhcheck /chemin/copie-de-iss.db drh-2026.csv correspondances.csv 2026
+```
+
+### Rattachement aux structures ISS
+
+`structure_affectation` est un texte libre : il ne correspond pas toujours au nom ISS. `internal/drh/resolve.go`
+essaie, dans cet ordre :
+
+| Ordre | Regle | Source |
+|---|---|---|
+| 1 | Table de correspondance validee a la main | `table` |
+| 2 | Nom normalise identique a une structure ISS | `exact` |
+| 3 | Sigle de bureau de district (`DPS`, `DCS`, `IRS`, `DSP`) ou d'administration centrale | `prefixe` |
+| 4 | Type devine + nom propre, dans le district de l'agent | `approx` |
+| 5 | Seul etablissement de ce type dans le district | `deduit` |
+| — | Rien de tout cela → **non rattache**, visible dans le rapport | `inconnu` |
+
+Ce qui reste ambigu n'est jamais rattache au hasard. Sur le millesime 2026 : **99,4 % des agents categorises**
+(6 500 en structure sur 388 structures, 2 721 en bureau de district, 875 en administration centrale, 66 non rattaches).
+
+La table de correspondance est une **donnee editable**, pas du code : elle est embarquee comme graine
+(`backend/internal/drh/seed/correspondances.csv`, chargee une seule fois sur une base neuve), puis remplacable
+par CSV depuis l'ecran d'admin.
+
+### Etendre
+
+- **Nouveau metier mal classe** : ajouter un motif dans `regles` ou `specialites`
+  (`backend/internal/drh/professions.go`), et le cas dans `TestCategorieDe`. Un libelle inconnu tombe dans
+  `AUTRE` plutot que d'etre perdu.
+- **Nouvelle categorie** : l'ajouter a `drh.Categories` avec sa famille et, si un equivalent existe, le
+  `profil_code` ISS correspondant — c'est ce qui rend la comparaison DRH ↔ ISS possible.
+- **Nouveau sigle d'administration centrale** : `centralePrefixe` dans `resolve.go`.
+
 ## Export Excel
 
 ### Depuis l'interface
@@ -443,18 +524,19 @@ backend/
     typologie/    Resolution du type de structure (groupes d'OU, prefixe du nom) et du statut juridique
     quality/      Moteur de regles (R1-R18, score, tests)
     normes/       Referentiel de normes (format CSV, catalogue, evaluation, agregats, tests)
+    drh/          Personnel de l'Etat : parseur CSV, rattachement aux structures, categories de metier, agregats
     usage/        Agregateurs (recensement, services, equipements, RH, commodites, rapportage, geo, couverture, snapshot public)
-    sync/         Orchestrateur RunSync(), RecomputeConformite()
+    sync/         Orchestrateur RunSync(), RecomputeConformite(), RunDrhImport()
     api/          Handlers Gin + middleware JWT + export Excel
     scheduler/    Cron (robfig/cron)
+  cmd/drhcheck/ Essai a blanc d'un millesime DRH sur une copie de la base
   Dockerfile
 
 frontend/
   src/
-    api/          Client API type + auth JWT
     api/          Client API type + auth JWT ; public.ts = client sans jeton de l'espace public
     pages/        Dashboard, Quality, Usage, Structures, StructureDetail, Comparison, MapView, Geolocalisation, Conformite, Admin, Login
-    pages/admin/  NormesEditor
+    pages/admin/  NormesEditor, DrhImport
     pages/public/ PublicMap, PublicFiche, About
     components/   Layout, PublicLayout, KpiCard, DataTable, ScoreBar, SeverityBadge, ExportCSV, MethodNote, charts/
     components/map/ PointsCanvasLayer (points sur canvas unique, partage public/pro), ProGeoMap, GeoLabels, IndicatorHelp, ConakryInset, InvalidateOnResize
@@ -464,11 +546,13 @@ frontend/
   nginx.conf
 
 scripts/
-  export_excel.py   Export Excel en ligne de commande
+  export_excel.py        Export Excel en ligne de commande
+  drh_xlsx_to_csv.py     Conversion du .xlsx annuel de la DRH en CSV normalise (depersonnalise)
   README.md
 
 docs/
   normes-exemple.csv    Referentiel de normes de demonstration (non officiel)
+  drh-format.md         Colonnes attendues du fichier de personnel, a transmettre a la DRH
 
 docker-compose.yml        Dev (build local)
 docker-compose.prod.yml   Production (images GHCR)

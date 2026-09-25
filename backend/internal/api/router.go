@@ -122,6 +122,19 @@ func SetupRouter(cfg *config.Config, st *store.Store, client *dhis2.Client) *gin
 		admin.PUT("/normes/:id/rules", normesH.PutRules)
 		admin.POST("/normes/:id/rules/import", normesH.ImportRules)
 		admin.GET("/normes/:id/rules/export.csv", normesH.ExportRules)
+
+		// Personnel de l'État (DRH/CNPS) : import des millésimes et table de
+		// correspondance DRH → ISS. Rien de tout cela n'est exposé au public.
+		drhH := &DrhHandlers{Store: st, AgeRetraite: cfg.DrhAgeRetraite}
+		admin.POST("/drh/import", drhH.Import)
+		admin.GET("/drh/imports", drhH.ListImports)
+		admin.POST("/drh/imports/:id/activate", drhH.Activate)
+		admin.DELETE("/drh/imports/:id", drhH.Delete)
+		admin.GET("/drh/imports/:id/non-reconnus", drhH.NonReconnus)
+		admin.GET("/drh/imports/:id/non-reconnus.csv", drhH.NonReconnus)
+		admin.GET("/drh/correspondances", drhH.ListCorrespondances)
+		admin.PUT("/drh/correspondances", drhH.ImportCorrespondances)
+		admin.GET("/drh/correspondances/export.csv", drhH.ExportCorrespondances)
 	}
 
 	// Serve the embedded React SPA (built Vite output) under the same base path.

@@ -336,4 +336,88 @@ CREATE TABLE IF NOT EXISTS public_extra (
     score_services  INTEGER,
     score_services_max INTEGER DEFAULT 0
 );
+
+-- Personnel de l'État (DRH/CNPS) -----------------------------------------
+-- Aucune ligne par agent : le fichier source est nominatif, seuls des agrégats
+-- dépersonnalisés sont persistés (voir internal/drh et docs/drh-format.md).
+
+CREATE TABLE IF NOT EXISTS drh_import (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    label           TEXT NOT NULL,
+    annee           INTEGER NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'active',   -- active | archived
+    age_retraite    INTEGER DEFAULT 60,
+    n_agents        INTEGER DEFAULT 0,
+    n_structure     INTEGER DEFAULT 0,
+    n_bureau        INTEGER DEFAULT 0,
+    n_centrale      INTEGER DEFAULT 0,
+    n_non_rattache  INTEGER DEFAULT 0,
+    n_structures    INTEGER DEFAULT 0,
+    imported_at     TEXT NOT NULL,
+    imported_by     TEXT DEFAULT '',
+    source_file     TEXT DEFAULT ''
+);
+
+-- Correspondances libellé DRH → structure ISS : donnée éditable, pas du code.
+CREATE TABLE IF NOT EXISTS drh_correspondance (
+    libelle_norm    TEXT PRIMARY KEY,
+    libelle_drh     TEXT NOT NULL,
+    org_unit_uid    TEXT DEFAULT '',
+    statut          TEXT NOT NULL,      -- ok | bureau_district | non_rattache | a_trancher
+    district        TEXT DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS drh_effectif (
+    import_id       INTEGER NOT NULL,
+    dimension       TEXT NOT NULL,      -- structure|bureau|centrale|non_rattache, puis les rollups
+    key             TEXT NOT NULL,
+    label           TEXT DEFAULT '',
+    district        TEXT DEFAULT '',
+    region          TEXT DEFAULT '',
+    categorie       TEXT NOT NULL DEFAULT '',  -- '' = toutes professions
+    n_agents        INTEGER DEFAULT 0,
+    n_femmes        INTEGER DEFAULT 0,
+    n_structure     INTEGER DEFAULT 0,
+    n_bureau        INTEGER DEFAULT 0,
+    n_centrale      INTEGER DEFAULT 0,
+    n_depart_5ans   INTEGER DEFAULT 0,
+    n_depart_10ans  INTEGER DEFAULT 0,
+    population      REAL,
+    ratio_10k       REAL,
+    PRIMARY KEY (import_id, dimension, key, categorie)
+);
+CREATE INDEX IF NOT EXISTS idx_drh_effectif_dim ON drh_effectif(import_id, dimension, categorie);
+
+CREATE TABLE IF NOT EXISTS drh_pyramide (
+    import_id       INTEGER NOT NULL,
+    dimension       TEXT NOT NULL,
+    key             TEXT NOT NULL,
+    categorie       TEXT NOT NULL DEFAULT '',
+    tranche         TEXT NOT NULL,
+    n_agents        INTEGER DEFAULT 0,
+    n_femmes        INTEGER DEFAULT 0,
+    PRIMARY KEY (import_id, dimension, key, categorie, tranche)
+);
+
+CREATE TABLE IF NOT EXISTS drh_comparaison (
+    import_id       INTEGER NOT NULL,
+    dimension       TEXT NOT NULL,
+    key             TEXT NOT NULL,
+    label           TEXT DEFAULT '',
+    categorie       TEXT NOT NULL DEFAULT '',
+    n_drh           INTEGER DEFAULT 0,
+    n_iss           REAL,
+    ecart           REAL,
+    ratio           REAL,
+    PRIMARY KEY (import_id, dimension, key, categorie)
+);
+
+-- Libellés que l'import n'a pas su rattacher : la liste à renvoyer à la DRH.
+CREATE TABLE IF NOT EXISTS drh_non_reconnu (
+    import_id       INTEGER NOT NULL,
+    libelle_drh     TEXT NOT NULL,
+    prefecture      TEXT DEFAULT '',
+    n_agents        INTEGER DEFAULT 0,
+    PRIMARY KEY (import_id, libelle_drh, prefecture)
+);
 `

@@ -28,6 +28,10 @@ import type {
   NormeRule,
   NormeTargets,
   NormeLineError,
+  DrhImport,
+  DrhImportResult,
+  DrhInconnu,
+  DrhCorrespondance,
   NormesMeta,
   ConformiteSummaryRow,
   ConformiteGap,
@@ -265,6 +269,64 @@ export const api = {
     const a = document.createElement('a');
     a.href = url;
     a.download = `normes_v${version}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+
+  // Personnel de l'État (DRH/CNPS) — administration
+  getDrhImports: () => request<{ imports: DrhImport[] }>('/api/admin/drh/imports').then((r) => r.imports ?? []),
+  activateDrhImport: (id: number) =>
+    request<{ import: DrhImport }>(`/api/admin/drh/imports/${id}/activate`, { method: 'POST' }).then((r) => r.import),
+  deleteDrhImport: (id: number) => request<{ deleted: number }>(`/api/admin/drh/imports/${id}`, { method: 'DELETE' }),
+  getDrhNonReconnus: (id: number) =>
+    request<{ non_reconnus: DrhInconnu[] }>(`/api/admin/drh/imports/${id}/non-reconnus`).then((r) => r.non_reconnus ?? []),
+  getDrhCorrespondances: () =>
+    request<{ correspondances: DrhCorrespondance[] }>('/api/admin/drh/correspondances').then((r) => r.correspondances ?? []),
+  importDrhFile: async (file: File, params: { annee: number; label?: string }) => {
+    const token = (await import('./auth')).getToken();
+    const form = new FormData();
+    form.append('file', file);
+    form.append('annee', String(params.annee));
+    if (params.label) form.append('label', params.label);
+    const res = await fetch(`${BASE_URL}/api/admin/drh/import`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+    const body = (await res.json()) as Partial<DrhImportResult> & { error?: string; erreurs?: NormeLineError[] };
+    if (!res.ok) {
+      const err = new Error(body.error || `Import failed: ${res.status}`) as Error & { errors?: NormeLineError[] };
+      err.errors = body.erreurs;
+      throw err;
+    }
+    return body as DrhImportResult;
+  },
+  importDrhCorrespondances: async (file: File) => {
+    const token = (await import('./auth')).getToken();
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${BASE_URL}/api/admin/drh/correspondances`, {
+      method: 'PUT',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+    const body = (await res.json()) as { imported?: number; error?: string; erreurs?: NormeLineError[] };
+    if (!res.ok) {
+      const err = new Error(body.error || `Import failed: ${res.status}`) as Error & { errors?: NormeLineError[] };
+      err.errors = body.erreurs;
+      throw err;
+    }
+    return body as { imported: number; erreurs: NormeLineError[] | null };
+  },
+  downloadDrhCSV: async (path: string, filename: string) => {
+    const token = (await import('./auth')).getToken();
+    const res = await fetch(`${BASE_URL}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
   },

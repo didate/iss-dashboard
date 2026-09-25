@@ -5,6 +5,7 @@ import { api } from '../api/client';
 import { getToken } from '../api/auth';
 import type { SyncStatus } from '../types';
 import NormesEditor from './admin/NormesEditor';
+import DrhImport from './admin/DrhImport';
 import { useUrlState } from '../hooks/useUrlState';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/iss';
@@ -114,7 +115,7 @@ export default function Admin() {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className={`space-y-6 ${tab === 'drh' ? '' : 'max-w-4xl'}`}>
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-gray-900">Administration</h2>
         <button
@@ -127,7 +128,7 @@ export default function Admin() {
       </div>
 
       <div className="flex bg-white rounded-lg border border-gray-200 p-0.5 w-fit">
-        {[['general', 'Synchronisation & utilisateurs'], ['normes', 'Normes']].map(([k, l]) => (
+        {[['general', 'Synchronisation & utilisateurs'], ['normes', 'Normes'], ['drh', 'Personnel (DRH)']].map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} className={`px-3 py-1.5 text-sm rounded ${tab === k ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
             {l}
           </button>
@@ -135,6 +136,7 @@ export default function Admin() {
       </div>
 
       {tab === 'normes' && <NormesEditor />}
+      {tab === 'drh' && <DrhImport />}
       {tab === 'general' && (<>
 
       {/* Sync + Export */}
