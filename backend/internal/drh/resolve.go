@@ -123,6 +123,31 @@ func typeHint(label string) string {
 	return ""
 }
 
+var premierToken = regexp.MustCompile(`^[A-Za-z-]+`)
+
+// estSigle distingue un sigle d'administration d'un mot ordinaire : un sigle
+// est majoritairement en majuscules (DNELM, PNLP, DSVCo, CT-EPi), pas un nom
+// commun. Sans ce garde-fou, le motif des programmes nationaux (`pn[a-z-]+`)
+// happait « Pneumologie » — un service hospitalier — et rangeait 30 agents du
+// CHU dans les programmes nationaux.
+func estSigle(label string) bool {
+	tok := premierToken.FindString(strings.TrimSpace(label))
+	var lettres, majuscules int
+	for _, r := range tok {
+		if r == '-' {
+			continue
+		}
+		lettres++
+		if r >= 'A' && r <= 'Z' {
+			majuscules++
+		}
+	}
+	if lettres < 2 || lettres > 12 {
+		return false
+	}
+	return float64(majuscules)/float64(lettres) >= 0.6
+}
+
 // typeWords sont les mots de forme (type, article) : ce qui reste est le nom propre.
 var typeWords = map[string]bool{
 	"cs": true, "csr": true, "csu": true, "csa": true, "csc": true, "cmc": true, "ps": true,
@@ -243,8 +268,11 @@ func (r *Resolver) resolveLabel(label string, a AgentRow) (Affectation, bool) {
 	if bureauPrefixe.MatchString(strings.TrimSpace(label)) {
 		return r.bureauAff(a, SrcPrefixe), true
 	}
-	if centralePrefixe.MatchString(strings.TrimSpace(label)) {
-		return Affectation{Kind: AffCentrale, Key: KeyNational, Label: "Administration centrale", Source: SrcPrefixe}, true
+	if centralePrefixe.MatchString(strings.TrimSpace(label)) && estSigle(label) {
+		// Chaque direction, institut ou programme garde sa propre clé : sans
+		// cela, 875 agents se retrouvaient dans un bloc « administration
+		// centrale » indistinct, alors qu'ils se répartissent sur 42 entités.
+		return Affectation{Kind: AffCentrale, Key: Norm(label), Label: strings.TrimSpace(label), Source: SrcPrefixe}, true
 	}
 
 	pool := r.byDistrict[normDistrict(a.Prefecture)]

@@ -37,6 +37,7 @@ export default function Personnel() {
   const [pyramide, setPyramide] = useState<DrhPyramide[]>([]);
   const [comparaison, setComparaison] = useState<DrhComparaison[]>([]);
   const [structures, setStructures] = useState<DrhStructureRow[]>([]);
+  const [centrale, setCentrale] = useState<DrhEffectif[]>([]);
 
   useEffect(() => {
     api.getFilters().then(setFilters).catch(() => {});
@@ -70,6 +71,13 @@ export default function Personnel() {
     if (!summary || !district) { setStructures([]); return; }
     api.getDrhStructuresList({ district }).then(setStructures).catch(() => {});
   }, [summary, district]);
+
+  // Directions, instituts et programmes nationaux : ils ne relèvent d'aucun
+  // district, donc le bloc n'a de sens qu'au périmètre national.
+  useEffect(() => {
+    if (!summary || district) { setCentrale([]); return; }
+    api.getDrhEffectifs({ by: 'centrale', categorie }).then(setCentrale).catch(() => {});
+  }, [summary, district, categorie]);
 
   const catLabel = useMemo(() => {
     const m: Record<string, string> = {};
@@ -252,6 +260,48 @@ export default function Personnel() {
           </p>
         </div>
       </div>
+
+      {/* Administration centrale : directions, instituts, programmes nationaux */}
+      {centrale.length > 0 && (
+        <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-semibold text-gray-800">Administration centrale, instituts et programmes</h3>
+            <span className="text-xs text-gray-400">
+              {fmt(centrale.reduce((a, r) => a + r.n_agents, 0))} agents · {centrale.length} entités ·
+              {categorie ? ` ${catLabel[categorie]}` : ' toutes professions'}
+            </span>
+            <div className="ml-auto">
+              <ExportCSV
+                data={centrale as unknown as Record<string, unknown>[]}
+                columns={[
+                  { key: 'label', header: 'Entité' },
+                  { key: 'n_agents', header: 'Agents' },
+                  { key: 'n_femmes', header: 'Femmes' },
+                  { key: 'n_depart_5ans', header: 'Départs 5 ans' },
+                ]}
+                filename="personnel_administration_centrale"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+            {centrale.map((r) => (
+              <div key={r.key} className="border border-gray-200 rounded p-2">
+                <div className="text-xs text-gray-600 truncate" title={r.label}>{r.label}</div>
+                <div className="text-lg font-semibold text-gray-900">{fmt(r.n_agents)}</div>
+                <div className="text-[11px] text-gray-500">
+                  {pct(r.n_femmes, r.n_agents)} de femmes
+                  {r.n_depart_5ans > 0 && ` · ${r.n_depart_5ans} départ${r.n_depart_5ans > 1 ? 's' : ''}`}
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-gray-500">
+            Ces agents ne sont rattachés à aucun district : ils ne comptent qu'au niveau national, et n'entrent
+            donc ni dans les densités régionales, ni dans la comparaison avec les effectifs déclarés par les
+            structures.
+          </p>
+        </div>
+      )}
 
       {/* Effectifs par zone */}
       <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-3">

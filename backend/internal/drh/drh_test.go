@@ -159,7 +159,9 @@ func TestResolve(t *testing.T) {
 		{"déduction du seul hôpital", AgentRow{Prefecture: "Gaoual", StructureAffectation: "Hôpital Préfectoral"}, AffStructure, "u-hp-gaoual", SrcDeduit},
 		{"sigle de bureau de district", AgentRow{Prefecture: "Forécariah", StructureAffectation: "DPS Forécariah"}, AffBureau, "forecariah", SrcPrefixe},
 		{"bureau via la table", AgentRow{Prefecture: "Kérouané", StructureAffectation: "Kérouane"}, AffBureau, "kerouane", SrcTable},
-		{"administration centrale", AgentRow{Prefecture: "Conakry", StructureAffectation: "DRH Ministère"}, AffCentrale, KeyNational, SrcPrefixe},
+		{"administration centrale", AgentRow{Prefecture: "Conakry", StructureAffectation: "DRH Ministère"}, AffCentrale, "drh ministere", SrcPrefixe},
+		{"programme national", AgentRow{Prefecture: "Conakry", StructureAffectation: "PNLP"}, AffCentrale, "pnlp", SrcPrefixe},
+		{"sigle en casse mixte", AgentRow{Prefecture: "Conakry", StructureAffectation: "DSVCo"}, AffCentrale, "dsvco", SrcPrefixe},
 		{"non rattachable déclaré", AgentRow{Prefecture: "Boffa", StructureAffectation: "Boffa Centre"}, AffNonRattache, "boffa", SrcTable},
 		{"libellé inconnu", AgentRow{Prefecture: "Gaoual", StructureAffectation: "CS Youkounkoun"}, AffNonRattache, "gaoual", SrcInconnu},
 		{"repli sur la structure de rattachement", AgentRow{Prefecture: "Kankan", StructureRattachement: "HR Kankan"}, AffStructure, "u-hr-kankan", SrcExact},
@@ -185,6 +187,26 @@ func TestResolveRegionISS(t *testing.T) {
 	} {
 		if got := r.Resolve(a); got.Region != "Boké" {
 			t.Errorf("%s → région %q, attendu la région ISS \"Boké\"", a.StructureAffectation, got.Region)
+		}
+	}
+}
+
+// « Pneumologie » est un service hospitalier, pas un programme national : le
+// motif des sigles ne doit pas happer les mots ordinaires.
+func TestResolveMotOrdinaireNestPasUnSigle(t *testing.T) {
+	r := testResolver(t)
+	got := r.Resolve(AgentRow{Prefecture: "Gaoual", StructureAffectation: "Pneumologie"})
+	if got.Kind == AffCentrale {
+		t.Fatalf("« Pneumologie » classé en administration centrale : %+v", got)
+	}
+	for _, sigle := range []string{"PNLP", "DNELM", "CT-EPi", "DSVCo", "IGS"} {
+		if !estSigle(sigle) {
+			t.Errorf("%q devrait être reconnu comme un sigle", sigle)
+		}
+	}
+	for _, mot := range []string{"Pneumologie", "Maternite", "Chirurgie", "a"} {
+		if estSigle(mot) {
+			t.Errorf("%q ne devrait pas être reconnu comme un sigle", mot)
 		}
 	}
 }

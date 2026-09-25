@@ -308,7 +308,9 @@ func (h *DrhReadHandlers) Effectifs(c *gin.Context) {
 	if !ok {
 		return
 	}
-	by, ok := dimension(c, drh.RollupDimensions, drh.DimDistrict)
+	// Les dimensions de rollup, plus l'administration centrale, qui n'en est pas
+	// une : ses entités ne se cumulent qu'au national, mais se lisent une à une.
+	by, ok := dimension(c, append(append([]string{}, drh.RollupDimensions...), drh.AffCentrale), drh.DimDistrict)
 	if !ok {
 		return
 	}

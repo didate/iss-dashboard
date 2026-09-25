@@ -205,7 +205,7 @@ Groupes d'OU : ils sont lus via les group sets (champs imbriques), ce qui contou
 | Methode | Route | Description |
 |---|---|---|
 | `GET` | `/iss/api/drh/summary` | Millesime actif, effectif national, densite, repartition par categorie, catalogue |
-| `GET` | `/iss/api/drh/effectifs?by=global\|region\|district\|sous_prefecture\|type&categorie=&key=&district=` | Effectifs pre-calcules (`categorie=*` renvoie toutes les categories detaillees) |
+| `GET` | `/iss/api/drh/effectifs?by=global\|region\|district\|sous_prefecture\|type\|centrale&categorie=&key=&district=` | Effectifs pre-calcules (`categorie=*` renvoie toutes les categories detaillees ; `by=centrale` detaille les directions et programmes) |
 | `GET` | `/iss/api/drh/pyramide?by=global\|region\|district\|type&key=&categorie=` | Tranches quinquennales, tranches vides comprises |
 | `GET` | `/iss/api/drh/comparaison?by=global\|district&categorie=` | DRH vs ISS : effectifs, ecart, ratio, les ratios les plus bas d'abord |
 | `GET` | `/iss/api/drh/structures?district=&search=` | Effectif par structure, y compris les structures sans aucun agent |
@@ -495,7 +495,7 @@ essaie, dans cet ordre :
 |---|---|---|
 | 1 | Table de correspondance validee a la main | `table` |
 | 2 | Nom normalise identique a une structure ISS | `exact` |
-| 3 | Sigle de bureau de district (`DPS`, `DCS`, `IRS`, `DSP`) ou d'administration centrale | `prefixe` |
+| 3 | Sigle de bureau de district (`DPS`, `DCS`, `IRS`, `DSP`) ou d'administration centrale / institut / programme national | `prefixe` |
 | 4 | Type devine + nom propre, dans le district de l'agent | `approx` |
 | 5 | Seul etablissement de ce type dans le district | `deduit` |
 | — | Rien de tout cela → **non rattache**, visible dans le rapport | `inconnu` |
@@ -517,6 +517,7 @@ centrale, ou un libelle non rattache) x categorie professionnelle. Les rollups e
 | `global` | tout le monde |
 | `region`, `district` | les structures de la zone, son bureau de district, et les agents dont le libelle n'a pas pu etre rattache — ce sont de vrais agents de la prefecture, les ecarter sous-estimerait la zone |
 | `sous_prefecture`, `type` | uniquement les agents affectes a une structure, les seuls dont on connaisse le lieu exact et le type |
+| `centrale` | une cle par direction, institut ou programme national (42 entites sur 2026), lisible via `GET /drh/effectifs?by=centrale` |
 
 L'administration centrale ne compte qu'au national : elle n'est pas « dans » le district dont elle a l'adresse.
 La densite pour 10 000 habitants utilise la meme population DHIS2 que le reste de l'application. Le **taux de
@@ -564,7 +565,9 @@ est lue dans le CSV mais n'est agregee dans aucune dimension. L'ajouter demande 
   `AUTRE` plutot que d'etre perdu.
 - **Nouvelle categorie** : l'ajouter a `drh.Categories` avec sa famille et, si un equivalent existe, le
   `profil_code` ISS correspondant — c'est ce qui rend la comparaison DRH ↔ ISS possible.
-- **Nouveau sigle d'administration centrale** : `centralePrefixe` dans `resolve.go`.
+- **Nouveau sigle d'administration centrale** : `centralePrefixe` dans `resolve.go`. Le sigle doit rester
+  majoritairement en majuscules (`estSigle`) : sans ce garde-fou le motif des programmes nationaux happait
+  « Pneumologie » et rangeait un service hospitalier parmi les programmes.
 
 ## Export Excel
 
