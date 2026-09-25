@@ -242,6 +242,12 @@ func RunSync(st *store.Store, client *dhis2.Client, opts Options) (*models.SyncR
 		log.Printf("[SYNC] WARN: conformité non recalculée : %v", err)
 	}
 
+	// Step 9: DRH aggregates — the personnel file has not changed, but the
+	// population and the ISS headcounts it is compared against just have.
+	if err := RecomputeDrh(st); err != nil {
+		log.Printf("[SYNC] WARN: agrégats DRH non recalculés : %v", err)
+	}
+
 	duration := time.Since(start).Milliseconds()
 	if err := st.FinishSyncRun(syncRunID, "success", len(events), totalIssues, duration, ""); err != nil {
 		log.Printf("[SYNC] WARN: finish sync run: %v", err)

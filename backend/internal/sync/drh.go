@@ -86,5 +86,56 @@ func RunDrhImport(st *store.Store, r io.Reader, p DrhImportParams) (*DrhImportRe
 	log.Printf("[DRH] millésime %d enregistré (%d cellules d'effectif, %d de pyramide) en %s",
 		im.ID, len(eff), len(pyr), time.Since(start).Round(time.Millisecond))
 
+	if err := RecomputeDrh(st); err != nil {
+		return nil, fmt.Errorf("calcul des agrégats : %w", err)
+	}
 	return &DrhImportResult{Import: im, Report: report, DureeMs: time.Since(start).Milliseconds()}, nil
+}
+
+// RecomputeDrh rebuilds the derived cells of the active millésime: the rollups
+// by region, district, sous-préfecture and type, the densities per 10 000
+// inhabitants, and the comparison with the ISS headcounts.
+//
+// It is re-run after every DHIS2 sync, because both the population and the ISS
+// side of the comparison come from that snapshot: the personnel file does not
+// change, but what it is compared against does.
+func RecomputeDrh(st *store.Store) error {
+	im, err := st.GetActiveDrhImport()
+	if err != nil {
+		return err
+	}
+	if im == nil {
+		return nil // aucun fichier de personnel importé : rien à recalculer
+	}
+	start := time.Now()
+
+	fineEff, finePyr, err := st.GetDrhFineCells(im.ID)
+	if err != nil {
+		return fmt.Errorf("lecture des cellules : %w", err)
+	}
+	structures, err := st.ListDrhStructures()
+	if err != nil {
+		return err
+	}
+	byUID := make(map[string]drh.Structure, len(structures))
+	for _, s := range structures {
+		byUID[s.UID] = s
+	}
+	pop, err := st.GetDrhPopulationIndex()
+	if err != nil {
+		return err
+	}
+	iss, err := st.GetIssRH()
+	if err != nil {
+		return err
+	}
+
+	eff, pyr := drh.Rollup(fineEff, finePyr, drh.RollupContext{Structures: byUID, Population: pop})
+	comp := drh.Compare(eff, iss)
+	if err := st.ReplaceDrhRollups(im.ID, eff, pyr, comp); err != nil {
+		return err
+	}
+	log.Printf("[DRH] agrégats du millésime %d recalculés : %d effectifs, %d pyramide, %d comparaisons en %s",
+		im.ID, len(eff), len(pyr), len(comp), time.Since(start).Round(time.Millisecond))
+	return nil
 }

@@ -27,11 +27,13 @@ const (
 
 // Structure is one ISS facility, as the resolver needs it.
 type Structure struct {
-	UID      string
-	Name     string
-	District string
-	Region   string
-	TypeCode string
+	UID               string
+	Name              string
+	District          string
+	Region            string
+	TypeCode          string
+	SousPrefecture    string
+	SousPrefectureUID string
 }
 
 // Correspondance is one manually validated DRH label → ISS facility mapping.
@@ -217,7 +219,7 @@ func (r *Resolver) Resolve(a AgentRow) Affectation {
 		}
 	}
 	return Affectation{Kind: AffNonRattache, Key: r.districtKey(a), Label: a.Libelle(),
-		District: r.districtLabel(a), Region: a.Region, Source: SrcInconnu}
+		District: r.districtLabel(a), Region: r.regionLabel(a), Source: SrcInconnu}
 }
 
 func (r *Resolver) resolveLabel(label string, a AgentRow) (Affectation, bool) {
@@ -232,7 +234,7 @@ func (r *Resolver) resolveLabel(label string, a AgentRow) (Affectation, bool) {
 			return r.bureauAff(a, SrcTable), true
 		case CorrNonRattache, CorrATrancher:
 			return Affectation{Kind: AffNonRattache, Key: r.districtKey(a), Label: label,
-				District: r.districtLabel(a), Region: a.Region, Source: SrcTable}, true
+				District: r.districtLabel(a), Region: r.regionLabel(a), Source: SrcTable}, true
 		}
 	}
 	if s, ok := r.byName[k]; ok {
@@ -305,7 +307,7 @@ func (r *Resolver) bureauAff(a AgentRow, src string) Affectation {
 		label = a.Prefecture
 	}
 	return Affectation{Kind: AffBureau, Key: r.districtKey(a), Label: "Bureau de district — " + label,
-		District: label, Region: a.Region, Source: src}
+		District: label, Region: r.regionLabel(a), Source: src}
 }
 
 // districtKey identifies the agent's district; the DRH prefecture is the only
@@ -316,6 +318,16 @@ func (r *Resolver) districtKey(a AgentRow) string {
 		return KeyNational
 	}
 	return k
+}
+
+// regionLabel returns the ISS region of the agent's district. The DRH writes
+// its own region names ("BOKE") : keeping them would split every regional
+// aggregate in two.
+func (r *Resolver) regionLabel(a AgentRow) string {
+	if s, ok := r.districts[normDistrict(a.Prefecture)]; ok && s.Region != "" {
+		return s.Region
+	}
+	return strings.TrimSpace(a.Region)
 }
 
 func (r *Resolver) districtLabel(a AgentRow) string {

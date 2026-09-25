@@ -9,7 +9,7 @@ const CategorieToutes = ""
 // professional category. This is the finest grain ever persisted — no line
 // describes an individual.
 type EffectifRow struct {
-	Dimension    string `json:"dimension"` // structure | bureau | centrale | non_rattache
+	Dimension    string `json:"dimension"` // grain fin : structure|bureau|centrale|non_rattache ; rollups : global|region|district|sous_prefecture|type
 	Key          string `json:"key"`
 	Label        string `json:"label"`
 	District     string `json:"district"`
@@ -19,6 +19,19 @@ type EffectifRow struct {
 	NFemmes      int    `json:"n_femmes"`
 	NDepart5Ans  int    `json:"n_depart_5ans"`
 	NDepart10Ans int    `json:"n_depart_10ans"`
+	// NAgeConnu est le dénominateur des taux de départ : les agents sans année
+	// de naissance comptent dans l'effectif, mais les inclure diluerait le taux
+	// et ferait passer le risque pour plus faible qu'il n'est.
+	NAgeConnu int `json:"n_age_connu"`
+
+	// Répartition par lieu d'affectation, renseignée sur les rollups.
+	NStructure   int `json:"n_structure"`
+	NBureau      int `json:"n_bureau"`
+	NCentrale    int `json:"n_centrale"`
+	NNonRattache int `json:"n_non_rattache"`
+
+	Population *float64 `json:"population,omitempty"`
+	Ratio10k   *float64 `json:"ratio_10k,omitempty"`
 }
 
 // PyramideRow is one age-bracket cell of the same place and category.
@@ -69,6 +82,9 @@ func Aggregate(rows []AgentRow, affs []Affectation, opt Options) ([]EffectifRow,
 			if femme {
 				row.NFemmes++
 			}
+			if a.Age(opt.RefYear) >= 0 {
+				row.NAgeConnu++
+			}
 			if d5 {
 				row.NDepart5Ans++
 			}
@@ -99,19 +115,7 @@ func Aggregate(rows []AgentRow, affs []Affectation, opt Options) ([]EffectifRow,
 	for _, r := range pyr {
 		pyrOut = append(pyrOut, *r)
 	}
-	sort.Slice(pyrOut, func(i, j int) bool {
-		a, b := pyrOut[i], pyrOut[j]
-		switch {
-		case a.Dimension != b.Dimension:
-			return a.Dimension < b.Dimension
-		case a.Key != b.Key:
-			return a.Key < b.Key
-		case a.Categorie != b.Categorie:
-			return a.Categorie < b.Categorie
-		default:
-			return trancheOrder(a.Tranche) < trancheOrder(b.Tranche)
-		}
-	})
+	sort.Slice(pyrOut, func(i, j int) bool { return lessPyramide(pyrOut[i], pyrOut[j]) })
 	return effOut, pyrOut
 }
 
@@ -123,6 +127,19 @@ func lessEffectif(a, b EffectifRow) bool {
 		return a.Key < b.Key
 	default:
 		return a.Categorie < b.Categorie
+	}
+}
+
+func lessPyramide(a, b PyramideRow) bool {
+	switch {
+	case a.Dimension != b.Dimension:
+		return a.Dimension < b.Dimension
+	case a.Key != b.Key:
+		return a.Key < b.Key
+	case a.Categorie != b.Categorie:
+		return a.Categorie < b.Categorie
+	default:
+		return trancheOrder(a.Tranche) < trancheOrder(b.Tranche)
 	}
 }
 

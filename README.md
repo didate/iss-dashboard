@@ -197,6 +197,20 @@ Groupes d'OU : ils sont lus via les group sets (champs imbriques), ce qui contou
 | `GET` | `/iss/api/admin/normes/targets` | Catalogue des cibles admissibles (services, profils RH, equipements, infra) |
 | `POST` | `/iss/api/admin/normes/recompute` | Recalcul manuel de la conformite |
 
+### Personnel de l'Etat (lecture, meme regle d'acces que l'espace planification)
+
+| Methode | Route | Description |
+|---|---|---|
+| `GET` | `/iss/api/drh/summary` | Millesime actif, effectif national, densite, repartition par categorie, catalogue |
+| `GET` | `/iss/api/drh/effectifs?by=global\|region\|district\|sous_prefecture\|type&categorie=&key=&district=` | Effectifs pre-calcules (`categorie=*` renvoie toutes les categories detaillees) |
+| `GET` | `/iss/api/drh/pyramide?by=global\|region\|district\|type&key=&categorie=` | Tranches quinquennales, tranches vides comprises |
+| `GET` | `/iss/api/drh/comparaison?by=global\|district&categorie=` | DRH vs ISS : effectifs, ecart, ratio, les ratios les plus bas d'abord |
+| `GET` | `/iss/api/drh/structures?district=&search=` | Effectif par structure, y compris les structures sans aucun agent |
+| `GET` | `/iss/api/drh/structure/:uid` | Personnel de l'Etat affecte a une structure, par categorie |
+
+Sans millesime importe, ces routes repondent `404` : le front masque la page au lieu d'afficher des graphes vides.
+`/iss/api/map/geo` porte en plus `drh_ratio_10k` et `drh_depart_5ans_pct` par district et sous-prefecture.
+
 ### Conformite (lecture, meme regle d'acces que l'espace planification)
 
 | Methode | Route | Description |
@@ -482,6 +496,40 @@ Ce qui reste ambigu n'est jamais rattache au hasard. Sur le millesime 2026 : **9
 La table de correspondance est une **donnee editable**, pas du code : elle est embarquee comme graine
 (`backend/internal/drh/seed/correspondances.csv`, chargee une seule fois sur une base neuve), puis remplacable
 par CSV depuis l'ecran d'admin.
+
+### Agregats
+
+Chaque import ecrit les cellules au grain le plus fin (une structure, un bureau de district, l'administration
+centrale, ou un libelle non rattache) x categorie professionnelle. Les rollups en sont deduits :
+
+| Dimension | Qui y compte |
+|---|---|
+| `global` | tout le monde |
+| `region`, `district` | les structures de la zone, son bureau de district, et les agents dont le libelle n'a pas pu etre rattache — ce sont de vrais agents de la prefecture, les ecarter sous-estimerait la zone |
+| `sous_prefecture`, `type` | uniquement les agents affectes a une structure, les seuls dont on connaisse le lieu exact et le type |
+
+L'administration centrale ne compte qu'au national : elle n'est pas « dans » le district dont elle a l'adresse.
+La densite pour 10 000 habitants utilise la meme population DHIS2 que le reste de l'application. Le **taux de
+depart** se calcule sur `n_age_connu`, pas sur l'effectif total : 663 agents du millesime 2026 n'ont pas d'annee
+de naissance, et les inclure au denominateur ferait passer le risque pour plus faible qu'il n'est.
+
+Les rollups, les densites et la comparaison sont **recalcules a chaque synchronisation DHIS2** (`RecomputeDrh`) :
+le fichier de personnel ne bouge pas, mais la population et les effectifs ISS auxquels on le compare, si.
+
+### Lire la comparaison DRH / ISS
+
+Les deux sources ne mesurent pas la meme chose : ISS compte le personnel **present** declare par la structure,
+la DRH ceux qu'elle **paie**. Un ratio ISS/DRH superieur a 1 est donc normal et mesure la part de personnel hors
+fonction publique (national 2026 : medecins generalistes x1,5, ATS x3,7, sages-femmes x4,0, infirmiers x4,9).
+
+Un ratio **inferieur a 1** est une anomalie : l'Etat paie plus d'agents que les structures n'en declarent. Soit
+un defaut de declaration ISS, soit des agents affectes mais absents. Sur 2026, pour les medecins generalistes :
+Mali (17 payes / 6 declares), Dabola (13/5), Coyah (48/22), Gaoual (10/6), Telimele (28/17), Mandiana (30/19).
+Ni l'une ni l'autre source ne pouvait le reveler seule.
+
+Seules les categories ayant un equivalent ISS sont comparees, et la ligne « toutes categories » somme des deux
+cotes les **memes** categories — celles qu'ISS a effectivement renseignees — pour que l'ecart ne mesure pas un
+trou de nomenclature.
 
 ### Etendre
 

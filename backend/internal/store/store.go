@@ -60,6 +60,8 @@ func (s *Store) migrate() error {
 	}
 	s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_event_type ON event(type_code)`)
 	s.db.Exec(`ALTER TABLE usage_couverture ADD COLUMN ou_uid TEXT DEFAULT ''`)
+	s.db.Exec(`ALTER TABLE drh_effectif ADD COLUMN n_non_rattache INTEGER DEFAULT 0`)
+	s.db.Exec(`ALTER TABLE drh_effectif ADD COLUMN n_age_connu INTEGER DEFAULT 0`)
 	s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_couverture_ou ON usage_couverture(ou_uid)`)
 	// Une structure = son event le plus récent (une OU peut avoir été recensée plusieurs fois).
 	s.db.Exec(`CREATE VIEW IF NOT EXISTS structure_latest AS

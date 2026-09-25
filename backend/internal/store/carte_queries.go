@@ -527,6 +527,9 @@ type MapGeoProperties struct {
 	// Conformité aux normes (nil sans référentiel actif)
 	ConformiteScore *float64 `json:"conformite_score"`
 	PctConformes    *float64 `json:"pct_conformes"`
+	// Personnel de l'État (nil sans millésime DRH importé)
+	DrhRatio10k      *float64 `json:"drh_ratio_10k"`
+	DrhDepart5AnsPct *float64 `json:"drh_depart_5ans_pct"`
 }
 
 type MapGeoFeature struct {
@@ -600,6 +603,10 @@ func (s *Store) GetMapGeo(level int) (*MapGeoCollection, error) {
 	if err != nil {
 		return nil, err
 	}
+	personnel, err := s.drhByZone(level)
+	if err != nil {
+		return nil, err
+	}
 
 	fc := &MapGeoCollection{Type: "FeatureCollection", Features: []MapGeoFeature{}}
 	for _, g := range units {
@@ -610,6 +617,12 @@ func (s *Store) GetMapGeo(level int) (*MapGeoCollection, error) {
 		props := MapGeoProperties{UsageGeo: g, Ratios: ratios[g.OrgUnitUID], Numerators: numerators[g.OrgUnitUID]}
 		if cf, ok := conformite[g.Name]; ok {
 			props.ConformiteScore, props.PctConformes = cf.AvgScore, cf.PctConforme
+		}
+		// Les districts sont indexés par leur nom, les sous-préfectures par leur UID.
+		if p, ok := personnel[g.Name]; ok {
+			props.DrhRatio10k, props.DrhDepart5AnsPct = p.ratio, p.depart
+		} else if p, ok := personnel[g.OrgUnitUID]; ok {
+			props.DrhRatio10k, props.DrhDepart5AnsPct = p.ratio, p.depart
 		}
 		if props.Ratios == nil {
 			props.Ratios = map[string]*float64{}
@@ -622,6 +635,44 @@ func (s *Store) GetMapGeo(level int) (*MapGeoCollection, error) {
 		fc.Features = append(fc.Features, MapGeoFeature{Type: "Feature", Geometry: json.RawMessage(geom), Properties: props})
 	}
 	return fc, nil
+}
+
+type drhZone struct{ ratio, depart *float64 }
+
+// drhByZone gives the two personnel metrics the choropleth can colour by,
+// for the active millésime. An empty map (no import) leaves them nil.
+func (s *Store) drhByZone(level int) (map[string]drhZone, error) {
+	dimension := map[int]string{3: "district", 4: "sous_prefecture"}[level]
+	out := map[string]drhZone{}
+	if dimension == "" {
+		return out, nil
+	}
+	rows, err := s.db.Query(`SELECT e.key, e.ratio_10k, e.n_depart_5ans, e.n_age_connu FROM drh_effectif e
+		JOIN drh_import i ON i.id = e.import_id AND i.status = 'active'
+		WHERE e.dimension = ? AND e.categorie = ''`, dimension)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var key string
+		var ratio sql.NullFloat64
+		var depart, ageConnu int
+		if err := rows.Scan(&key, &ratio, &depart, &ageConnu); err != nil {
+			return nil, err
+		}
+		z := drhZone{}
+		if ratio.Valid {
+			r := ratio.Float64
+			z.ratio = &r
+		}
+		if ageConnu > 0 {
+			p := 100 * float64(depart) / float64(ageConnu)
+			z.depart = &p
+		}
+		out[key] = z
+	}
+	return out, rows.Err()
 }
 
 // --- Pro : points des structures avec qualité ---------------------------------

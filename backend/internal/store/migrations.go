@@ -380,8 +380,10 @@ CREATE TABLE IF NOT EXISTS drh_effectif (
     n_structure     INTEGER DEFAULT 0,
     n_bureau        INTEGER DEFAULT 0,
     n_centrale      INTEGER DEFAULT 0,
+    n_non_rattache  INTEGER DEFAULT 0,
     n_depart_5ans   INTEGER DEFAULT 0,
     n_depart_10ans  INTEGER DEFAULT 0,
+    n_age_connu     INTEGER DEFAULT 0,
     population      REAL,
     ratio_10k       REAL,
     PRIMARY KEY (import_id, dimension, key, categorie)

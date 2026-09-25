@@ -133,3 +133,109 @@ func TestSaveDrhImport(t *testing.T) {
 		t.Errorf("%d cellules orphelines après suppression", restant)
 	}
 }
+
+func TestDrhRollupsRoundTrip(t *testing.T) {
+	st := testStore(t)
+	if _, err := st.db.Exec(`INSERT INTO event (event_uid, org_unit_uid, org_unit_name, district, region, event_date, type_code, sous_prefecture, sous_prefecture_uid)
+		VALUES ('e1','u1','HR Kankan','DPS Kankan','IRS Kankan','2026-01-01','HR','Kankan Centre','sp1'),
+		       ('e2','u2','CSR Balandou','DPS Kankan','IRS Kankan','2026-01-01','CS','Balandou','sp2')`); err != nil {
+		t.Fatal(err)
+	}
+	// Population et effectifs ISS, les deux entrées du recalcul qui viennent du snapshot DHIS2.
+	if _, err := st.db.Exec(`INSERT INTO org_unit (uid, name, level) VALUES ('gn','Guinée',1),('d1','DPS Kankan',3);
+		INSERT INTO population (ou_uid, indicator, period, value) VALUES ('gn','total','2026',1000000),('d1','total','2026',200000);
+		INSERT INTO usage_rh (profil_code, label, district, effectif_total) VALUES ('ISS_RH_MED_GEN','Médecin','all',10),('ISS_RH_MED_GEN','Médecin','DPS Kankan',4)`); err != nil {
+		t.Fatal(err)
+	}
+
+	structures, _ := st.ListDrhStructures()
+	if len(structures) != 2 || structures[0].SousPrefectureUID == "" {
+		t.Fatalf("structures incomplètes : %+v", structures)
+	}
+	rows := []drh.AgentRow{
+		{Region: "KANKAN", Prefecture: "Kankan", StructureAffectation: "HR Kankan", Profession: "Médécin Généraliste", Sexe: "H", AnneeNaissance: 1968},
+		{Region: "KANKAN", Prefecture: "Kankan", StructureAffectation: "HR Kankan", Profession: "Sage-Femme", Sexe: "F"},
+		{Region: "KANKAN", Prefecture: "Kankan", StructureAffectation: "DPS Kankan", Profession: "ATS", Sexe: "F", AnneeNaissance: 1980},
+	}
+	affs, rep := drh.ResolveAll(rows, drh.NewResolver(structures, nil))
+	eff, pyr := drh.Aggregate(rows, affs, drh.Options{RefYear: 2026, RetirementAge: 60})
+	im, err := st.SaveDrhImport(DrhImport{Label: "test", Annee: 2026, AgeRetraite: 60, NAgents: rep.NAgents}, eff, pyr, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fineEff, finePyr, err := st.GetDrhFineCells(im.ID)
+	if err != nil || len(fineEff) == 0 {
+		t.Fatalf("relecture des cellules : %d lignes, err %v", len(fineEff), err)
+	}
+	pop, err := st.GetDrhPopulationIndex()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pop[drh.PopKey(drh.DimDistrict, "DPS Kankan")] != 200000 || pop[drh.PopKey(drh.DimGlobal, drh.KeyNational)] != 1000000 {
+		t.Fatalf("index de population : %+v", pop)
+	}
+	iss, err := st.GetIssRH()
+	if err != nil || len(iss) != 2 {
+		t.Fatalf("effectifs ISS : %+v (err %v)", iss, err)
+	}
+
+	byUID := map[string]drh.Structure{}
+	for _, s := range structures {
+		byUID[s.UID] = s
+	}
+	rEff, rPyr := drh.Rollup(fineEff, finePyr, drh.RollupContext{Structures: byUID, Population: pop})
+	comp := drh.Compare(rEff, iss)
+	if err := st.ReplaceDrhRollups(im.ID, rEff, rPyr, comp); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := st.GetDrhEffectifs(im.ID, DrhEffectifParams{Dimension: drh.DimDistrict, Categorie: ""})
+	if err != nil || len(got) != 1 {
+		t.Fatalf("effectifs district : %+v (err %v)", got, err)
+	}
+	d := got[0]
+	if d.NAgents != 3 || d.NAgeConnu != 2 || d.Ratio10k == nil || *d.Ratio10k != 0.15 {
+		t.Errorf("district : %+v", d)
+	}
+
+	// Un recalcul ne doit jamais dupliquer ni toucher au grain fin.
+	if err := st.ReplaceDrhRollups(im.ID, rEff, rPyr, comp); err != nil {
+		t.Fatal(err)
+	}
+	again, _ := st.GetDrhEffectifs(im.ID, DrhEffectifParams{Dimension: drh.DimDistrict, Categorie: ""})
+	if len(again) != 1 || again[0].NAgents != 3 {
+		t.Errorf("recalcul non idempotent : %+v", again)
+	}
+	fineAfter, _, _ := st.GetDrhFineCells(im.ID)
+	if len(fineAfter) != len(fineEff) {
+		t.Errorf("le recalcul a touché au grain fin : %d cellules puis %d", len(fineEff), len(fineAfter))
+	}
+
+	cmp, err := st.GetDrhComparaison(im.ID, drh.DimDistrict, "MED_GEN")
+	if err != nil || len(cmp) != 1 || cmp[0].NIss == nil || *cmp[0].NIss != 4 || *cmp[0].Ratio != 4 {
+		t.Errorf("comparaison : %+v (err %v)", cmp, err)
+	}
+
+	// La pyramide renvoie toutes les tranches, y compris les vides.
+	pyrRows, err := st.GetDrhPyramide(im.ID, drh.DimDistrict, "DPS Kankan", "")
+	if err != nil || len(pyrRows) != len(drh.Tranches) {
+		t.Fatalf("pyramide : %d tranches (err %v)", len(pyrRows), err)
+	}
+	var totalPyr int
+	for _, r := range pyrRows {
+		totalPyr += r.NAgents
+	}
+	if totalPyr != 3 {
+		t.Errorf("pyramide district = %d agents, attendu 3", totalPyr)
+	}
+
+	// Les structures sans aucun agent de l'État doivent rester visibles.
+	list, err := st.GetDrhStructuresList(im.ID, "DPS Kankan", "")
+	if err != nil || len(list) != 2 {
+		t.Fatalf("liste des structures : %+v (err %v)", list, err)
+	}
+	if list[0].Name != "HR Kankan" || list[0].NAgents != 2 || list[1].NAgents != 0 {
+		t.Errorf("tri ou jointure incorrects : %+v", list)
+	}
+}

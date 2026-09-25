@@ -206,3 +206,165 @@ func drhIDFromPath(c *gin.Context) (int64, bool) {
 	}
 	return id, true
 }
+
+// --- Lecture (espace planification) -----------------------------------------
+
+// DrhReadHandlers serve the pre-computed personnel aggregates. Nothing here is
+// exposed to the public space.
+type DrhReadHandlers struct {
+	Store *store.Store
+}
+
+// active resolves the millésime the screens read, and answers 404 when no
+// personnel file has been imported yet — the front then hides the page rather
+// than showing empty charts.
+func (h *DrhReadHandlers) active(c *gin.Context) (*store.DrhImport, bool) {
+	im, err := h.Store.GetActiveDrhImport()
+	if err != nil {
+		internalError(c, err)
+		return nil, false
+	}
+	if im == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "aucun fichier de personnel importé"})
+		return nil, false
+	}
+	return im, true
+}
+
+// dimension validates the ?by= parameter against the dimensions actually computed.
+func dimension(c *gin.Context, allowed []string, fallback string) (string, bool) {
+	by := c.DefaultQuery("by", fallback)
+	for _, d := range allowed {
+		if by == d {
+			return by, true
+		}
+	}
+	c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("by doit être l'un de %s", strings.Join(allowed, ", "))})
+	return "", false
+}
+
+// Summary gives the page header: millésime, national headcount, density,
+// breakdown by posting and by category.
+func (h *DrhReadHandlers) Summary(c *gin.Context) {
+	im, ok := h.active(c)
+	if !ok {
+		return
+	}
+	national, err := h.Store.GetDrhEffectifs(im.ID, store.DrhEffectifParams{
+		Dimension: drh.DimGlobal, Key: drh.KeyNational, Categorie: drh.CategorieToutes})
+	if err != nil {
+		internalError(c, err)
+		return
+	}
+	categories, err := h.Store.GetDrhEffectifs(im.ID, store.DrhEffectifParams{
+		Dimension: drh.DimGlobal, Key: drh.KeyNational, Categorie: "*"})
+	if err != nil {
+		internalError(c, err)
+		return
+	}
+	var total *drh.EffectifRow
+	if len(national) > 0 {
+		total = &national[0]
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"import":     im,
+		"national":   total,
+		"categories": categories,
+		"catalogue":  drh.Categories,
+		"tranches":   drh.Tranches,
+	})
+}
+
+func (h *DrhReadHandlers) Effectifs(c *gin.Context) {
+	im, ok := h.active(c)
+	if !ok {
+		return
+	}
+	by, ok := dimension(c, drh.RollupDimensions, drh.DimDistrict)
+	if !ok {
+		return
+	}
+	rows, err := h.Store.GetDrhEffectifs(im.ID, store.DrhEffectifParams{
+		Dimension: by,
+		Key:       c.Query("key"),
+		Categorie: c.DefaultQuery("categorie", drh.CategorieToutes),
+		District:  c.Query("district"),
+	})
+	if err != nil {
+		internalError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"effectifs": rows, "import_id": im.ID})
+}
+
+func (h *DrhReadHandlers) Pyramide(c *gin.Context) {
+	im, ok := h.active(c)
+	if !ok {
+		return
+	}
+	by, ok := dimension(c, []string{drh.DimGlobal, drh.DimRegion, drh.DimDistrict, drh.DimType}, drh.DimGlobal)
+	if !ok {
+		return
+	}
+	key := c.DefaultQuery("key", drh.KeyNational)
+	rows, err := h.Store.GetDrhPyramide(im.ID, by, key, c.DefaultQuery("categorie", drh.CategorieToutes))
+	if err != nil {
+		internalError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"pyramide": rows, "age_retraite": im.AgeRetraite, "annee": im.Annee})
+}
+
+func (h *DrhReadHandlers) Comparaison(c *gin.Context) {
+	im, ok := h.active(c)
+	if !ok {
+		return
+	}
+	by, ok := dimension(c, []string{drh.DimGlobal, drh.DimDistrict}, drh.DimDistrict)
+	if !ok {
+		return
+	}
+	rows, err := h.Store.GetDrhComparaison(im.ID, by, c.DefaultQuery("categorie", drh.CategorieToutes))
+	if err != nil {
+		internalError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"comparaison": rows, "annee": im.Annee})
+}
+
+func (h *DrhReadHandlers) Structures(c *gin.Context) {
+	im, ok := h.active(c)
+	if !ok {
+		return
+	}
+	rows, err := h.Store.GetDrhStructuresList(im.ID, c.Query("district"), c.Query("search"))
+	if err != nil {
+		internalError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"structures": rows})
+}
+
+// Structure is the "state staff posted here" block of a facility's page.
+func (h *DrhReadHandlers) Structure(c *gin.Context) {
+	im, ok := h.active(c)
+	if !ok {
+		return
+	}
+	total, err := h.Store.GetDrhEffectifs(im.ID, store.DrhEffectifParams{
+		Dimension: drh.AffStructure, Key: c.Param("uid"), Categorie: drh.CategorieToutes})
+	if err != nil {
+		internalError(c, err)
+		return
+	}
+	categories, err := h.Store.GetDrhStructureCategories(im.ID, c.Param("uid"))
+	if err != nil {
+		internalError(c, err)
+		return
+	}
+	var row *drh.EffectifRow
+	if len(total) > 0 {
+		row = &total[0]
+	}
+	c.JSON(http.StatusOK, gin.H{"total": row, "categories": categories, "annee": im.Annee})
+}

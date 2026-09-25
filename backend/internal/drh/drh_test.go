@@ -174,6 +174,21 @@ func TestResolve(t *testing.T) {
 	}
 }
 
+// La DRH écrit ses propres noms de région ("BOKE") : les agrégats régionaux
+// doivent porter le nom ISS, sinon chaque région compte double.
+func TestResolveRegionISS(t *testing.T) {
+	r := testResolver(t)
+	for _, a := range []AgentRow{
+		{Prefecture: "Gaoual", Region: "BOKE", StructureAffectation: "DPS Gaoual"},
+		{Prefecture: "Gaoual", Region: "BOKE", StructureAffectation: "Libellé inconnu"},
+		{Prefecture: "Gaoual", Region: "BOKE", StructureAffectation: "HP Gaoual"},
+	} {
+		if got := r.Resolve(a); got.Region != "Boké" {
+			t.Errorf("%s → région %q, attendu la région ISS \"Boké\"", a.StructureAffectation, got.Region)
+		}
+	}
+}
+
 // Un libellé ambigu ne doit surtout pas être rattaché au hasard : deux
 // structures « Koule » du même type ne se départagent pas.
 func TestResolveAmbiguNeRattachePas(t *testing.T) {

@@ -200,7 +200,7 @@ README.md                        section « Personnel de l'État (DRH) »
 | Lot | Contenu | Vérification |
 |---|---|---|
 | **A — Ingestion** ✅ | tables, parseur CSV, rattachement, correspondances, import admin, tests | **livré le 25/09/2026** — import du fichier réel : 10 162 agents, **99,4 % catégorisés** (6 500 en structure sur 388 structures, 2 721 en bureau, 875 en centrale, 66 non rattachés), 240 ms |
-| **B — Agrégats & API** | `drh_effectif`, `drh_comparaison`, recalcul au sync, endpoints de lecture | chiffres identiques à l'analyse ci-dessus |
+| **B — Agrégats & API** ✅ | rollups, densités, `drh_comparaison`, recalcul au sync, endpoints de lecture, métriques carte | **livré le 25/09/2026** — chiffres conformes à l'analyse : 14,1 % de départs à 5 ans, ATS ×3,68, infirmiers ×4,89, sages-femmes ×3,98, Kérouané 1,86 /10 000 hab. |
 | **C — Front** | page Personnel, onglet admin, carte, détail structure, KPI | parcours : importer → activer → lire la comparaison d'un district |
 | **D — Doc** | `docs/drh-format.md`, README | relecture |
 
@@ -224,6 +224,25 @@ section README, `DRH_AGE_RETRAITE`.
   `structure_latest`.
 - Ajout de `drh_non_reconnu` : la liste des libellés non rattachés est persistée et exportable en CSV, pour
   arbitrage et renvoi à la DRH.
+
+### Lot B — ce qui a été livré
+
+`drh/rollup.go` (rollups global / région / district / sous-préfecture / type, densités, `Compare`),
+`sync.RecomputeDrh` appelé après chaque import **et** à la fin de `RunSync`, six endpoints de lecture
+`/drh/*`, `drh_ratio_10k` et `drh_depart_5ans_pct` sur `/map/geo`, tests de rollup, de comparaison et
+d'aller-retour en base.
+
+Décisions prises en chemin :
+- **Les non rattachés comptent dans leur district** (comme les bureaux de district) : ce sont de vrais agents
+  de la préfecture, les écarter sous-estimerait la zone. L'administration centrale, elle, ne compte qu'au national.
+- **Pas de pyramide des âges à la sous-préfecture** : les effectifs y sont trop petits pour qu'une répartition
+  par tranche veuille dire quelque chose, et cela ferait exploser le nombre de lignes.
+- **Ajout de `n_age_connu`** : le taux de départ se calcule dessus, pas sur l'effectif total (663 agents sans
+  année de naissance en 2026 diluaient le taux de 14,1 % à 13,2 %).
+- **La ligne « toutes catégories » de la comparaison** ne somme que les catégories qu'ISS a renseignées, des
+  deux côtés, pour que l'écart ne mesure pas un trou de nomenclature.
+- **Les noms de région de la DRH sont remplacés par ceux d'ISS** au rattachement (« BOKE » → « IRS Boké »),
+  sinon chaque région comptait double dans les agrégats.
 
 ## 8. Décisions à prendre avant de coder
 
