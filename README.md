@@ -511,8 +511,13 @@ ecrit parfois une commune (« Kassa ») la ou ISS a un district (DCS Kaloum). Le
 dans deux districts sont ecartes.
 
 Ce qui reste ambigu n'est jamais rattache au hasard. Sur le millesime 2026, apres dedoublonnage (10 037
-agents) : **92,1 % categorises** — 6 511 en structure sur 389 structures, 1 915 en bureau de district, 816 en
-administration centrale et programmes, **795 non rattaches**. Ces 795 sont la liste a arbitrer avec la DRH et
+agents) : **93,3 % categorises** — 6 630 en structure sur 393 structures, 1 915 en bureau de district, 816 en
+administration centrale et programmes, **676 non rattaches**.
+
+La premiere cause de non-rattachement est l'**orthographe** : la DRH ecrit « CSR Damakania », « CSA KOUNTIAH »,
+« CSR ALLASSOYAH » la ou ISS a « CSR Damankanya », « CSA Kountya », « CSR Alassoya ». L'appariement par nom
+propre ne franchit pas ces ecarts, et c'est voulu : rapprocher des noms proches au jugé rattacherait des agents
+a la mauvaise structure. C'est exactement a cela que sert la table de correspondance, ou une ligne suffit. Ces 795 sont la liste a arbitrer avec la DRH et
 le SNIS ; une partie correspond a des structures **absentes du recensement ISS**, parfois meme de la hierarchie
 DHIS2, ce que seul le croisement des deux sources revele.
 
