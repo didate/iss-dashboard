@@ -42,6 +42,16 @@ func Register(r *gin.Engine, basePath string) {
 	fileServer := http.StripPrefix(basePath, http.FileServer(http.FS(sub)))
 	apiPrefix := basePath + "/api"
 
+	// Sans en-tête de cache, le navigateur applique sa propre heuristique et
+	// peut resservir l'ancienne coquille HTML après un déploiement — donc
+	// l'ancien bundle, indéfiniment. index.html doit être revalidé à chaque
+	// visite ; les assets, eux, portent un hash dans leur nom et ne changent
+	// jamais de contenu : ils se mettent en cache pour un an.
+	serveIndex := func(c *gin.Context) {
+		c.Header("Cache-Control", "no-cache")
+		c.Data(http.StatusOK, "text/html; charset=utf-8", index)
+	}
+
 	r.NoRoute(func(c *gin.Context) {
 		p := c.Request.URL.Path
 
@@ -64,14 +74,23 @@ func Register(r *gin.Engine, basePath string) {
 		// resolves it. Writing the bytes avoids http.FileServer's redirect of
 		// "/index.html" -> "/".
 		if rel == "" {
-			c.Data(http.StatusOK, "text/html; charset=utf-8", index)
+			serveIndex(c)
 			return
 		}
 		if _, statErr := fs.Stat(sub, rel); statErr != nil {
-			c.Data(http.StatusOK, "text/html; charset=utf-8", index)
+			serveIndex(c)
+			return
+		}
+		if rel == "index.html" {
+			serveIndex(c)
 			return
 		}
 
+		if strings.HasPrefix(rel, "assets/") {
+			c.Header("Cache-Control", "public, max-age=31536000, immutable")
+		} else {
+			c.Header("Cache-Control", "no-cache")
+		}
 		fileServer.ServeHTTP(c.Writer, c.Request)
 	})
 }

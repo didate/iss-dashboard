@@ -71,3 +71,16 @@ func TestOutsideBaseIs404(t *testing.T) {
 		t.Fatalf("outside base = %d, want 404", w.Code)
 	}
 }
+
+// Après un déploiement, le navigateur doit revalider la coquille HTML : sans
+// en-tête de cache il resservait l'ancienne, donc l'ancien bundle JS, et les
+// correctifs n'arrivaient jamais jusqu'à l'utilisateur.
+func TestIndexIsRevalidated(t *testing.T) {
+	r := newTestRouter()
+	for _, path := range []string{"/iss", "/iss/", "/iss/personnel"} {
+		w := do(r, path)
+		if got := w.Header().Get("Cache-Control"); got != "no-cache" {
+			t.Errorf("%s : Cache-Control = %q, attendu no-cache", path, got)
+		}
+	}
+}
