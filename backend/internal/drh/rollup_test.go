@@ -172,16 +172,32 @@ func TestCompare(t *testing.T) {
 		t.Errorf("médecins : %+v", med)
 	}
 
-	// Ratio < 1 : l'État paie plus d'ATS que les structures n'en déclarent.
+	if med.PartEtat == nil || *med.PartEtat < 33.2 || *med.PartEtat > 33.4 {
+		t.Errorf("part payée par l'État pour les médecins : %v, attendu 2/6 = 33,3 %%", med.PartEtat)
+	}
+
+	// L'État paie plus d'ATS que les structures n'en déclarent : les deux
+	// nomenclatures ne se recouvrent pas, le rapport n'est donc pas une part et
+	// la catégorie sort du périmètre comparable.
 	ats := get(DimGlobal, KeyNational, "ATS")
 	if ats.NDrh != 2 || *ats.Ratio >= 1 {
 		t.Errorf("ATS : %+v — le ratio doit signaler l'incohérence", ats)
 	}
+	if ats.Aligne {
+		t.Errorf("ATS ne doit pas être marquée alignée : %+v", ats)
+	}
+	if ats.PartEtat != nil {
+		t.Errorf("une catégorie non alignée ne doit pas porter de part : %v %%", *ats.PartEtat)
+	}
 
-	// La ligne « toutes catégories » couvre le même périmètre des deux côtés.
+	// La ligne « toutes catégories » ne somme que le périmètre comparable :
+	// médecins (2/6) et sages-femmes (1/4), sans les ATS ni l'administratif.
 	tot := get(DimGlobal, KeyNational, CategorieToutes)
-	if tot.NDrh != 5 || tot.NIss == nil || *tot.NIss != 11 {
-		t.Errorf("toutes catégories : %+v (attendu 5 DRH / 11 ISS : l'administratif n'est pas renseigné côté ISS)", tot)
+	if tot.NDrh != 3 || tot.NIss == nil || *tot.NIss != 10 {
+		t.Errorf("toutes catégories : %+v (attendu 3 DRH / 10 ISS)", tot)
+	}
+	if tot.PartEtat == nil || *tot.PartEtat < 29.9 || *tot.PartEtat > 30.1 {
+		t.Errorf("part nationale : %v, attendu 3/10 = 30 %%", tot.PartEtat)
 	}
 
 	// Un district sans effectif ISS pour la catégorie n'invente pas de zéro.

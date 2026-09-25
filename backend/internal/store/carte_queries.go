@@ -530,6 +530,9 @@ type MapGeoProperties struct {
 	// Personnel de l'État (nil sans millésime DRH importé)
 	DrhRatio10k      *float64 `json:"drh_ratio_10k"`
 	DrhDepart5AnsPct *float64 `json:"drh_depart_5ans_pct"`
+	// Part du personnel soignant déclaré que l'État paie (districts seulement,
+	// périmètre des professions dont les deux nomenclatures se recouvrent).
+	DrhPartEtatPct *float64 `json:"drh_part_etat_pct"`
 }
 
 type MapGeoFeature struct {
@@ -620,9 +623,9 @@ func (s *Store) GetMapGeo(level int) (*MapGeoCollection, error) {
 		}
 		// Les districts sont indexés par leur nom, les sous-préfectures par leur UID.
 		if p, ok := personnel[g.Name]; ok {
-			props.DrhRatio10k, props.DrhDepart5AnsPct = p.ratio, p.depart
+			props.DrhRatio10k, props.DrhDepart5AnsPct, props.DrhPartEtatPct = p.ratio, p.depart, p.part
 		} else if p, ok := personnel[g.OrgUnitUID]; ok {
-			props.DrhRatio10k, props.DrhDepart5AnsPct = p.ratio, p.depart
+			props.DrhRatio10k, props.DrhDepart5AnsPct, props.DrhPartEtatPct = p.ratio, p.depart, p.part
 		}
 		if props.Ratios == nil {
 			props.Ratios = map[string]*float64{}
@@ -637,7 +640,7 @@ func (s *Store) GetMapGeo(level int) (*MapGeoCollection, error) {
 	return fc, nil
 }
 
-type drhZone struct{ ratio, depart *float64 }
+type drhZone struct{ ratio, depart, part *float64 }
 
 // drhByZone gives the two personnel metrics the choropleth can colour by,
 // for the active millésime. An empty map (no import) leaves them nil.
@@ -672,7 +675,35 @@ func (s *Store) drhByZone(level int) (map[string]drhZone, error) {
 		}
 		out[key] = z
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// La part payée par l'État vient de la comparaison avec ISS, qui n'existe
+	// qu'au district : elle suppose des effectifs déclarés en face.
+	if dimension == "district" {
+		pRows, err := s.db.Query(`SELECT c.key, c.part_etat FROM drh_comparaison c
+			JOIN drh_import i ON i.id = c.import_id AND i.status = 'active'
+			WHERE c.dimension = 'district' AND c.categorie = '' AND c.part_etat IS NOT NULL`)
+		if err != nil {
+			return nil, err
+		}
+		defer pRows.Close()
+		for pRows.Next() {
+			var key string
+			var part float64
+			if err := pRows.Scan(&key, &part); err != nil {
+				return nil, err
+			}
+			z := out[key]
+			z.part = &part
+			out[key] = z
+		}
+		if err := pRows.Err(); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
 }
 
 // --- Pro : points des structures avec qualité ---------------------------------

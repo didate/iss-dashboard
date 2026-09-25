@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, ReferenceLine } from 'recharts';
 import { Users, AlertTriangle, TrendingDown } from 'lucide-react';
 import { api } from '../api/client';
 import { useUrlState } from '../hooks/useUrlState';
@@ -36,6 +36,8 @@ export default function Personnel() {
   const [effectifs, setEffectifs] = useState<DrhEffectif[]>([]);
   const [pyramide, setPyramide] = useState<DrhPyramide[]>([]);
   const [comparaison, setComparaison] = useState<DrhComparaison[]>([]);
+  const [parts, setParts] = useState<DrhComparaison[]>([]);
+  const [partZone, setPartZone] = useState<DrhComparaison | null>(null);
   const [structures, setStructures] = useState<DrhStructureRow[]>([]);
   const [centrale, setCentrale] = useState<DrhEffectif[]>([]);
   const [entite, setEntite] = useUrlState('entite');
@@ -69,6 +71,16 @@ export default function Personnel() {
     api.getDrhComparaison({ by: district ? 'district' : 'global', key: district || 'national', categorie: categorie || '*' })
       .then(setComparaison).catch((e: Error) => setError(e.message));
   }, [summary, district, categorie]);
+
+  // Part payée par l'État : indépendante du filtre profession, qui la réduirait
+  // à une seule barre. Deux appels, l'un pour le détail par profession, l'autre
+  // pour le total de la zone — tout est pré-calculé côté serveur.
+  useEffect(() => {
+    if (!summary) return;
+    const scope = { by: district ? 'district' : 'global', key: district || 'national' };
+    api.getDrhComparaison({ ...scope, categorie: '*' }).then(setParts).catch(() => {});
+    api.getDrhComparaison({ ...scope, categorie: '' }).then((r) => setPartZone(r[0] ?? null)).catch(() => {});
+  }, [summary, district]);
 
   useEffect(() => {
     if (!summary || !district) { setStructures([]); return; }
@@ -173,6 +185,18 @@ export default function Personnel() {
   // Le tri doit être fait AVANT de générer les <Cell> : recharts les applique
   // dans l'ordre des données, pas dans celui du tableau d'origine.
   const entiteDetail = centrale.find((r) => r.key === entite);
+  const partsAlignees = parts
+    .filter((r) => r.aligne && r.part_etat != null)
+    .map((r) => ({ name: catLabel[r.categorie] ?? r.categorie, part: r.part_etat as number, drh: r.n_drh, iss: r.n_iss ?? 0 }))
+    .sort((a, b) => a.part - b.part);
+  const partsNonAlignees = parts.filter((r) => !r.aligne && r.n_iss);
+  const partColumns = [
+    { key: 'categorie', header: 'Profession', render: (r: Record<string, unknown>) => catLabel[String(r.categorie)] ?? String(r.categorie) },
+    { key: 'n_drh', header: "Payés par l'État" },
+    { key: 'n_iss', header: 'Déclarés (ISS)' },
+    { key: 'part_etat', header: "% payé par l'État", render: (r: Record<string, unknown>) => (r.part_etat == null ? '—' : `${fmt(r.part_etat as number, 1)} %`) },
+    { key: 'aligne', header: 'Nomenclatures alignées', render: (r: Record<string, unknown>) => (r.aligne ? 'oui' : 'non') },
+  ];
   const chartEffectifs = effectifs
     .filter((r) => r.n_agents > 0)
     .slice(0, 45)
@@ -271,6 +295,70 @@ export default function Personnel() {
           </p>
         </div>
       </div>
+
+      {/* Qui paie le personnel : part de l'État, par profession */}
+      {partZone?.part_etat != null && (
+        <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-3">
+          <div className="flex flex-wrap items-baseline gap-2">
+            <h3 className="font-semibold text-gray-800">Qui paie le personnel soignant — {zoneLabel}</h3>
+            <span className="text-xs text-gray-400">
+              {fmt(partZone.n_drh)} agents payés par l'État sur {fmt(partZone.n_iss)} déclarés par les structures
+            </span>
+            <div className="ml-auto">
+              <ExportCSV data={parts as unknown as Record<string, unknown>[]} columns={partColumns} filename={`personnel_part_etat_${district || 'national'}`} />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-6">
+            <div>
+              <div className="text-4xl font-bold text-blue-700">{fmt(partZone.part_etat, 1)} %</div>
+              <div className="text-xs text-gray-500 max-w-xs mt-1">
+                du personnel soignant déclaré est payé par l'État. Le reste — contractuels, communautaires,
+                personnel des partenaires — ne figure pas sur la masse salariale.
+              </div>
+            </div>
+            {partsAlignees.length > 1 && (
+              <div className="flex-1 min-w-[320px]">
+                <ResponsiveContainer width="100%" height={Math.max(160, partsAlignees.length * 17)}>
+                  <BarChart data={partsAlignees} layout="vertical" margin={{ left: 10, right: 40 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                    <XAxis type="number" domain={[0, 100]} fontSize={11} unit="%" />
+                    <YAxis type="category" dataKey="name" width={160} fontSize={11} interval={0} />
+                    <Tooltip formatter={(v: number, _n, p) => [`${v.toFixed(1)} % (${fmt(p.payload.drh)} payés / ${fmt(p.payload.iss)} déclarés)`, "Payé par l'État"]} />
+                    <ReferenceLine x={partZone.part_etat} stroke="#111827" strokeDasharray="4 3" />
+                    <Bar dataKey="part" radius={[0, 3, 3, 0]}>
+                      {partsAlignees.map((d) => <Cell key={d.name} fill={d.part < 25 ? '#ef4444' : d.part < 50 ? '#f97316' : '#22c55e'} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+
+          {partsNonAlignees.length > 0 && (
+            <div className="border-t border-gray-200 pt-3">
+              <h4 className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                <AlertTriangle size={14} className="text-amber-600" /> Nomenclatures non alignées — exclues du calcul
+              </h4>
+              <p className="text-xs text-gray-500 mt-1 mb-2">
+                Pour ces professions, l'État en paie plus que les structures n'en déclarent : les deux intitulés
+                ne désignent pas la même chose, et leur rapport n'est donc pas une part. Elles sortent du
+                périmètre, et l'écart est à traiter avec la DRH et le SNIS comme un problème de référentiel
+                des métiers, pas comme un résultat.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                {partsNonAlignees.map((r) => (
+                  <div key={r.categorie} className="border border-amber-200 bg-amber-50/50 rounded p-2">
+                    <div className="text-xs text-gray-700 truncate" title={catLabel[r.categorie] ?? r.categorie}>{catLabel[r.categorie] ?? r.categorie}</div>
+                    <div className="text-sm font-semibold text-gray-900">{fmt(r.n_drh)} payés</div>
+                    <div className="text-[11px] text-gray-500">{fmt(r.n_iss)} déclarés{r.n_iss ? ` · ×${(r.n_drh / r.n_iss).toFixed(1)}` : ''}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Administration centrale : directions, instituts, programmes nationaux */}
       {centrale.length > 0 && (

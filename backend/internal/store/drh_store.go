@@ -423,14 +423,14 @@ func (s *Store) ReplaceDrhRollups(importID int64, eff []drh.EffectifRow, pyr []d
 	}
 
 	compStmt, err := tx.Prepare(`INSERT OR REPLACE INTO drh_comparaison (import_id, dimension, key, label, categorie,
-		n_drh, n_iss, ecart, ratio) VALUES (?,?,?,?,?,?,?,?,?)`)
+		n_drh, n_iss, ecart, ratio, aligne, part_etat) VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
 	if err != nil {
 		return err
 	}
 	defer compStmt.Close()
 	for _, r := range comp {
 		if _, err := compStmt.Exec(importID, r.Dimension, r.Key, r.Label, r.Categorie,
-			r.NDrh, r.NIss, r.Ecart, r.Ratio); err != nil {
+			r.NDrh, r.NIss, r.Ecart, r.Ratio, r.Aligne, r.PartEtat); err != nil {
 			return err
 		}
 	}
@@ -526,7 +526,7 @@ func (s *Store) GetDrhPyramide(importID int64, dimension, key, categorie string)
 // GetDrhComparaison serves the DRH ↔ ISS confrontation, worst gaps first.
 // An empty key spans every zone of the dimension.
 func (s *Store) GetDrhComparaison(importID int64, dimension, key, categorie string) ([]drh.ComparaisonRow, error) {
-	q := `SELECT dimension, key, label, categorie, n_drh, n_iss, ecart, ratio FROM drh_comparaison
+	q := `SELECT dimension, key, label, categorie, n_drh, n_iss, ecart, ratio, aligne, part_etat FROM drh_comparaison
 		WHERE import_id = ? AND dimension = ?`
 	args := []any{importID, dimension}
 	if key != "" {
@@ -539,7 +539,7 @@ func (s *Store) GetDrhComparaison(importID int64, dimension, key, categorie stri
 		q += ` AND categorie = ?`
 		args = append(args, categorie)
 	}
-	q += ` ORDER BY ratio IS NULL, ratio ASC, n_drh DESC`
+	q += ` ORDER BY aligne DESC, part_etat IS NULL, part_etat ASC, n_drh DESC`
 	rows, err := s.db.Query(q, args...)
 	if err != nil {
 		return nil, err
@@ -548,7 +548,7 @@ func (s *Store) GetDrhComparaison(importID int64, dimension, key, categorie stri
 	out := []drh.ComparaisonRow{}
 	for rows.Next() {
 		var r drh.ComparaisonRow
-		if err := rows.Scan(&r.Dimension, &r.Key, &r.Label, &r.Categorie, &r.NDrh, &r.NIss, &r.Ecart, &r.Ratio); err != nil {
+		if err := rows.Scan(&r.Dimension, &r.Key, &r.Label, &r.Categorie, &r.NDrh, &r.NIss, &r.Ecart, &r.Ratio, &r.Aligne, &r.PartEtat); err != nil {
 			return nil, err
 		}
 		out = append(out, r)

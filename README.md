@@ -540,9 +540,27 @@ un defaut de declaration ISS, soit des agents affectes mais absents. Sur 2026, p
 Mali (17 payes / 6 declares), Dabola (13/5), Coyah (48/22), Gaoual (10/6), Telimele (28/17), Mandiana (30/19).
 Ni l'une ni l'autre source ne pouvait le reveler seule.
 
+### La part payee par l'Etat
+
+L'indicateur central de la page : **DRH ÷ ISS**, la part du personnel soignant declare que l'Etat remunere.
+National 2026 : **27,5 %** (8 343 payes sur 30 353 declares), de **12,6 %** a Tougue a **51 %** a Forecariah.
+Par profession, l'ecart est le vrai message : **67,6 % des medecins generalistes, 20 % des infirmiers**.
+
+Le perimetre est explicite et le meme partout : une profession n'entre dans le calcul que si, **au national**,
+l'Etat n'en paie pas plus que les structures n'en declarent. Six professions en sortent sur 2026 — medecin
+sante publique (183 payes / 23 declares), pharmacien, aide-soignant, administratif, autre specialiste,
+informaticien. Leur rapport depasse 100 % : ce n'est pas une part, c'est le signe que les deux intitules ne
+designent pas la meme chose. Les inclure faisait passer le chiffre national de 27,5 a 30,7 % — un ecart qui se
+paie cher en reunion. Elles sont affichees a part, comme un probleme de referentiel des metiers a traiter avec
+la DRH et le SNIS.
+
+La decision d'alignement est prise une fois, au national, puis appliquee telle quelle a chaque zone : le
+perimetre reste identique partout, donc les districts se comparent entre eux. Un district ou l'Etat paie plus
+que declare reste visible dans ce perimetre — c'est une anomalie, pas un artefact (`drh_comparaison.aligne`,
+`drh_comparaison.part_etat`, et `drh_part_etat_pct` sur `/map/geo` au niveau district).
+
 Seules les categories ayant un equivalent ISS sont comparees, et la ligne « toutes categories » somme des deux
-cotes les **memes** categories — celles qu'ISS a effectivement renseignees — pour que l'ecart ne mesure pas un
-trou de nomenclature.
+cotes les **memes** categories, pour que l'ecart ne mesure pas un trou de nomenclature.
 
 ### Ou cela se lit dans l'interface
 

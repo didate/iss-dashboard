@@ -184,6 +184,16 @@ type ComparaisonRow struct {
 	NIss      *float64 `json:"n_iss,omitempty"`
 	Ecart     *float64 `json:"ecart,omitempty"` // ISS − DRH
 	Ratio     *float64 `json:"ratio,omitempty"` // ISS / DRH
+
+	// Aligne indique que les deux nomenclatures se recouvrent pour cette
+	// catégorie : au national, l'État n'en paie pas plus que les structures
+	// n'en déclarent. Sinon les deux sources ne comptent pas la même chose et
+	// leur rapport n'est pas une part.
+	Aligne bool `json:"aligne"`
+	// PartEtat = 100 × DRH ÷ ISS, la part du personnel déclaré que l'État paie.
+	// Renseignée pour les seules catégories alignées : ailleurs le mot « part »
+	// n'a pas de sens, un rapport supérieur à 100 % n'étant pas une proportion.
+	PartEtat *float64 `json:"part_etat,omitempty"`
 }
 
 // Compare confronts the state payroll with what the facilities declare in ISS.
@@ -211,6 +221,27 @@ func Compare(eff []EffectifRow, iss []ISSRH) []ComparaisonRow {
 	for _, c := range Categories {
 		if c.ISS != "" {
 			issProfil[c.Code] = c.ISS
+		}
+	}
+
+	// Périmètre comparable : une catégorie n'est retenue que si, au national,
+	// l'État n'en paie pas plus que les structures n'en déclarent. Le contraire
+	// signale des intitulés qui ne se recouvrent pas — « Médecin Spécialiste en
+	// Santé Publique » est courant côté DRH, presque jamais coché dans ISS — et
+	// gonflerait le total sans rien mesurer.
+	//
+	// La décision est prise une fois, au national, et s'applique telle quelle à
+	// chaque zone : le périmètre reste identique partout, donc les zones se
+	// comparent entre elles. Un district où l'État paie plus que déclaré reste
+	// visible dans ce périmètre — c'est une anomalie, pas un artefact.
+	aligne := map[string]bool{}
+	for _, r := range eff {
+		if r.Dimension != DimGlobal {
+			continue
+		}
+		if profil, ok := issProfil[r.Categorie]; ok {
+			n := issByProfil["all"][profil]
+			aligne[r.Categorie] = n > 0 && float64(r.NAgents) <= n
 		}
 	}
 
@@ -246,7 +277,7 @@ func Compare(eff []EffectifRow, iss []ISSRH) []ComparaisonRow {
 		}
 		n, hasIss := issByProfil[issKey][profil]
 		add(r.Dimension, r.Key, r.Label, r.Categorie, r.NAgents, n, hasIss)
-		if hasIss {
+		if hasIss && aligne[r.Categorie] {
 			// La ligne « toutes catégories » n'agrège que ce qu'ISS a renseigné,
 			// sinon le total DRH couvrirait des métiers absents de l'autre côté
 			// et l'écart mesurerait ce trou plutôt que la réalité.
@@ -256,12 +287,17 @@ func Compare(eff []EffectifRow, iss []ISSRH) []ComparaisonRow {
 
 	rows := make([]ComparaisonRow, 0, len(out))
 	for _, r := range out {
+		r.Aligne = r.Categorie == CategorieToutes || aligne[r.Categorie]
 		if r.NIss != nil {
 			ecart := *r.NIss - float64(r.NDrh)
 			r.Ecart = &ecart
 			if r.NDrh > 0 {
 				ratio := *r.NIss / float64(r.NDrh)
 				r.Ratio = &ratio
+			}
+			if r.Aligne && *r.NIss > 0 {
+				part := 100 * float64(r.NDrh) / *r.NIss
+				r.PartEtat = &part
 			}
 		}
 		rows = append(rows, *r)

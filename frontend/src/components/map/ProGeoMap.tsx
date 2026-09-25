@@ -99,6 +99,15 @@ const METRICS: Metric[] = [
       'Lecture : rouge = zone la plus exposée. Un taux élevé sur un petit effectif peut ne représenter que quelques départs : regarder aussi le nombre d\'agents.',
     ],
   },
+  {
+    key: 'drh_part_etat_pct', label: "Part du personnel payée par l'État", unit: '%',
+    help: [
+      "Part du personnel soignant déclaré par les structures que l'État paie : agents du fichier DRH ÷ effectifs déclarés dans ISS × 100.",
+      "Périmètre : les seules professions dont les deux nomenclatures se recouvrent, c'est-à-dire celles où l'État n'en paie pas plus, au national, que les structures n'en déclarent. Six professions en sont exclues (médecin santé publique, pharmacien, aide-soignant, administratif, autre spécialiste, informaticien) : leurs intitulés ne désignent pas la même chose des deux côtés, et leur rapport n'est pas une part.",
+      "Lecture : rouge = l'État paie une faible part du personnel, le district fonctionne largement grâce à des agents qu'il ne rémunère pas (contractuels, communautaires, partenaires). National 2026 : 27,5 %, de 12,6 % à 51 % selon le district.",
+      'Échelle à quantiles sur les districts affichés. Métrique disponible au district seulement : la comparaison suppose des effectifs déclarés en face.',
+    ],
+  },
 ];
 
 const POINTS_HELP = [
@@ -146,7 +155,7 @@ function rampColor(v: number | null, breaks: number[], invert = false): string {
 
 function formatMetric(v: number | null, key: string): string {
   if (v === null) return '—';
-  if (key === 'pct_gps' || key === 'pct_conformes' || key === 'drh_depart_5ans_pct') return `${v.toFixed(0)}%`;
+  if (key === 'pct_gps' || key === 'pct_conformes' || key === 'drh_depart_5ans_pct' || key === 'drh_part_etat_pct') return `${v.toFixed(0)}%`;
   if (key === 'n_structures') return String(Math.round(v));
   if (key === 'avg_score' || key === 'conformite_score') return v.toFixed(0);
   return v.toFixed(2);
@@ -231,6 +240,7 @@ export default function ProGeoMap({ mode }: Props) {
         <div>Structures /10 000 hab. : <b>${p.ratio_structures_10k === null ? '—' : p.ratio_structures_10k.toFixed(2)}</b></div>
         ${p.conformite_score != null ? `<div>Conformité aux normes : <b>${p.conformite_score.toFixed(0)}</b> · ${p.pct_conformes?.toFixed(0) ?? '—'}% conformes</div>` : ''}
         ${p.drh_ratio_10k != null ? `<div>Agents de l'État /10 000 hab. : <b>${p.drh_ratio_10k.toFixed(2)}</b>${p.drh_depart_5ans_pct != null ? ` · ${p.drh_depart_5ans_pct.toFixed(0)}% de départs à 5 ans` : ''}</div>` : ''}
+        ${p.drh_part_etat_pct != null ? `<div>Personnel payé par l'État : <b>${p.drh_part_etat_pct.toFixed(0)}%</b> du déclaré</div>` : ''}
         ${['personnel_soignant', 'medecins', 'sages_femmes', 'infirmiers', 'lits']
           .filter((k) => p.numerators?.[k] !== undefined)
           .map((k) => `<div>${escapeHtml(RATIO_LABELS[k] ?? k)} : <b>${p.numerators[k]}</b>${p.ratios?.[k] != null ? ` (${p.ratios[k]!.toFixed(2)} /10 000)` : ''}</div>`)
@@ -271,7 +281,7 @@ export default function ProGeoMap({ mode }: Props) {
             ? [['#22c55e', '≥ 80 %'], ['#eab308', '50 – 80 %'], ['#f97316', '20 – 50 %'], ['#ef4444', '< 20 %'], [GREY, 'Pas de données']]
           : (() => {
               const ramp = invertRamp ? [...RAMP].reverse() : RAMP;
-              const d = metric === 'n_structures' ? 0 : metric === 'drh_depart_5ans_pct' ? 1 : 2;
+              const d = metric === 'n_structures' ? 0 : metric === 'drh_depart_5ans_pct' || metric === 'drh_part_etat_pct' ? 1 : 2;
               return [
                 ...breaks.map((b, i) => [ramp[i], `≤ ${b.toFixed(d)}`]),
                 [ramp[ramp.length - 1], `> ${(breaks[breaks.length - 1] ?? 0).toFixed(d)}`],

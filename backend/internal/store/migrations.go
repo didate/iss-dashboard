@@ -411,6 +411,8 @@ CREATE TABLE IF NOT EXISTS drh_comparaison (
     n_iss           REAL,
     ecart           REAL,
     ratio           REAL,
+    aligne          INTEGER DEFAULT 0,
+    part_etat       REAL,
     PRIMARY KEY (import_id, dimension, key, categorie)
 );
 

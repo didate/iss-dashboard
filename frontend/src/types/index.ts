@@ -435,6 +435,7 @@ export interface MapGeoFeature {
     pct_conformes: number | null;
     drh_ratio_10k: number | null;
     drh_depart_5ans_pct: number | null;
+    drh_part_etat_pct: number | null;
   };
 }
 
@@ -740,6 +741,10 @@ export interface DrhComparaison {
   n_iss?: number | null;
   ecart?: number | null;
   ratio?: number | null;
+  /** Les deux nomenclatures se recouvrent : le rapport DRH/ISS est alors une part. */
+  aligne: boolean;
+  /** 100 × DRH ÷ ISS, renseignée pour les seules catégories alignées. */
+  part_etat?: number | null;
 }
 
 export interface DrhStructureRow {
