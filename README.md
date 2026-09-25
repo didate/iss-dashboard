@@ -511,8 +511,8 @@ ecrit parfois une commune (« Kassa ») la ou ISS a un district (DCS Kaloum). Le
 dans deux districts sont ecartes.
 
 Ce qui reste ambigu n'est jamais rattache au hasard. Sur le millesime 2026, apres dedoublonnage (10 037
-agents) : **93,3 % categorises** — 6 630 en structure sur 393 structures, 1 915 en bureau de district, 816 en
-administration centrale et programmes, **676 non rattaches**.
+agents) : **93,5 % categorises** — 6 657 en structure sur 394 structures, 1 915 en bureau de district, 816 en
+administration centrale et programmes, **649 non rattaches**.
 
 Une correspondance peut viser une unite d'organisation que le recensement n'a **jamais couverte** : l'agent
 reste non rattache, mais le rapport le dit (`non_recensee`) au lieu d'ignorer la regle en silence, et le
@@ -521,7 +521,8 @@ CSR Kassapo (Boke), CSU Siguirikoro (Siguiri), CSU Kagbelen Plateau (Dubreka) �
 et qu'ISS ne connait pas. C'est un resultat du croisement, pas un defaut de l'appariement.
 
 La premiere cause de non-rattachement est l'**orthographe** : la DRH ecrit « CSR Damakania », « CSA KOUNTIAH »,
-« CSR ALLASSOYAH » la ou ISS a « CSR Damankanya », « CSA Kountya », « CSR Alassoya ». L'appariement par nom
+« CSR ALLASSOYAH », « CS Leysare » la ou ISS a « CSR Damankanya », « CSA Kountya », « CSR Alassoya »,
+« CSU Ley saare ». L'appariement par nom
 propre ne franchit pas ces ecarts, et c'est voulu : rapprocher des noms proches au jugé rattacherait des agents
 a la mauvaise structure. C'est exactement a cela que sert la table de correspondance, ou une ligne suffit. Ces 795 sont la liste a arbitrer avec la DRH et
 le SNIS ; une partie correspond a des structures **absentes du recensement ISS**, parfois meme de la hierarchie
