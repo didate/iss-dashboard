@@ -287,6 +287,23 @@ func TestResolvePrefectureInconnue(t *testing.T) {
 	}
 }
 
+// Une correspondance qui vise une structure absente du recensement ne doit pas
+// être ignorée en silence : l'agent reste non rattaché, mais le rapport dit
+// pourquoi — la structure existe, ISS ne l'a jamais recensée.
+func TestResolveCorrespondanceVersStructureNonRecensee(t *testing.T) {
+	r := NewResolver(
+		[]Structure{{UID: "hp", Name: "HP Boké", District: "DPS Boké", TypeCode: "HP"}},
+		[]Correspondance{{LibelleNorm: Norm("CSR KASSOPO"), LibelleDRH: "CSR KASSOPO", OrgUnitUID: "uid-jamais-recense", Statut: CorrOK}},
+	)
+	got := r.Resolve(AgentRow{Prefecture: "Boké", StructureAffectation: "CSR KASSOPO"})
+	if got.Kind != AffNonRattache || got.Source != SrcNonRecensee {
+		t.Fatalf("= %s/%s, attendu non_rattache/%s", got.Kind, got.Source, SrcNonRecensee)
+	}
+	if got.Label != "CSR KASSOPO" {
+		t.Errorf("le libellé doit rester lisible dans le rapport : %q", got.Label)
+	}
+}
+
 // Un libellé ambigu ne doit surtout pas être rattaché au hasard : deux
 // structures « Koule » du même type ne se départagent pas.
 func TestResolveAmbiguNeRattachePas(t *testing.T) {

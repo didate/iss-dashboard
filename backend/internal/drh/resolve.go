@@ -17,13 +17,14 @@ const (
 
 // Sources de rattachement, de la plus sûre à la plus déduite.
 const (
-	SrcTable   = "table"            // table de correspondance validée à la main
-	SrcExact   = "exact"            // nom normalisé identique à une structure ISS
-	SrcApprox  = "approx"           // type + nom propre, dans le district de l'agent
-	SrcDeduit  = "deduit"           // seul établissement de ce type dans le district
-	SrcPrefixe = "prefixe"          // sigle de bureau de district ou d'administration centrale
-	SrcService = "service_district" // service hébergé par l'hôpital du district
-	SrcInconnu = "inconnu"
+	SrcTable       = "table"            // table de correspondance validée à la main
+	SrcExact       = "exact"            // nom normalisé identique à une structure ISS
+	SrcApprox      = "approx"           // type + nom propre, dans le district de l'agent
+	SrcDeduit      = "deduit"           // seul établissement de ce type dans le district
+	SrcPrefixe     = "prefixe"          // sigle de bureau de district ou d'administration centrale
+	SrcService     = "service_district" // service hébergé par l'hôpital du district
+	SrcNonRecensee = "non_recensee"     // structure connue de DHIS2, absente du recensement ISS
+	SrcInconnu     = "inconnu"
 )
 
 // Structure is one ISS facility, as the resolver needs it.
@@ -346,6 +347,13 @@ func (r *Resolver) resolveLabel(label string, a AgentRow) (Affectation, bool) {
 			if s, ok := r.byUID[c.OrgUnitUID]; ok {
 				return r.structureAff(s, SrcTable), true
 			}
+			// La correspondance vise une unité d'organisation que le recensement
+			// ISS n'a jamais couverte : il n'y a rien à quoi rattacher l'agent.
+			// Le dire plutôt que d'ignorer la règle en silence — c'est une
+			// structure que l'État dote et qu'ISS ne connaît pas, et la règle
+			// se mettra à fonctionner le jour où elle sera recensée.
+			return Affectation{Kind: AffNonRattache, Key: r.districtKey(a), Label: label,
+				District: r.districtLabel(a), Region: r.regionLabel(a), Source: SrcNonRecensee}, true
 		case CorrBureau:
 			return r.bureauAff(a, SrcTable), true
 		case CorrNonRattache, CorrATrancher:

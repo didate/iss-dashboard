@@ -10,6 +10,7 @@ const sourceLabels: Record<string, string> = {
   deduit: 'seul établissement du type',
   prefixe: 'sigle de bureau / administration',
   service_district: "service de l'hôpital du district",
+  non_recensee: 'structure connue de DHIS2, non recensée par ISS',
   inconnu: 'non reconnu',
 };
 
