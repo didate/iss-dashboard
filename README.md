@@ -459,6 +459,11 @@ Le fichier source est nominatif ; l'application n'en a besoin qu'en effectifs.
    (`drh_effectif`, `drh_pyramide`), croises zone x profession x tranche d'age x sexe.
 4. Rien n'est expose dans l'espace public.
 
+Le convertisseur supprime aussi les **lignes saisies deux fois** (meme matricule et meme contenu) : 125 sur le
+millesime 2026, soit 10 037 agents au lieu de 10 162. Les matricules en doublon dont les lignes different sont
+conserves et listes pour arbitrage par la DRH (`--doublons`), et les matricules de remplissage (`ND`, `0`) ne
+sont jamais traites comme des identifiants.
+
 Le format des colonnes est decrit dans [`docs/drh-format.md`](docs/drh-format.md) — c'est le document a
 transmettre a la DRH pour les millesimes suivants.
 

@@ -63,6 +63,20 @@ python3 scripts/drh_xlsx_to_csv.py "CNPS DRH 2026.xlsx" data/drh-2026.csv
 python3 scripts/drh_xlsx_to_csv.py "CNPS DRH 2026.xlsx" data/drh-2026.csv.gz   # version compressée
 ```
 
+### Doublons
+
+Le fichier 2026 contient **125 lignes saisies deux fois** — même matricule, même contenu, date de naissance
+comprise. Le convertisseur les supprime : un agent compté deux fois gonfle les effectifs et les densités
+(sur 2026 : −50 infirmiers, −32 sages-femmes, −29 ATS, 10 162 agents ramenés à **10 037**).
+
+Il reste **259 matricules portés par des lignes qui diffèrent** (structure, date de naissance, profession…).
+Ceux-là sont **conservés** : la même immatriculation sur deux lignes différentes peut être une faute de saisie
+comme deux personnes distinctes, et trancher n'appartient pas à l'application. `--doublons <fichier.csv>` écrit
+la liste à renvoyer à la DRH.
+
+Les matricules de remplissage (`ND`, `0`, `N/A`…) ne sont jamais traités comme des identifiants : dans le
+millésime 2026, `ND` porte quinze agents différents.
+
 Une destination en `.gz` est écrite compressée, et l'import accepte les deux. Le millésime 2026 fait
 **1,4 Mo en clair, 70 Ko gzippé** : au-delà de 1 Mo, le serveur web placé devant l'application refuse
 souvent l'envoi (`413 Request Entity Too Large`, limite `client_max_body_size` d'nginx) sans que la requête
