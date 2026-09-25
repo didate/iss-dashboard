@@ -245,4 +245,9 @@ func TestDrhRollupsRoundTrip(t *testing.T) {
 	if list[0].Name != "HR Kankan" || list[0].NAgents != 2 || list[1].NAgents != 0 {
 		t.Errorf("tri ou jointure incorrects : %+v", list)
 	}
+	// La fiche détaillée s'ouvre sur l'event, pas sur l'org unit : sans cet
+	// identifiant le lien de la page Personnel ne mène nulle part.
+	if list[0].EventUID != "e1" {
+		t.Errorf("event_uid manquant : %+v", list[0])
+	}
 }

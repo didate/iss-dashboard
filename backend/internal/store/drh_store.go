@@ -558,6 +558,8 @@ func (s *Store) GetDrhComparaison(importID int64, dimension, key, categorie stri
 
 // DrhStructureRow is one facility with the state agents posted to it.
 type DrhStructureRow struct {
+	// EventUID identifie le recensement : c'est la clé de la fiche détaillée.
+	EventUID    string `json:"event_uid"`
 	OrgUnitUID  string `json:"org_unit_uid"`
 	Name        string `json:"name"`
 	TypeCode    string `json:"type_code"`
@@ -572,7 +574,7 @@ type DrhStructureRow struct {
 // headcount, including those with none: a facility without a single paid agent
 // is exactly what a planner is looking for.
 func (s *Store) GetDrhStructuresList(importID int64, district, search string) ([]DrhStructureRow, error) {
-	q := `SELECT s.org_unit_uid, s.org_unit_name, COALESCE(s.type_code,''), COALESCE(s.district,''), COALESCE(s.region,''),
+	q := `SELECT s.event_uid, s.org_unit_uid, s.org_unit_name, COALESCE(s.type_code,''), COALESCE(s.district,''), COALESCE(s.region,''),
 		COALESCE(e.n_agents,0), COALESCE(e.n_femmes,0), COALESCE(e.n_depart_5ans,0)
 		FROM structure_latest s
 		LEFT JOIN drh_effectif e ON e.import_id = ? AND e.dimension = 'structure' AND e.categorie = '' AND e.key = s.org_unit_uid
@@ -595,7 +597,7 @@ func (s *Store) GetDrhStructuresList(importID int64, district, search string) ([
 	out := []DrhStructureRow{}
 	for rows.Next() {
 		var r DrhStructureRow
-		if err := rows.Scan(&r.OrgUnitUID, &r.Name, &r.TypeCode, &r.District, &r.Region,
+		if err := rows.Scan(&r.EventUID, &r.OrgUnitUID, &r.Name, &r.TypeCode, &r.District, &r.Region,
 			&r.NAgents, &r.NFemmes, &r.NDepart5Ans); err != nil {
 			return nil, err
 		}

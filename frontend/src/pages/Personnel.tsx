@@ -140,7 +140,7 @@ export default function Personnel() {
 
   const structureColumns = [
     { key: 'name', header: 'Structure', render: (r: Record<string, unknown>) => (
-      <Link to={`/structure/${r.org_unit_uid}`} className="text-blue-600 hover:underline">{String(r.name)}</Link>
+      <Link to={`/structure/${r.event_uid}`} className="text-blue-600 hover:underline">{String(r.name)}</Link>
     ) },
     { key: 'type_code', header: 'Type', render: (r: Record<string, unknown>) => typologieLabel(String(r.type_code)) },
     { key: 'n_agents', header: 'Agents de l\'État', render: (r: Record<string, unknown>) => (

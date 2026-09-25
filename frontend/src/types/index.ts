@@ -743,6 +743,7 @@ export interface DrhComparaison {
 }
 
 export interface DrhStructureRow {
+  event_uid: string;
   org_unit_uid: string;
   name: string;
   type_code: string;
