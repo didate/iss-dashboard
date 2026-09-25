@@ -202,7 +202,7 @@ README.md                        section « Personnel de l'État (DRH) »
 | **A — Ingestion** ✅ | tables, parseur CSV, rattachement, correspondances, import admin, tests | **livré le 25/09/2026** — import du fichier réel : 10 162 agents, **99,4 % catégorisés** (6 500 en structure sur 388 structures, 2 721 en bureau, 875 en centrale, 66 non rattachés), 240 ms |
 | **B — Agrégats & API** ✅ | rollups, densités, `drh_comparaison`, recalcul au sync, endpoints de lecture, métriques carte | **livré le 25/09/2026** — chiffres conformes à l'analyse : 14,1 % de départs à 5 ans, ATS ×3,68, infirmiers ×4,89, sages-femmes ×3,98, Kérouané 1,86 /10 000 hab. |
 | **C — Front** ✅ | page Personnel, onglet admin, carte, détail structure, KPI | **livré le 25/09/2026** — parcours vérifié : import → page `/personnel` → filtre district → comparaison, pyramide, structures ; carte thématique ; bloc sur la fiche structure |
-| **D — Doc** | `docs/drh-format.md`, README | relecture |
+| **D — Doc** ✅ | `docs/drh-format.md`, README | **livré** au fil des lots : format CSV et convertisseur (A), section README « Personnel de l'État » — confidentialité, import, rattachement, agrégats, lecture de la comparaison, comment étendre (B), où cela se lit dans l'interface et écarts assumés (C) |
 
 ---
 
