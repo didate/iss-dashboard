@@ -17,11 +17,12 @@ const (
 
 // Sources de rattachement, de la plus sûre à la plus déduite.
 const (
-	SrcTable   = "table"   // table de correspondance validée à la main
-	SrcExact   = "exact"   // nom normalisé identique à une structure ISS
-	SrcApprox  = "approx"  // type + nom propre, dans le district de l'agent
-	SrcDeduit  = "deduit"  // seul établissement de ce type dans le district
-	SrcPrefixe = "prefixe" // sigle de bureau de district ou d'administration centrale
+	SrcTable   = "table"            // table de correspondance validée à la main
+	SrcExact   = "exact"            // nom normalisé identique à une structure ISS
+	SrcApprox  = "approx"           // type + nom propre, dans le district de l'agent
+	SrcDeduit  = "deduit"           // seul établissement de ce type dans le district
+	SrcPrefixe = "prefixe"          // sigle de bureau de district ou d'administration centrale
+	SrcService = "service_district" // service hébergé par l'hôpital du district
 	SrcInconnu = "inconnu"
 )
 
@@ -94,7 +95,7 @@ func (r Report) PctCategorise() float64 {
 
 var (
 	bureauPrefixe   = regexp.MustCompile(`(?i)^(dps|dcs|drs|irs|dsp)\b`)
-	centralePrefixe = regexp.MustCompile(`(?i)^(igs|bsd|drh|daf|dn[a-z]+|sn[a-z]+|pn[a-z-]+|ins[ep]|anss|cnts|pcg|lncqm|smsi|sge|prmp|fbr|sc[frpm]?|shsst|ipps|sp-|cnhd|ct-epi|lnsp|pev|dsvco|crems|mshp)\b`)
+	centralePrefixe = regexp.MustCompile(`(?i)^(igs|bsd|drh|daf|dn[a-z]+|sn[a-z]+|pn[a-z-]+|ins[ep]|anss|cnts|pcg|lncqm|smsi|sge|prmp|fbr|sc[frpm]?|shsst|ipps|sp-|cnhd|lnsp|pev|dsvco|crems|mshp)\b`)
 	districtPrefixe = regexp.MustCompile(`(?i)^(dps|dcs|drs|irs|dsp)\s+`)
 )
 
@@ -122,6 +123,21 @@ func typeHint(label string) string {
 	}
 	return ""
 }
+
+// servicesDuDistrict liste les libellés qui désignent un service hébergé par
+// l'hôpital du district, et non une entité nationale ni une structure à part
+// entière. Ils ne peuvent pas passer par la table de correspondance : le même
+// libellé existe dans plusieurs districts et doit se résoudre différemment
+// dans chacun. Les motifs s'appliquent au libellé normalisé.
+//
+// Ajouter un service : une ligne ici, et un cas dans TestResolveServiceDuDistrict.
+var servicesDuDistrict = []*regexp.Regexp{
+	regexp.MustCompile(`^ct ?epi\b`), // centre de traitement des épidémies
+}
+
+// typesHospitaliers, du plus spécifique au plus général : le service revient à
+// l'hôpital préfectoral, à défaut régional, à défaut national.
+var typesHospitaliers = []string{"HP", "HR", "HN"}
 
 var premierToken = regexp.MustCompile(`^[A-Za-z-]+`)
 
@@ -268,6 +284,9 @@ func (r *Resolver) resolveLabel(label string, a AgentRow) (Affectation, bool) {
 	if bureauPrefixe.MatchString(strings.TrimSpace(label)) {
 		return r.bureauAff(a, SrcPrefixe), true
 	}
+	if s, ok := r.hopitalDuDistrict(label, a); ok {
+		return r.structureAff(s, SrcService), true
+	}
 	if centralePrefixe.MatchString(strings.TrimSpace(label)) && estSigle(label) {
 		// Chaque direction, institut ou programme garde sa propre clé : sans
 		// cela, 875 agents se retrouvaient dans un bloc « administration
@@ -322,6 +341,39 @@ func (r *Resolver) resolveLabel(label string, a AgentRow) (Affectation, bool) {
 		return r.structureAff(hits[0], SrcApprox), true
 	}
 	return Affectation{}, false
+}
+
+// hopitalDuDistrict rattache un service du district à son hôpital, quand le
+// district n'en compte qu'un seul du type visé. Deux hôpitaux du même type ne
+// se départagent pas : l'agent part à l'arbitrage plutôt qu'au hasard.
+func (r *Resolver) hopitalDuDistrict(label string, a AgentRow) (Structure, bool) {
+	k := Norm(label)
+	var estService bool
+	for _, re := range servicesDuDistrict {
+		if re.MatchString(k) {
+			estService = true
+			break
+		}
+	}
+	if !estService {
+		return Structure{}, false
+	}
+	pool := r.byDistrict[normDistrict(a.Prefecture)]
+	for _, typeCode := range typesHospitaliers {
+		var hits []Structure
+		for _, s := range pool {
+			if s.TypeCode == typeCode {
+				hits = append(hits, s)
+			}
+		}
+		if len(hits) == 1 {
+			return hits[0], true
+		}
+		if len(hits) > 1 {
+			return Structure{}, false
+		}
+	}
+	return Structure{}, false
 }
 
 func (r *Resolver) structureAff(s Structure, src string) Affectation {

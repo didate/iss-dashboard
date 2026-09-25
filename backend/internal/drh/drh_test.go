@@ -191,6 +191,36 @@ func TestResolveRegionISS(t *testing.T) {
 	}
 }
 
+// Le CT-EPi est hébergé par l'hôpital du district : le même libellé doit se
+// résoudre différemment selon la préfecture de l'agent, ce qu'une table de
+// correspondance globale ne sait pas faire.
+func TestResolveServiceDuDistrict(t *testing.T) {
+	r := NewResolver([]Structure{
+		{UID: "hp-siguiri", Name: "HP siguiri", District: "DPS Siguiri", Region: "IRS Kankan", TypeCode: "HP"},
+		{UID: "hp-pita", Name: "HP Pita", District: "DPS Pita", Region: "IRS Mamou", TypeCode: "HP"},
+		{UID: "cs-pita", Name: "CSU Pita", District: "DPS Pita", TypeCode: "CS"},
+		{UID: "hp-a", Name: "HP Macenta", District: "DPS Macenta", TypeCode: "HP"},
+		{UID: "hp-b", Name: "Centre Hospitalier Regional Specialise Macenta", District: "DPS Macenta", TypeCode: "HP"},
+	}, nil)
+
+	for _, c := range []struct{ libelle, prefecture, want string }{
+		{"CT-EPi", "Siguiri", "hp-siguiri"},
+		{"CTEPI", "SIGUIRI", "hp-siguiri"},
+		{"CT-Epi", "Pita", "hp-pita"},
+	} {
+		got := r.Resolve(AgentRow{Prefecture: c.prefecture, StructureAffectation: c.libelle})
+		if got.Kind != AffStructure || got.Key != c.want || got.Source != SrcService {
+			t.Errorf("%s / %s = %s/%s/%s, attendu structure/%s/%s", c.libelle, c.prefecture, got.Kind, got.Key, got.Source, c.want, SrcService)
+		}
+	}
+
+	// Deux hôpitaux du même type dans le district : pas de rattachement au hasard.
+	got := r.Resolve(AgentRow{Prefecture: "Macenta", StructureAffectation: "CT-EPi"})
+	if got.Kind == AffStructure {
+		t.Errorf("district à deux hôpitaux : rattaché quand même à %s", got.Key)
+	}
+}
+
 // « Pneumologie » est un service hospitalier, pas un programme national : le
 // motif des sigles ne doit pas happer les mots ordinaires.
 func TestResolveMotOrdinaireNestPasUnSigle(t *testing.T) {

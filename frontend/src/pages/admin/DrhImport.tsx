@@ -9,6 +9,7 @@ const sourceLabels: Record<string, string> = {
   approx: 'type + nom propre',
   deduit: 'seul établissement du type',
   prefixe: 'sigle de bureau / administration',
+  service_district: "service de l'hôpital du district",
   inconnu: 'non reconnu',
 };
 

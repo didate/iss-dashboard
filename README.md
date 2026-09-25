@@ -496,12 +496,14 @@ essaie, dans cet ordre :
 | 1 | Table de correspondance validee a la main | `table` |
 | 2 | Nom normalise identique a une structure ISS | `exact` |
 | 3 | Sigle de bureau de district (`DPS`, `DCS`, `IRS`, `DSP`) ou d'administration centrale / institut / programme national | `prefixe` |
+| 3 bis | Service heberge par l'hopital du district (`CT-EPi`…) → l'hopital prefectoral de la prefecture de l'agent | `service_district` |
 | 4 | Type devine + nom propre, dans le district de l'agent | `approx` |
 | 5 | Seul etablissement de ce type dans le district | `deduit` |
 | — | Rien de tout cela → **non rattache**, visible dans le rapport | `inconnu` |
 
-Ce qui reste ambigu n'est jamais rattache au hasard. Sur le millesime 2026 : **99,4 % des agents categorises**
-(6 500 en structure sur 388 structures, 2 721 en bureau de district, 875 en administration centrale, 66 non rattaches).
+Ce qui reste ambigu n'est jamais rattache au hasard. Sur le millesime 2026 : **99,3 % des agents categorises**
+(6 435 en structure sur 388 structures, 2 707 en bureau de district, 829 en administration centrale et
+programmes, 66 non rattaches, sur 10 037 agents apres dedoublonnage).
 
 La table de correspondance est une **donnee editable**, pas du code : elle est embarquee comme graine
 (`backend/internal/drh/seed/correspondances.csv`, chargee une seule fois sur une base neuve), puis remplacable
@@ -565,6 +567,11 @@ est lue dans le CSV mais n'est agregee dans aucune dimension. L'ajouter demande 
   `AUTRE` plutot que d'etre perdu.
 - **Nouvelle categorie** : l'ajouter a `drh.Categories` avec sa famille et, si un equivalent existe, le
   `profil_code` ISS correspondant — c'est ce qui rend la comparaison DRH ↔ ISS possible.
+- **Nouveau service heberge par l'hopital du district** : une ligne dans `servicesDuDistrict`
+  (`resolve.go`) et un cas dans `TestResolveServiceDuDistrict`. Ces libelles ne peuvent pas passer par la table
+  de correspondance : le meme libelle existe dans plusieurs districts et doit se resoudre differemment dans
+  chacun. Le rattachement vise l'hopital prefectoral, a defaut regional, a defaut national — et s'abstient
+  quand le district en compte deux du meme type.
 - **Nouveau sigle d'administration centrale** : `centralePrefixe` dans `resolve.go`. Le sigle doit rester
   majoritairement en majuscules (`estSigle`) : sans ce garde-fou le motif des programmes nationaux happait
   « Pneumologie » et rangeait un service hospitalier parmi les programmes.
