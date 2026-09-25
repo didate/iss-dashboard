@@ -205,7 +205,7 @@ Groupes d'OU : ils sont lus via les group sets (champs imbriques), ce qui contou
 
 | Methode | Route | Description |
 |---|---|---|
-| `GET` | `/iss/api/public/points.geojson` | GeoJSON pre-calcule de toutes les structures geolocalisees (uid, nom, type, statut, rattachement, services `oui`). ETag, gzip, `Cache-Control: max-age=3600` |
+| `GET` | `/iss/api/public/points.geojson` | GeoJSON pre-calcule de toutes les structures geolocalisees (uid, nom, type, statut, rattachement, services `oui`, agregats RH / eau / energie / score services). ETag, gzip, `Cache-Control: no-cache` : le navigateur revalide a chaque chargement et recoit un 304 tant que la synchro n'a rien change |
 | `GET` | `/iss/api/public/filters` | Types (avec effectifs), services, regions, districts |
 | `GET` | `/iss/api/public/structures?search=&type=&service=&district=&region=&near=lat,lng&radius_km=&limit=` | Recherche ; avec `near`, tri par distance (haversine) et rayon |
 | `GET` | `/iss/api/public/annuaire?…&page=&pageSize=` | Registre pagine (memes filtres + `sous_prefecture`) |

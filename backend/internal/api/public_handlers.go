@@ -22,7 +22,10 @@ type PublicHandlers struct {
 	DashboardPublic bool
 }
 
-const publicCacheControl = "public, max-age=3600"
+// Les projections publiques changent a chaque synchronisation : on demande au
+// navigateur de revalider systematiquement (ETag -> 304 de quelques octets s'il
+// n'y a rien de neuf) plutot que de servir un fichier perime pendant une heure.
+const publicCacheControl = "no-cache"
 
 // serveBlob writes a pre-serialized snapshot with ETag / 304 handling and gzip
 // when the client accepts it (the points GeoJSON is ~1 MB uncompressed).
@@ -160,8 +163,7 @@ func (h *PublicHandlers) GetSummary(c *gin.Context) {
 		return
 	}
 	sum.DashboardPublic = h.DashboardPublic
-	// Résumé court et porteur du mode d'accès : cache bref pour qu'un changement de configuration soit vu vite.
-	c.Header("Cache-Control", "public, max-age=60")
+	c.Header("Cache-Control", publicCacheControl)
 	c.JSON(http.StatusOK, sum)
 }
 
