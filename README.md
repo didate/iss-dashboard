@@ -206,7 +206,7 @@ Groupes d'OU : ils sont lus via les group sets (champs imbriques), ce qui contou
 |---|---|---|
 | `GET` | `/iss/api/drh/summary` | Millesime actif, effectif national, densite, repartition par categorie, catalogue |
 | `GET` | `/iss/api/drh/effectifs?by=global\|region\|district\|sous_prefecture\|type\|centrale&categorie=&key=&district=` | Effectifs pre-calcules (`categorie=*` renvoie toutes les categories detaillees ; `by=centrale` detaille les directions et programmes) |
-| `GET` | `/iss/api/drh/pyramide?by=global\|region\|district\|type&key=&categorie=` | Tranches quinquennales, tranches vides comprises |
+| `GET` | `/iss/api/drh/pyramide?by=global\|region\|district\|type\|centrale\|structure&key=&categorie=` | Tranches quinquennales, tranches vides comprises |
 | `GET` | `/iss/api/drh/comparaison?by=global\|district&categorie=` | DRH vs ISS : effectifs, ecart, ratio, les ratios les plus bas d'abord |
 | `GET` | `/iss/api/drh/structures?district=&search=` | Effectif par structure, y compris les structures sans aucun agent |
 | `GET` | `/iss/api/drh/structure/:uid` | Personnel de l'Etat affecte a une structure, par categorie |
@@ -546,7 +546,10 @@ trou de nomenclature.
 
 ### Ou cela se lit dans l'interface
 
-- **Page Personnel** (`/personnel`) : la lecture complete, filtrable par district et par categorie.
+- **Page Personnel** (`/personnel`) : la lecture complete, filtrable par district et par categorie. Le bloc
+  « Administration centrale, instituts et programmes » liste les 41 entites ; un clic ouvre son detail
+  (effectif par profession, part de femmes, departs a 5 ans, pyramide des ages). L'entite selectionnee est
+  dans l'URL (`?entite=`), donc partageable.
 - **Vue d'ensemble** : une ligne « Personnel de l'Etat » avec la densite nationale, masquee tant qu'aucun millesime
   n'est importe.
 - **Carte → Couverture geo** : deux metriques, « Agents de l'Etat pour 10 000 hab. » et « % de departs a la retraite

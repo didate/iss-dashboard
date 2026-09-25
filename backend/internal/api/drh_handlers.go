@@ -332,7 +332,7 @@ func (h *DrhReadHandlers) Pyramide(c *gin.Context) {
 	if !ok {
 		return
 	}
-	by, ok := dimension(c, []string{drh.DimGlobal, drh.DimRegion, drh.DimDistrict, drh.DimType}, drh.DimGlobal)
+	by, ok := dimension(c, []string{drh.DimGlobal, drh.DimRegion, drh.DimDistrict, drh.DimType, drh.AffCentrale, drh.AffStructure}, drh.DimGlobal)
 	if !ok {
 		return
 	}

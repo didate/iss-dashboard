@@ -38,6 +38,9 @@ export default function Personnel() {
   const [comparaison, setComparaison] = useState<DrhComparaison[]>([]);
   const [structures, setStructures] = useState<DrhStructureRow[]>([]);
   const [centrale, setCentrale] = useState<DrhEffectif[]>([]);
+  const [entite, setEntite] = useUrlState('entite');
+  const [entiteCats, setEntiteCats] = useState<DrhEffectif[]>([]);
+  const [entitePyr, setEntitePyr] = useState<DrhPyramide[]>([]);
 
   useEffect(() => {
     api.getFilters().then(setFilters).catch(() => {});
@@ -78,6 +81,13 @@ export default function Personnel() {
     if (!summary || district) { setCentrale([]); return; }
     api.getDrhEffectifs({ by: 'centrale', categorie }).then(setCentrale).catch(() => {});
   }, [summary, district, categorie]);
+
+  // Détail d'une direction, d'un institut ou d'un programme.
+  useEffect(() => {
+    if (!summary || !entite) { setEntiteCats([]); setEntitePyr([]); return; }
+    api.getDrhEffectifs({ by: 'centrale', key: entite, categorie: '*' }).then(setEntiteCats).catch(() => {});
+    api.getDrhPyramide({ by: 'centrale', key: entite }).then((r) => setEntitePyr(r.pyramide ?? [])).catch(() => {});
+  }, [summary, entite]);
 
   const catLabel = useMemo(() => {
     const m: Record<string, string> = {};
@@ -162,6 +172,7 @@ export default function Personnel() {
 
   // Le tri doit être fait AVANT de générer les <Cell> : recharts les applique
   // dans l'ordre des données, pas dans celui du tableau d'origine.
+  const entiteDetail = centrale.find((r) => r.key === entite);
   const chartEffectifs = effectifs
     .filter((r) => r.n_agents > 0)
     .slice(0, 45)
@@ -285,20 +296,63 @@ export default function Personnel() {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
             {centrale.map((r) => (
-              <div key={r.key} className="border border-gray-200 rounded p-2">
+              <button
+                key={r.key}
+                onClick={() => setEntite(entite === r.key ? '' : r.key)}
+                className={`text-left border rounded p-2 hover:bg-gray-50 ${entite === r.key ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}
+              >
                 <div className="text-xs text-gray-600 truncate" title={r.label}>{r.label}</div>
                 <div className="text-lg font-semibold text-gray-900">{fmt(r.n_agents)}</div>
                 <div className="text-[11px] text-gray-500">
                   {pct(r.n_femmes, r.n_agents)} de femmes
                   {r.n_depart_5ans > 0 && ` · ${r.n_depart_5ans} départ${r.n_depart_5ans > 1 ? 's' : ''}`}
                 </div>
-              </div>
+              </button>
             ))}
           </div>
+          {entiteDetail && (
+            <div className="border-t border-gray-200 pt-3 grid lg:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <h4 className="font-semibold text-gray-800">{entiteDetail.label}</h4>
+                  <span className="text-xs text-gray-500">
+                    {fmt(entiteDetail.n_agents)} agents · {pct(entiteDetail.n_femmes, entiteDetail.n_agents)} de femmes ·
+                    {' '}{entiteDetail.n_depart_5ans} départ{entiteDetail.n_depart_5ans > 1 ? 's' : ''} d'ici 5 ans
+                    {entiteDetail.n_age_connu > 0 && ` (${pct(entiteDetail.n_depart_5ans, entiteDetail.n_age_connu)} des âges connus)`}
+                  </span>
+                  <button onClick={() => setEntite('')} className="ml-auto text-xs text-gray-500 hover:text-gray-800 underline">Fermer</button>
+                </div>
+                <DataTable
+                  columns={[
+                    { key: 'categorie', header: 'Profession', render: (r: Record<string, unknown>) => catLabel[String(r.categorie)] ?? String(r.categorie) },
+                    { key: 'n_agents', header: 'Agents', render: (r: Record<string, unknown>) => fmt(r.n_agents as number) },
+                    { key: 'n_femmes', header: 'Femmes', render: (r: Record<string, unknown>) => pct(r.n_femmes as number, r.n_agents as number) },
+                    { key: 'n_depart_5ans', header: 'Départs 5 ans', render: (r: Record<string, unknown>) => fmt(r.n_depart_5ans as number) },
+                  ]}
+                  data={entiteCats as unknown as Record<string, unknown>[]}
+                />
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-800 mb-2 text-sm">Pyramide des âges — {entiteDetail.label}</h4>
+                <ResponsiveContainer width="100%" height={230}>
+                  <BarChart data={entitePyr.map((p) => ({ name: p.tranche, femmes: p.n_femmes, hommes: p.n_agents - p.n_femmes }))}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" fontSize={11} />
+                    <YAxis fontSize={11} allowDecimals={false} />
+                    <Tooltip formatter={(v: number, n) => [fmt(v), n === 'femmes' ? 'Femmes' : 'Hommes']} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Bar dataKey="femmes" name="Femmes" stackId="s" fill="#db2777" />
+                    <Bar dataKey="hommes" name="Hommes" stackId="s" fill="#2563eb" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
           <p className="text-xs text-gray-500">
-            Ces agents ne sont rattachés à aucun district : ils ne comptent qu'au niveau national, et n'entrent
-            donc ni dans les densités régionales, ni dans la comparaison avec les effectifs déclarés par les
-            structures.
+            Cliquez une entité pour en voir le détail. Ces agents ne sont rattachés à aucun district : ils ne
+            comptent qu'au niveau national, et n'entrent donc ni dans les densités régionales, ni dans la
+            comparaison avec les effectifs déclarés par les structures.
           </p>
         </div>
       )}
