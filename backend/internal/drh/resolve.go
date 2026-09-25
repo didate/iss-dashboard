@@ -97,6 +97,9 @@ var (
 	bureauPrefixe   = regexp.MustCompile(`(?i)^(dps|dcs|drs|irs|dsp)\b`)
 	centralePrefixe = regexp.MustCompile(`(?i)^(igs|bsd|drh|daf|dn[a-z]+|sn[a-z]+|pn[a-z-]+|ins[ep]|anss|cnts|pcg|lncqm|smsi|sge|prmp|fbr|sc[frpm]?|shsst|ipps|sp-|cnhd|lnsp|pev|dsvco|crems|mshp)\b`)
 	districtPrefixe = regexp.MustCompile(`(?i)^(dps|dcs|drs|irs|dsp)\s+`)
+	// Sigles des sous-préfectures et communes : « CU Kassa » désigne la commune
+	// que la DRH écrit simplement « Kassa ».
+	sousPrefPrefixe = regexp.MustCompile(`(?i)^(cu|cr|cm)\s+`)
 )
 
 // motifs de type dans un libellé DRH, du plus spécifique au plus général.
@@ -198,28 +201,41 @@ func typeCompatible(hint, code string) bool {
 
 // Resolver attaches DRH labels to ISS facilities.
 type Resolver struct {
-	corr       map[string]Correspondance
-	byName     map[string]Structure   // nom normalisé → structure (première gagnante)
-	byDistrict map[string][]Structure // district normalisé (sans DPS/DCS) → structures
-	byUID      map[string]Structure
-	districts  map[string]Structure // district normalisé → une structure du district (pour région)
-	districtOf map[string]string    // préfecture normalisée → libellé de district ISS
+	corr        map[string]Correspondance // libellé seul, quand il est unique dans la table
+	corrZone    map[string]Correspondance // libellé + district, pour les libellés ambigus
+	byName      map[string]Structure      // nom normalisé → structure (première gagnante)
+	byDistrict  map[string][]Structure    // district normalisé (sans DPS/DCS) → structures
+	byUID       map[string]Structure
+	districts   map[string]Structure // district normalisé → une structure du district (pour région)
+	districtOf  map[string]string    // préfecture normalisée → libellé de district ISS
+	viaSousPref map[string]string    // sous-préfecture normalisée → libellé de district ISS
 }
 
 // NewResolver indexes the ISS facilities and the correspondence table.
 func NewResolver(structures []Structure, corr []Correspondance) *Resolver {
 	r := &Resolver{
-		corr:       make(map[string]Correspondance, len(corr)),
-		byName:     make(map[string]Structure, len(structures)),
-		byDistrict: make(map[string][]Structure),
-		byUID:      make(map[string]Structure, len(structures)),
-		districts:  make(map[string]Structure),
-		districtOf: make(map[string]string),
+		corr:        make(map[string]Correspondance, len(corr)),
+		corrZone:    make(map[string]Correspondance, len(corr)),
+		byName:      make(map[string]Structure, len(structures)),
+		byDistrict:  make(map[string][]Structure),
+		byUID:       make(map[string]Structure, len(structures)),
+		districts:   make(map[string]Structure),
+		districtOf:  make(map[string]string),
+		viaSousPref: make(map[string]string),
 	}
+	// Un même libellé peut désigner une structure différente selon le district
+	// — « HOPITAL » à Fria n'est pas celui de Boffa. La colonne district de la
+	// table dit où la règle s'applique : renseignée, elle limite la règle à ce
+	// district ; vide, la règle vaut partout.
+	//
+	// C'est la seule lecture sûre. Rendre aussi global un libellé qui n'apparaît
+	// qu'une fois paraissait commode, mais « HOPITAL », saisi pour Fria, partait
+	// alors rattacher les hôpitaux de tous les autres districts.
 	for _, c := range corr {
-		key := c.LibelleNorm
-		if key == "" {
-			key = Norm(c.LibelleDRH)
+		key := corrKey(c)
+		if d := normDistrict(c.District); d != "" {
+			r.corrZone[key+"|"+d] = c
+			continue
 		}
 		r.corr[key] = c
 	}
@@ -237,7 +253,49 @@ func NewResolver(structures []Structure, corr []Correspondance) *Resolver {
 		}
 		r.districtOf[dk] = s.District
 	}
+	// La DRH écrit parfois une commune là où ISS a un district — « LAMBANYI »
+	// pour Ratoma, « Kassa » pour Kaloum. La hiérarchie DHIS2 sait les relier :
+	// on indexe les sous-préfectures, en écartant celles dont le nom existe dans
+	// deux districts, qui ne désigneraient rien de sûr.
+	ambigu := map[string]bool{}
+	for _, st := range structures {
+		sp := normSousPref(st.SousPrefecture)
+		if sp == "" || r.districtOf[sp] != "" {
+			continue // déjà un district : le nom de district prime
+		}
+		if d, seen := r.viaSousPref[sp]; seen && d != st.District {
+			ambigu[sp] = true
+			continue
+		}
+		r.viaSousPref[sp] = st.District
+	}
+	for sp := range ambigu {
+		delete(r.viaSousPref, sp)
+	}
 	return r
+}
+
+// normSousPref normalise un nom de sous-préfecture en retirant son sigle.
+func normSousPref(sp string) string {
+	return Norm(sousPrefPrefixe.ReplaceAllString(strings.TrimSpace(sp), ""))
+}
+
+// districtDe résout la préfecture d'un agent en district ISS, en passant au
+// besoin par la sous-préfecture. Renvoie "" si rien ne correspond.
+func (r *Resolver) districtDe(prefecture string) string {
+	k := normDistrict(prefecture)
+	if d, ok := r.districtOf[k]; ok {
+		return d
+	}
+	return r.viaSousPref[k]
+}
+
+// corrKey is the normalised label a correspondence is indexed by.
+func corrKey(c Correspondance) string {
+	if c.LibelleNorm != "" {
+		return c.LibelleNorm
+	}
+	return Norm(c.LibelleDRH)
 }
 
 // normDistrict strips the "DPS "/"DCS " prefix so that the DRH's "Boké"
@@ -251,21 +309,38 @@ func normDistrict(d string) string {
 // then type + proper noun within the agent's own district, with a deduction
 // when the district holds a single facility of that type.
 func (r *Resolver) Resolve(a AgentRow) Affectation {
-	for _, label := range []string{a.StructureAffectation, a.StructureRattachement} {
-		if strings.TrimSpace(label) == "" {
-			continue
-		}
-		if aff, ok := r.resolveLabel(label, a); ok {
+	affectation := strings.TrimSpace(a.StructureAffectation)
+	if affectation != "" {
+		if aff, ok := r.resolveLabel(affectation, a); ok {
 			return aff
 		}
 	}
+
+	// Repli sur la structure de rattachement. Quand le libellé d'affectation
+	// était renseigné mais non reconnu, ce repli n'est accepté que s'il aboutit
+	// à une structure de soins : « CSU SIGUIRIKORO » rattaché à « DPS Siguiri »
+	// désigne un centre de santé, pas le bureau du district. L'y ranger gonflait
+	// le bureau — 292 agents à Siguiri, quatre fois la moyenne — et faisait
+	// disparaître le libellé du rapport, donc de tout arbitrage possible.
+	if rattachement := strings.TrimSpace(a.StructureRattachement); rattachement != "" {
+		if aff, ok := r.resolveLabel(rattachement, a); ok {
+			if affectation == "" || aff.Kind == AffStructure {
+				return aff
+			}
+		}
+	}
+
 	return Affectation{Kind: AffNonRattache, Key: r.districtKey(a), Label: a.Libelle(),
 		District: r.districtLabel(a), Region: r.regionLabel(a), Source: SrcInconnu}
 }
 
 func (r *Resolver) resolveLabel(label string, a AgentRow) (Affectation, bool) {
 	k := Norm(label)
-	if c, ok := r.corr[k]; ok {
+	c, ok := r.corrZone[k+"|"+normDistrict(r.districtDe(a.Prefecture))]
+	if !ok {
+		c, ok = r.corr[k]
+	}
+	if ok {
 		switch c.Statut {
 		case CorrOK:
 			if s, ok := r.byUID[c.OrgUnitUID]; ok {
@@ -294,7 +369,7 @@ func (r *Resolver) resolveLabel(label string, a AgentRow) (Affectation, bool) {
 		return Affectation{Kind: AffCentrale, Key: Norm(label), Label: strings.TrimSpace(label), Source: SrcPrefixe}, true
 	}
 
-	pool := r.byDistrict[normDistrict(a.Prefecture)]
+	pool := r.byDistrict[normDistrict(r.districtDe(a.Prefecture))]
 	if len(pool) == 0 {
 		return Affectation{}, false
 	}
@@ -358,7 +433,7 @@ func (r *Resolver) hopitalDuDistrict(label string, a AgentRow) (Structure, bool)
 	if !estService {
 		return Structure{}, false
 	}
-	pool := r.byDistrict[normDistrict(a.Prefecture)]
+	pool := r.byDistrict[normDistrict(r.districtDe(a.Prefecture))]
 	for _, typeCode := range typesHospitaliers {
 		var hits []Structure
 		for _, s := range pool {
@@ -393,11 +468,13 @@ func (r *Resolver) bureauAff(a AgentRow, src string) Affectation {
 // districtKey identifies the agent's district; the DRH prefecture is the only
 // thing available, so an unknown one falls back to its normalised form.
 func (r *Resolver) districtKey(a AgentRow) string {
-	k := normDistrict(a.Prefecture)
-	if k == "" {
-		return KeyNational
+	if d := r.districtDe(a.Prefecture); d != "" {
+		return normDistrict(d)
 	}
-	return k
+	if k := normDistrict(a.Prefecture); k != "" {
+		return k
+	}
+	return KeyNational
 }
 
 // regionLabel returns the ISS region of the agent's district. The DRH writes
@@ -409,14 +486,14 @@ func (r *Resolver) districtKey(a AgentRow) string {
 // district table, under their DRH label and without a density, which is the
 // signal that the zone needs arbitration.
 func (r *Resolver) regionLabel(a AgentRow) string {
-	if s, ok := r.districts[normDistrict(a.Prefecture)]; ok {
+	if s, ok := r.districts[normDistrict(r.districtDe(a.Prefecture))]; ok {
 		return s.Region
 	}
 	return ""
 }
 
 func (r *Resolver) districtLabel(a AgentRow) string {
-	if d, ok := r.districtOf[normDistrict(a.Prefecture)]; ok {
+	if d := r.districtDe(a.Prefecture); d != "" {
 		return d
 	}
 	return strings.TrimSpace(a.Prefecture)

@@ -165,6 +165,9 @@ func TestResolve(t *testing.T) {
 		{"non rattachable déclaré", AgentRow{Prefecture: "Boffa", StructureAffectation: "Boffa Centre"}, AffNonRattache, "boffa", SrcTable},
 		{"libellé inconnu", AgentRow{Prefecture: "Gaoual", StructureAffectation: "CS Youkounkoun"}, AffNonRattache, "gaoual", SrcInconnu},
 		{"repli sur la structure de rattachement", AgentRow{Prefecture: "Kankan", StructureRattachement: "HR Kankan"}, AffStructure, "u-hr-kankan", SrcExact},
+		{"affectation vide : le rattachement administratif fait foi", AgentRow{Prefecture: "Forécariah", StructureRattachement: "DPS Forécariah"}, AffBureau, "forecariah", SrcPrefixe},
+		{"affectation non reconnue : pas de repli sur le bureau", AgentRow{Prefecture: "Forécariah", StructureAffectation: "CSU Inconnu", StructureRattachement: "DPS Forécariah"}, AffNonRattache, "forecariah", SrcInconnu},
+		{"affectation non reconnue : repli accepté vers une structure", AgentRow{Prefecture: "Kankan", StructureAffectation: "Pneumologie", StructureRattachement: "HR Kankan"}, AffStructure, "u-hr-kankan", SrcExact},
 	}
 	for _, c := range cases {
 		t.Run(c.nom, func(t *testing.T) {
@@ -218,6 +221,39 @@ func TestResolveServiceDuDistrict(t *testing.T) {
 	got := r.Resolve(AgentRow{Prefecture: "Macenta", StructureAffectation: "CT-EPi"})
 	if got.Kind == AffStructure {
 		t.Errorf("district à deux hôpitaux : rattaché quand même à %s", got.Key)
+	}
+}
+
+// Un même libellé peut désigner une structure différente selon le district :
+// « HOPITAL » à Fria n'est pas celui de Boffa, et aucune déduction ne peut les
+// départager quand le district compte deux hôpitaux.
+func TestResolveCorrespondanceParDistrict(t *testing.T) {
+	r := NewResolver([]Structure{
+		{UID: "hp-fria", Name: "HP Fria", District: "DPS Fria", TypeCode: "HP"},
+		{UID: "rusal", Name: "Hôpital RUSAL", District: "DPS Fria", TypeCode: "HP"},
+		{UID: "hp-boffa", Name: "HP Boffa", District: "DPS Boffa", TypeCode: "HP"},
+		{UID: "hr-kankan", Name: "HR Kankan", District: "DPS Kankan", TypeCode: "HR"},
+	}, []Correspondance{
+		{LibelleNorm: Norm("HOPITAL"), LibelleDRH: "HOPITAL", OrgUnitUID: "hp-fria", Statut: CorrOK, District: "DPS Fria"},
+		{LibelleNorm: Norm("HOPITAL"), LibelleDRH: "HOPITAL", OrgUnitUID: "hp-boffa", Statut: CorrOK, District: "DPS Boffa"},
+		{LibelleNorm: Norm("HRKkan"), LibelleDRH: "HRKkan", OrgUnitUID: "hr-kankan", Statut: CorrOK},
+	})
+
+	for _, c := range []struct{ prefecture, want string }{{"Fria", "hp-fria"}, {"Boffa", "hp-boffa"}} {
+		got := r.Resolve(AgentRow{Prefecture: c.prefecture, StructureAffectation: "HOPITAL"})
+		if got.Key != c.want {
+			t.Errorf("HOPITAL à %s → %s, attendu %s", c.prefecture, got.Key, c.want)
+		}
+	}
+	// Hors des districts couverts par une règle, le libellé ne pioche pas dans
+	// les règles des autres : il repasse par la déduction ordinaire, qui ne
+	// tranche que si le district n'a qu'un seul hôpital.
+	if got := r.Resolve(AgentRow{Prefecture: "Kankan", StructureAffectation: "HOPITAL"}); got.Key != "hr-kankan" || got.Source != SrcDeduit {
+		t.Errorf("HOPITAL à Kankan = %s/%s, attendu hr-kankan par déduction", got.Key, got.Source)
+	}
+	// Une règle sans district vaut partout.
+	if got := r.Resolve(AgentRow{Prefecture: "Boffa", StructureAffectation: "HRKkan"}); got.Key != "hr-kankan" {
+		t.Errorf("règle sans district non appliquée : %+v", got)
 	}
 }
 

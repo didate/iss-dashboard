@@ -493,7 +493,7 @@ essaie, dans cet ordre :
 
 | Ordre | Regle | Source |
 |---|---|---|
-| 1 | Table de correspondance validee a la main | `table` |
+| 1 | Table de correspondance validee a la main. La colonne `district` dit **ou** la regle s'applique : renseignee, la regle est limitee a ce district (« HOPITAL » a Fria n'est pas celui de Boffa) ; vide, elle vaut partout | `table` |
 | 2 | Nom normalise identique a une structure ISS | `exact` |
 | 3 | Sigle de bureau de district (`DPS`, `DCS`, `IRS`, `DSP`) ou d'administration centrale / institut / programme national | `prefixe` |
 | 3 bis | Service heberge par l'hopital du district (`CT-EPi`…) → l'hopital prefectoral de la prefecture de l'agent | `service_district` |
@@ -501,9 +501,20 @@ essaie, dans cet ordre :
 | 5 | Seul etablissement de ce type dans le district | `deduit` |
 | — | Rien de tout cela → **non rattache**, visible dans le rapport | `inconnu` |
 
-Ce qui reste ambigu n'est jamais rattache au hasard. Sur le millesime 2026 : **99,3 % des agents categorises**
-(6 435 en structure sur 388 structures, 2 707 en bureau de district, 829 en administration centrale et
-programmes, 66 non rattaches, sur 10 037 agents apres dedoublonnage).
+Le repli sur la colonne « Structure » n'est accepte que s'il aboutit a une **structure de soins**. Un libelle
+d'affectation non reconnu — souvent un vrai centre de sante — etait sinon range au bureau de district de son
+rattachement administratif : 805 agents dans ce cas sur 2026, dont 83 a Siguiri, qui gonflaient le bureau et
+disparaissaient du rapport, donc de tout arbitrage.
+
+La prefecture de l'agent est resolue en district ISS en passant au besoin par la **sous-prefecture** : la DRH
+ecrit parfois une commune (« Kassa ») la ou ISS a un district (DCS Kaloum). Les noms de sous-prefecture presents
+dans deux districts sont ecartes.
+
+Ce qui reste ambigu n'est jamais rattache au hasard. Sur le millesime 2026, apres dedoublonnage (10 037
+agents) : **92,1 % categorises** — 6 511 en structure sur 389 structures, 1 915 en bureau de district, 816 en
+administration centrale et programmes, **795 non rattaches**. Ces 795 sont la liste a arbitrer avec la DRH et
+le SNIS ; une partie correspond a des structures **absentes du recensement ISS**, parfois meme de la hierarchie
+DHIS2, ce que seul le croisement des deux sources revele.
 
 La table de correspondance est une **donnee editable**, pas du code : elle est embarquee comme graine
 (`backend/internal/drh/seed/correspondances.csv`, chargee une seule fois sur une base neuve), puis remplacable

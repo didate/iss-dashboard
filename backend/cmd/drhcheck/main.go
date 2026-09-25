@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 
 	"iss-dashboard-backend/internal/drh"
 	"iss-dashboard-backend/internal/store"
@@ -70,6 +71,13 @@ func main() {
 	}
 	fmt.Println()
 
+	// DRHCHECK_PREFECTURE=Siguiri : détaille, libellé par libellé, où sont
+	// rattachés les agents d'une préfecture. Sert à comprendre un effectif
+	// surprenant sans avoir à relire les agrégats.
+	if pref := os.Getenv("DRHCHECK_PREFECTURE"); pref != "" {
+		diagnostic(st, os.Args[2], pref)
+	}
+
 	inconnus, err := st.GetDrhNonReconnus(im.ID)
 	check(err)
 	fmt.Printf("\n  libellés non reconnus (%d) :\n", len(inconnus))
@@ -79,6 +87,58 @@ func main() {
 		}
 		fmt.Printf("    %4d agents  [%-14s] %s\n", u.NAgents, u.Prefecture, u.Libelle)
 	}
+}
+
+// diagnostic rejoue le rattachement d'une préfecture et imprime, pour chaque
+// libellé du fichier, où ses agents ont atterri.
+func diagnostic(st *store.Store, csvPath, pref string) {
+	f, err := os.Open(csvPath)
+	check(err)
+	defer f.Close()
+	agents, _ := drh.ParseCSV(f)
+	structures, err := st.ListDrhStructures()
+	check(err)
+	corr, err := st.ListDrhCorrespondances()
+	check(err)
+	r := drh.NewResolver(structures, corr)
+
+	par := map[string]map[string]int{}
+	for _, a := range agents {
+		if !strings.EqualFold(strings.TrimSpace(a.Prefecture), pref) {
+			continue
+		}
+		lab := a.Libelle()
+		if lab == "" {
+			lab = "(vide)"
+		}
+		aff := r.Resolve(a)
+		if par[lab] == nil {
+			par[lab] = map[string]int{}
+		}
+		par[lab][aff.Kind+" · "+aff.Label+" ["+aff.Source+"]"]++
+	}
+	type ligne struct {
+		libelle, cible string
+		n              int
+	}
+	var lignes []ligne
+	for lab, cibles := range par {
+		for cible, n := range cibles {
+			lignes = append(lignes, ligne{lab, cible, n})
+		}
+	}
+	sort.Slice(lignes, func(i, j int) bool { return lignes[i].n > lignes[j].n })
+	fmt.Printf("\n### Rattachement des agents de %s\n", pref)
+	for _, l := range lignes {
+		fmt.Printf("  %4d  %-30s → %s\n", l.n, truncate(l.libelle, 30), l.cible)
+	}
+}
+
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n-1] + "…"
 }
 
 func pct(a, b int) float64 {
