@@ -60,7 +60,13 @@ KANKAN;Kankan;Kankan Centre;HRKkan;HR Kankan;Infirmier d'Etat;Personnel infirmie
 
 ```bash
 python3 scripts/drh_xlsx_to_csv.py "CNPS DRH 2026.xlsx" data/drh-2026.csv
+python3 scripts/drh_xlsx_to_csv.py "CNPS DRH 2026.xlsx" data/drh-2026.csv.gz   # version compressée
 ```
+
+Une destination en `.gz` est écrite compressée, et l'import accepte les deux. Le millésime 2026 fait
+**1,4 Mo en clair, 70 Ko gzippé** : au-delà de 1 Mo, le serveur web placé devant l'application refuse
+souvent l'envoi (`413 Request Entity Too Large`, limite `client_max_body_size` d'nginx) sans que la requête
+atteigne l'application. Envoyer le `.csv.gz` évite d'avoir à toucher à cette configuration.
 
 Le script lit l'onglet `BASE`, repère la ligne d'en-tête (celle contenant « Profession » et
 « Région »), mappe les colonnes sources vers les colonnes normalisées, normalise `sexe`,

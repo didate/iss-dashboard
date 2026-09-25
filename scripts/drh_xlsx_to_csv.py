@@ -2,12 +2,16 @@
 """Convertit le fichier annuel de la DRH (.xlsx) en CSV normalisé pour l'import ISS.
 
     python3 scripts/drh_xlsx_to_csv.py "CNPS DRH 2026.xlsx" data/drh-2026.csv
+    python3 scripts/drh_xlsx_to_csv.py "CNPS DRH 2026.xlsx" data/drh-2026.csv.gz   # compressé
 
 Ne conserve que ce dont la carte sanitaire a besoin : aucune donnée identifiante
 (ni matricule, ni nom, ni date de naissance exacte — seule l'année est gardée).
 Le format produit est décrit dans docs/drh-format.md.
+
+Une destination en .gz est ecrite compressee : le fichier annuel fait ~1,4 Mo,
+au-dessus de la limite d'envoi par defaut des reverse proxies, et ~70 Ko gzippe.
 """
-import csv, re, sys, unicodedata
+import csv, gzip, re, sys, unicodedata
 from datetime import datetime
 
 COLONNES = ['region','prefecture','sous_prefecture','structure_affectation','structure_rattachement',
@@ -81,7 +85,8 @@ def main(src, dst):
             continue
         rows_out.append(rec)
 
-    with open(dst, 'w', newline='', encoding='utf-8-sig') as f:
+    opener = gzip.open if dst.endswith('.gz') else open
+    with opener(dst, 'wt', newline='', encoding='utf-8-sig') as f:
         w = csv.DictWriter(f, fieldnames=COLONNES, delimiter=';')
         w.writeheader()
         w.writerows(rows_out)

@@ -86,7 +86,8 @@ export default function DrhImport() {
           Effectif <strong>payé par l'État</strong>, à ne pas confondre avec l'effectif présent déclaré par les
           structures dans ISS. Le fichier attendu est le CSV normalisé décrit dans <code>docs/drh-format.md</code> :
           il ne contient ni matricule, ni nom, ni date de naissance exacte, et seuls des effectifs agrégés sont
-          conservés en base.
+          conservés en base. Le <code>.csv.gz</code> est accepté : utile quand le serveur web limite la taille
+          des envois (le fichier annuel fait ~1,4 Mo, ~70 Ko compressé).
         </p>
 
         <div className="flex flex-wrap items-end gap-3 mt-4">
@@ -99,7 +100,7 @@ export default function DrhImport() {
             />
           </label>
           <input
-            ref={fileRef} type="file" accept=".csv,text/csv" className="hidden"
+            ref={fileRef} type="file" accept=".csv,.gz,text/csv,application/gzip" className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImport(f); }}
           />
           <button
@@ -112,7 +113,7 @@ export default function DrhImport() {
             {correspondances} correspondances DRH → ISS
           </span>
           <input
-            ref={corrRef} type="file" accept=".csv,text/csv" className="hidden"
+            ref={corrRef} type="file" accept=".csv,.gz,text/csv,application/gzip" className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCorrespondances(f); }}
           />
           <button

@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -40,6 +41,11 @@ func (h *DrhHandlers) Import(c *gin.Context) {
 	raw, err := io.ReadAll(io.LimitReader(file, maxDrhUpload))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "lecture du fichier impossible"})
+		return
+	}
+	raw, err = gunzipIfNeeded(raw)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "fichier .gz illisible : " + err.Error()})
 		return
 	}
 
@@ -161,6 +167,10 @@ func (h *DrhHandlers) ImportCorrespondances(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "lecture du fichier impossible"})
 		return
 	}
+	if raw, err = gunzipIfNeeded(raw); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "fichier .gz illisible : " + err.Error()})
+		return
+	}
 	corr, lineErrs := drh.ParseCorrespondancesCSV(bytes.NewReader(raw))
 	if len(lineErrs) > 0 && c.DefaultQuery("strict", "true") == "true" {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{
@@ -196,6 +206,24 @@ func (h *DrhHandlers) ExportCorrespondances(c *gin.Context) {
 	if err := drh.WriteCorrespondancesCSV(c.Writer, corr, func(uid string) string { return nameOf[uid] }); err != nil {
 		internalError(c, err)
 	}
+}
+
+// gunzipIfNeeded décompresse un fichier gzip, reconnu à ses octets d'en-tête.
+//
+// Le CSV annuel fait ~1,4 Mo, au-dessus de la limite d'envoi par défaut des
+// reverse proxies (1 Mo pour nginx), qui rejettent alors la requête en 413
+// avant même qu'elle atteigne l'application. Gzippé il tombe à ~70 Ko : accepter
+// le .csv.gz évite de dépendre de la configuration du proxy.
+func gunzipIfNeeded(raw []byte) ([]byte, error) {
+	if len(raw) < 2 || raw[0] != 0x1f || raw[1] != 0x8b {
+		return raw, nil
+	}
+	zr, err := gzip.NewReader(bytes.NewReader(raw))
+	if err != nil {
+		return nil, err
+	}
+	defer zr.Close()
+	return io.ReadAll(io.LimitReader(zr, maxDrhUpload))
 }
 
 func drhIDFromPath(c *gin.Context) (int64, bool) {

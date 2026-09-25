@@ -178,7 +178,7 @@ Groupes d'OU : ils sont lus via les group sets (champs imbriques), ce qui contou
 
 | Methode | Route | Description |
 |---|---|---|
-| `POST` | `/iss/api/admin/drh/import` | Importe un millesime (`file` multipart + `annee`, `label`, `age_retraite`), strict : une ligne invalide → rien n'est importe |
+| `POST` | `/iss/api/admin/drh/import` | Importe un millesime (`file` multipart, `.csv` ou `.csv.gz`, + `annee`, `label`, `age_retraite`), strict : une ligne invalide → rien n'est importe |
 | `GET` | `/iss/api/admin/drh/imports` | Liste des millesimes |
 | `POST` | `/iss/api/admin/drh/imports/:id/activate` | Rend ce millesime actif (les autres sont archives) |
 | `DELETE` | `/iss/api/admin/drh/imports/:id` | Supprime un millesime et ses agregats |
@@ -468,7 +468,9 @@ transmettre a la DRH pour les millesimes suivants.
 python3 scripts/drh_xlsx_to_csv.py "CNPS DRH 2026.xlsx" drh-2026.csv
 ```
 
-Puis **Admin → Personnel (DRH)** → millesime → *Importer un fichier*. L'ecran affiche le rapport : agents lus,
+Puis **Admin → Personnel (DRH)** → millesime → *Importer un fichier*. Le `.csv.gz` est accepte : le fichier
+annuel fait 1,4 Mo, au-dela de la limite d'envoi par defaut d'nginx (`client_max_body_size`, 1 Mo), qui le
+rejette en `413` avant meme que la requete atteigne l'application — 70 Ko compresse, le probleme disparait. L'ecran affiche le rapport : agents lus,
 rattaches a une structure, en bureau de district, en administration centrale, non rattaches, et les libelles
 non reconnus (exportables en CSV pour arbitrage). Chaque import cree un millesime ; le precedent est archive,
 pas supprime, ce qui permet de comparer dans le temps.

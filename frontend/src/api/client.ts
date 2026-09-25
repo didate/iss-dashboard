@@ -1,4 +1,4 @@
-import { httpError } from './errors';
+import { httpError, uploadError } from './errors';
 import { getToken } from './auth';
 import type {
   Summary,
@@ -310,13 +310,8 @@ export const api = {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: form,
     });
-    const body = (await res.json()) as Partial<DrhImportResult> & { error?: string; erreurs?: NormeLineError[] };
-    if (!res.ok) {
-      const err = new Error(body.error || `Import failed: ${res.status}`) as Error & { errors?: NormeLineError[] };
-      err.errors = body.erreurs;
-      throw err;
-    }
-    return body as DrhImportResult;
+    if (!res.ok) throw await uploadError(res);
+    return (await res.json()) as DrhImportResult;
   },
   importDrhCorrespondances: async (file: File) => {
     const token = (await import('./auth')).getToken();
@@ -327,13 +322,8 @@ export const api = {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: form,
     });
-    const body = (await res.json()) as { imported?: number; error?: string; erreurs?: NormeLineError[] };
-    if (!res.ok) {
-      const err = new Error(body.error || `Import failed: ${res.status}`) as Error & { errors?: NormeLineError[] };
-      err.errors = body.erreurs;
-      throw err;
-    }
-    return body as { imported: number; erreurs: NormeLineError[] | null };
+    if (!res.ok) throw await uploadError(res);
+    return (await res.json()) as { imported: number; erreurs: NormeLineError[] | null };
   },
   downloadDrhCSV: async (path: string, filename: string) => {
     const token = (await import('./auth')).getToken();
