@@ -1,3 +1,4 @@
+import { httpError } from './errors';
 import { getToken } from './auth';
 import type {
   Summary,
@@ -66,10 +67,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     clearAuth();
   }
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API ${res.status}: ${text}`);
-  }
+  if (!res.ok) throw await httpError(res);
   return res.json();
 }
 

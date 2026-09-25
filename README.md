@@ -137,6 +137,8 @@ les lecteurs non connectes (`store.StripPersonalValues`, codes `ISS_GEN_NOM_RESP
 | `DRH_AGE_RETRAITE` | Age de depart a la retraite retenu pour les projections de depart (aucune reference officielle trouvee pour la fonction publique guineenne) | `60` |
 | `PORT` | Port du backend (en Docker, le conteneur reste sur 8080 : `docker-compose*.yml`) | `8081` |
 | `VITE_API_BASE_URL` | URL du backend **avec le prefixe `/iss`** (build-time frontend) | `http://localhost:8081/iss` |
+| `VITE_TILE_URL` | Fond de carte (build-time frontend). Le defaut est `https://tile.openstreetmap.org/{z}/{x}/{y}.png` — **sans** sous-domaines `{s}.`, l'ancienne forme etant desormais bloquee par OSM (« App is not following the tile usage policy »). Alternatives sans cle : Esri `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}`, OSM-FR `https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png`. CARTO exige une cle depuis 2025 | tuiles OSM |
+| `VITE_TILE_ATTRIBUTION` | Attribution affichee sur les cartes, a changer avec le fond | attribution OSM |
 
 ### Carte sanitaire (UIDs et noms propres a l'instance DHIS2)
 
@@ -604,7 +606,7 @@ frontend/
     pages/admin/  NormesEditor, DrhImport
     pages/public/ PublicMap, PublicFiche, About
     components/   Layout, PublicLayout, KpiCard, DataTable, ScoreBar, SeverityBadge, ExportCSV, MethodNote, charts/
-    components/map/ PointsCanvasLayer (points sur canvas unique, partage public/pro), ProGeoMap, GeoLabels, IndicatorHelp, ConakryInset, InvalidateOnResize
+    components/map/ BaseTileLayer (fond de carte unique, fournisseur configurable), PointsCanvasLayer (points sur canvas unique, partage public/pro), ProGeoMap, GeoLabels, IndicatorHelp, ConakryInset, InvalidateOnResize
     types/        Types TypeScript miroir de l'API
     utils/        Helpers (formatage nombres)
   Dockerfile

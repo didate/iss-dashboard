@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { MapContainer, GeoJSON, TileLayer } from 'react-leaflet';
+import { MapContainer, GeoJSON } from 'react-leaflet';
 import GeoLabels from './GeoLabels';
 import IndicatorHelp from './IndicatorHelp';
 import ConakryInset, { isConakry } from './ConakryInset';
@@ -10,6 +10,7 @@ import { useUrlState } from '../../hooks/useUrlState';
 import type { MapGeoCollection, MapGeoFeature, ProPointCollection } from '../../types';
 import { typologieLabel } from '../../utils/typologie';
 import PointsCanvasLayer, { escapeHtml, type MarkerSpec } from './PointsCanvasLayer';
+import BaseTileLayer from './BaseTileLayer';
 import InvalidateOnResize from './InvalidateOnResize';
 
 type Props = { mode: 'gps' | 'points' };
@@ -320,7 +321,7 @@ export default function ProGeoMap({ mode }: Props) {
         <MapContainer center={[10.5, -11.8]} zoom={7} style={{ height: '100%', width: '100%' }} preferCanvas>
           <InvalidateOnResize />
           {mode === 'points' && (
-            <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <BaseTileLayer />
           )}
           {mode === 'gps' && geo && (
             <>

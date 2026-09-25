@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MapContainer, TileLayer, CircleMarker, useMap } from 'react-leaflet';
+import { MapContainer, CircleMarker, useMap } from 'react-leaflet';
 import { Search, LocateFixed, X, Loader2 } from 'lucide-react';
 import { publicApi, typeColor, opLabel, opColor } from '../../api/public';
 import { useUrlState } from '../../hooks/useUrlState';
 import type { PublicFilters, PublicPointCollection, PublicStructureItem, PublicSummary } from '../../types';
 import PointsCanvasLayer, { escapeHtml, type MarkerSpec } from '../../components/map/PointsCanvasLayer';
+import BaseTileLayer from '../../components/map/BaseTileLayer';
 import InvalidateOnResize from '../../components/map/InvalidateOnResize';
 
 const GUINEA_CENTER: [number, number] = [10.4, -11.3];
@@ -323,10 +324,7 @@ export default function PublicMap() {
       <div className="flex-1 relative min-h-[45vh]">
         <MapContainer center={GUINEA_CENTER} zoom={7} className="absolute inset-0" preferCanvas>
           <InvalidateOnResize />
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
+          <BaseTileLayer />
           {points && <PointsCanvasLayer points={markers} cluster={cluster} focus={focus} onMarkerClick={onMarkerClick} />}
           {me && <CircleMarker center={me} radius={9} pathOptions={{ color: '#1d4ed8', fillColor: '#3b82f6', fillOpacity: 0.6 }} />}
           <FlyTo target={flyTarget} />

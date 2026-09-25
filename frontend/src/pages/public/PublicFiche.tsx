@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { MapContainer, TileLayer, CircleMarker } from 'react-leaflet';
+import { MapContainer, CircleMarker } from 'react-leaflet';
 import { QRCodeSVG } from 'qrcode.react';
 import { ArrowLeft, Check, Copy, ExternalLink, MapPin, FlaskConical, Baby, ScanLine, Siren, Pill, Scissors, Loader2 } from 'lucide-react';
 import { publicApi, typeColor, opLabel, opColor } from '../../api/public';
+import BaseTileLayer from '../../components/map/BaseTileLayer';
 import InvalidateOnResize from '../../components/map/InvalidateOnResize';
 import type { PublicStructure } from '../../types';
 
@@ -103,10 +104,7 @@ export default function PublicFiche() {
             {hasPos ? (
               <MapContainer center={[data.lat!, data.lng!]} zoom={14} className="absolute inset-0" scrollWheelZoom={false}>
                 <InvalidateOnResize />
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
+                <BaseTileLayer />
                 <CircleMarker
                   center={[data.lat!, data.lng!]}
                   radius={9}

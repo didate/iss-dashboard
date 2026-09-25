@@ -1,3 +1,4 @@
+import { httpError } from './errors';
 import type {
   PublicAnnuaireResult,
   PublicFilters,
@@ -13,10 +14,7 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/iss
 
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`);
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API ${res.status}: ${text}`);
-  }
+  if (!res.ok) throw await httpError(res);
   return res.json();
 }
 
