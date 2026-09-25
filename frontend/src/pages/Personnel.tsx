@@ -158,13 +158,17 @@ export default function Personnel() {
     .filter((r) => r.n_agents > 0)
     .slice(0, 45)
     .map((r) => ({ key: r.key, name: r.label, ratio: r.ratio_10k ?? null, agents: r.n_agents }))
-    .sort((a, b) => (b.ratio ?? -1) - (a.ratio ?? -1));
+    .sort((a, b) => (b.ratio ?? -1) - (a.ratio ?? -1) || b.agents - a.agents);
   // Couleur relative à la densité nationale : moins de la moitié = rouge,
   // sous la moyenne = orange, au-dessus = vert. Un seuil absolu n'aurait
   // pas de sens, aucune norme de densité n'étant fixée.
   const densiteNationale = n?.ratio_10k ?? 0;
   const densiteColor = (r: number | null) =>
     r === null ? '#d1d5db' : r < densiteNationale / 2 ? '#ef4444' : r < densiteNationale ? '#f97316' : '#22c55e';
+  // Sans population dans le snapshot DHIS2, aucune densité n'est calculable :
+  // le graphe retombe sur les effectifs bruts plutôt que de n'afficher aucune
+  // barre, ce qui donnerait l'impression que la page est cassée.
+  const hasDensite = chartEffectifs.some((r) => r.ratio !== null);
   const sansAgent = structures.filter((s) => s.n_agents === 0).length;
   const incoherences = comparaison.filter((r) => r.ratio !== null && r.ratio !== undefined && r.ratio < 1);
 
@@ -181,7 +185,11 @@ export default function Personnel() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard title={`Agents de l'État — ${zoneLabel}`} value={fmt(zone?.n_agents ?? 0)} subtitle={`${pct(zone?.n_femmes ?? 0, zone?.n_agents ?? 0)} de femmes`} icon={<Users size={18} />} />
-        <KpiCard title="Densité" value={zone?.ratio_10k != null ? fmt(zone.ratio_10k, 2) : '—'} subtitle="agents pour 10 000 habitants" />
+        <KpiCard
+          title="Densité"
+          value={zone?.ratio_10k != null ? fmt(zone.ratio_10k, 2) : '—'}
+          subtitle={zone?.ratio_10k != null ? 'agents pour 10 000 habitants' : 'population non renseignée dans le dernier instantané DHIS2'}
+        />
         <KpiCard title="En structure de soins" value={pct(zone?.n_structure ?? 0, zone?.n_agents ?? 0)} subtitle={`${fmt(zone?.n_structure ?? 0)} agents · ${fmt(summary.import.n_structures)} structures couvertes`} />
         <KpiCard
           title="Départs d'ici 5 ans"
@@ -260,10 +268,19 @@ export default function Personnel() {
           </span>
           <div className="ml-auto"><ExportCSV data={effectifs as unknown as Record<string, unknown>[]} columns={effectifColumns} filename={`personnel_${by}`} /></div>
         </div>
-        {by !== 'type' && chartEffectifs.length > 1 && densiteNationale > 0 && (
+        {by !== 'type' && chartEffectifs.length > 1 && (
           <p className="text-xs text-gray-500">
-            Densité pour 10 000 habitants. Couleur relative à la moyenne nationale ({fmt(densiteNationale, 2)}) :
-            rouge sous la moitié, orange sous la moyenne, vert au-dessus — aucune norme de densité n'étant fixée.
+            {hasDensite ? (
+              <>
+                Densité pour 10 000 habitants. Couleur relative à la moyenne nationale ({fmt(densiteNationale, 2)}) :
+                rouge sous la moitié, orange sous la moyenne, vert au-dessus — aucune norme de densité n'étant fixée.
+              </>
+            ) : (
+              <>
+                Effectifs bruts : aucune densité n'est calculable, la population n'étant pas renseignée dans le
+                dernier instantané DHIS2 (variable <code>DHIS2_POPULATION_DX</code>, puis une nouvelle synchronisation).
+              </>
+            )}
           </p>
         )}
         {by !== 'type' && chartEffectifs.length > 1 && (
@@ -272,9 +289,15 @@ export default function Personnel() {
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
               <XAxis type="number" fontSize={11} />
               <YAxis type="category" dataKey="name" width={150} fontSize={11} interval={0} />
-              <Tooltip formatter={(v: number, _n, p) => [`${v.toFixed(2)} /10 000 hab. (${fmt(p.payload.agents)} agents)`, 'Densité']} />
-              <Bar dataKey="ratio" radius={[0, 3, 3, 0]}>
-                {chartEffectifs.map((r) => <Cell key={r.key} fill={densiteColor(r.ratio)} />)}
+              <Tooltip
+                formatter={(v: number, _n, p) =>
+                  hasDensite
+                    ? [`${v.toFixed(2)} /10 000 hab. (${fmt(p.payload.agents)} agents)`, 'Densité']
+                    : [fmt(v), 'Agents']
+                }
+              />
+              <Bar dataKey={hasDensite ? 'ratio' : 'agents'} radius={[0, 3, 3, 0]} fill="#2563eb">
+                {hasDensite && chartEffectifs.map((r) => <Cell key={r.key} fill={densiteColor(r.ratio)} />)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
