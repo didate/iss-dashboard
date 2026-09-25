@@ -323,11 +323,16 @@ func (r *Resolver) districtKey(a AgentRow) string {
 // regionLabel returns the ISS region of the agent's district. The DRH writes
 // its own region names ("BOKE") : keeping them would split every regional
 // aggregate in two.
+//
+// A préfecture ISS does not know (the 2026 file has one, "Kassa") yields no
+// region at all rather than a phantom one. Those agents stay visible in the
+// district table, under their DRH label and without a density, which is the
+// signal that the zone needs arbitration.
 func (r *Resolver) regionLabel(a AgentRow) string {
-	if s, ok := r.districts[normDistrict(a.Prefecture)]; ok && s.Region != "" {
+	if s, ok := r.districts[normDistrict(a.Prefecture)]; ok {
 		return s.Region
 	}
-	return strings.TrimSpace(a.Region)
+	return ""
 }
 
 func (r *Resolver) districtLabel(a AgentRow) string {

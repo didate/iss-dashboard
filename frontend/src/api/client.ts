@@ -32,6 +32,11 @@ import type {
   DrhImportResult,
   DrhInconnu,
   DrhCorrespondance,
+  DrhSummary,
+  DrhEffectif,
+  DrhPyramide,
+  DrhComparaison,
+  DrhStructureRow,
   NormesMeta,
   ConformiteSummaryRow,
   ConformiteGap,
@@ -272,6 +277,20 @@ export const api = {
     a.click();
     URL.revokeObjectURL(url);
   },
+
+  // Personnel de l'État (DRH/CNPS) — lecture
+  // Sans millésime importé le backend répond 404 : la page l'affiche comme « pas encore de données ».
+  getDrhSummary: () => request<DrhSummary>('/api/drh/summary'),
+  getDrhEffectifs: (params: { by: string; categorie?: string; key?: string; district?: string }) =>
+    request<{ effectifs: DrhEffectif[] }>(`/api/drh/effectifs${qs(params)}`).then((r) => r.effectifs ?? []),
+  getDrhPyramide: (params: { by?: string; key?: string; categorie?: string }) =>
+    request<{ pyramide: DrhPyramide[]; age_retraite: number; annee: number }>(`/api/drh/pyramide${qs(params)}`),
+  getDrhComparaison: (params: { by: string; key?: string; categorie?: string }) =>
+    request<{ comparaison: DrhComparaison[] }>(`/api/drh/comparaison${qs(params)}`).then((r) => r.comparaison ?? []),
+  getDrhStructuresList: (params: { district?: string; search?: string }) =>
+    request<{ structures: DrhStructureRow[] }>(`/api/drh/structures${qs(params)}`).then((r) => r.structures ?? []),
+  getDrhStructure: (uid: string) =>
+    request<{ total: DrhEffectif | null; categories: DrhEffectif[]; annee: number }>(`/api/drh/structure/${uid}`),
 
   // Personnel de l'État (DRH/CNPS) — administration
   getDrhImports: () => request<{ imports: DrhImport[] }>('/api/admin/drh/imports').then((r) => r.imports ?? []),

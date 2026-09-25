@@ -212,9 +212,16 @@ func TestDrhRollupsRoundTrip(t *testing.T) {
 		t.Errorf("le recalcul a touché au grain fin : %d cellules puis %d", len(fineEff), len(fineAfter))
 	}
 
-	cmp, err := st.GetDrhComparaison(im.ID, drh.DimDistrict, "MED_GEN")
+	cmp, err := st.GetDrhComparaison(im.ID, drh.DimDistrict, "DPS Kankan", "MED_GEN")
 	if err != nil || len(cmp) != 1 || cmp[0].NIss == nil || *cmp[0].NIss != 4 || *cmp[0].Ratio != 4 {
 		t.Errorf("comparaison : %+v (err %v)", cmp, err)
+	}
+	// Sans clé, la comparaison couvre toutes les zones de la dimension.
+	if all, _ := st.GetDrhComparaison(im.ID, drh.DimDistrict, "", "MED_GEN"); len(all) != 1 {
+		t.Errorf("comparaison sans clé : %d lignes", len(all))
+	}
+	if none, _ := st.GetDrhComparaison(im.ID, drh.DimDistrict, "DPS Boké", "MED_GEN"); len(none) != 0 {
+		t.Errorf("une clé inconnue ne doit rien renvoyer : %+v", none)
 	}
 
 	// La pyramide renvoie toutes les tranches, y compris les vides.

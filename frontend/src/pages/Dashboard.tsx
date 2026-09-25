@@ -5,13 +5,14 @@ import type { Feature, Geometry } from 'geojson';
 import { Activity, AlertTriangle, AlertCircle, Users, Zap, Droplets, Clock, TrendingUp, TrendingDown } from 'lucide-react';
 import MethodNote from '../components/MethodNote';
 import { api } from '../api/client';
-import type { Summary, QualitySummaryRow, ReportingRate, RHSummaryResult, UsageCommodite, UsageRecensement, MapDistrictCollection, NormesMeta } from '../types';
+import type { Summary, QualitySummaryRow, ReportingRate, RHSummaryResult, UsageCommodite, UsageRecensement, MapDistrictCollection, NormesMeta, DrhSummary } from '../types';
 import KpiCard from '../components/KpiCard';
 import { Link } from 'react-router-dom';
 
 export default function Dashboard() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [normes, setNormes] = useState<NormesMeta | null>(null);
+  const [drh, setDrh] = useState<DrhSummary | null>(null);
   const [districtScores, setDistrictScores] = useState<QualitySummaryRow[]>([]);
   const [reportingGlobal, setReportingGlobal] = useState<ReportingRate | null>(null);
   const [reportingDistrict, setReportingDistrict] = useState<ReportingRate[]>([]);
@@ -23,6 +24,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     api.getNormesMeta().then(setNormes).catch(() => setNormes(null));
+    // 404 tant qu'aucun millésime DRH n'est importé : la carte est alors masquée.
+    api.getDrhSummary().then(setDrh).catch(() => setDrh(null));
   }, []);
 
   useEffect(() => {
@@ -148,6 +151,21 @@ export default function Dashboard() {
               {normes.last_run.n_conformes.toLocaleString('fr-FR')} structures conformes sur {normes.last_run.n_evaluees.toLocaleString('fr-FR')} évaluées — référentiel {normes.active.name} v{normes.active.version}
             </span>
             <span className="ml-auto text-xs text-blue-600">Voir les écarts →</span>
+          </div>
+        </Link>
+      )}
+
+      {drh?.national && (
+        <Link to="/personnel" className="block bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:bg-gray-50">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
+            <span className="font-medium text-gray-700">Personnel de l'État</span>
+            <span className="text-2xl font-bold text-gray-900">{drh.national.ratio_10k?.toFixed(2) ?? '—'}</span>
+            <span className="text-gray-500">
+              agents payés par l'État pour 10 000 habitants — {drh.national.n_agents.toLocaleString('fr-FR')} agents,
+              dont {drh.national.n_structure.toLocaleString('fr-FR')} en structure de soins
+              {drh.national.n_age_connu > 0 && `, ${((100 * drh.national.n_depart_5ans) / drh.national.n_age_connu).toFixed(0)} % à la retraite d'ici 5 ans`}
+            </span>
+            <span className="ml-auto text-xs text-blue-600">Voir le personnel →</span>
           </div>
         </Link>
       )}

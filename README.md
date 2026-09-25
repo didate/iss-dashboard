@@ -120,7 +120,8 @@ les lecteurs non connectes (`store.StripPersonalValues`, codes `ISS_GEN_NOM_RESP
 | **Carte** | Choropletes par district (rapportage, qualite, services, equipements, WASH, RH) + **Couverture geo** (district ou sous-prefecture : % GPS, score, structures /10 000 hab., nombre) + **Structures (points)** colores par score qualite |
 | **GPS** (`/geolocalisation`) | Couverture GPS nationale et par district / sous-prefecture, liste des structures sans coordonnees, export CSV pour les equipes terrain |
 | **Normes** (`/conformite`) | Conformite des structures au referentiel de normes actif : score et % conformes par type et par zone, table des ecarts « il manque X de Y dans Z » exportable, liste des structures par statut → detail (chaque exigence attendu / observe) |
-| **Admin** | Synchronisation manuelle, export Excel, gestion des utilisateurs, historique des synchros ; onglet **Normes** (versions du referentiel, editeur, import/export CSV, activation) |
+| **Personnel** (`/personnel`) | Agents payes par l'Etat (fichier DRH/CNPS) : KPI (effectif, densite /10 000 hab., part en structure, departs a 5 ans), repartition par categorie et par lieu d'affectation, effectifs par region / district / sous-prefecture / type, pyramide des ages, comparaison DRH ↔ ISS avec les incoherences mises en evidence, et — quand un district est choisi — ses structures avec leur effectif, celles sans aucun agent comprises |
+| **Admin** | Synchronisation manuelle, export Excel, gestion des utilisateurs, historique des synchros ; onglet **Normes** (versions du referentiel, editeur, import/export CSV, activation) ; onglet **Personnel (DRH)** (import d'un millesime, rapport de rattachement, libelles non reconnus, table de correspondance) |
 
 ## Configuration
 
@@ -248,7 +249,7 @@ Sans millesime importe, ces routes repondent `404` : le front masque la page au 
 | `GET` | `/iss/api/geo/missing?district=&region=&type=&page=&pageSize=` | Structures sans coordonnees (dernier event par org unit) |
 | `GET` | `/iss/api/geo/missing.csv?district=&region=&type=` | Idem, liste complete en CSV (`;`, UTF-8 BOM) |
 | `GET` | `/iss/api/usage/couverture?by=global\|region\|district\|sous_prefecture&indicator=` | Ratios pour 10 000 habitants (structures, lits, medecins, sages_femmes, infirmiers, ats, personnel_soignant), a tous les niveaux |
-| `GET` | `/iss/api/map/geo?level=3\|4` | Polygones + proprietes de couverture, dont `ratios` et `numerators` par indicateur |
+| `GET` | `/iss/api/map/geo?level=3\|4` | Polygones + proprietes de couverture, dont `ratios` et `numerators` par indicateur, `conformite_score` et les deux metriques de personnel `drh_ratio_10k` / `drh_depart_5ans_pct` |
 | `GET` | `/iss/api/export/pdf?district=` ou `?region=` | Rapport PDF d'un district ou d'une region (agregats des districts) |
 | `GET` | `/iss/api/map/points` | Structures geolocalisees avec score qualite |
 | `GET` | `/iss/api/structures?district=&sous_prefecture=&search=&type=&gps=oui\|non&page=&pageSize=` | Liste des structures |
@@ -531,6 +532,22 @@ Seules les categories ayant un equivalent ISS sont comparees, et la ligne « tou
 cotes les **memes** categories — celles qu'ISS a effectivement renseignees — pour que l'ecart ne mesure pas un
 trou de nomenclature.
 
+### Ou cela se lit dans l'interface
+
+- **Page Personnel** (`/personnel`) : la lecture complete, filtrable par district et par categorie.
+- **Vue d'ensemble** : une ligne « Personnel de l'Etat » avec la densite nationale, masquee tant qu'aucun millesime
+  n'est importe.
+- **Carte → Couverture geo** : deux metriques, « Agents de l'Etat pour 10 000 hab. » et « % de departs a la retraite
+  d'ici 5 ans » (echelle inversee : un taux eleve est un risque, donc rouge).
+- **Detail d'une structure** : bloc « Personnel de l'Etat affecte », par categorie, avec les departs a 5 ans.
+
+L'onglet RH d'**Utilisation** n'a volontairement pas ete touche : la comparaison DRH ↔ ISS de la page Personnel
+dit la meme chose en plus complet (par categorie *et* par district), une colonne de plus y aurait fait doublon.
+
+La repartition par **categorie hierarchique** (A1/A2/B1/B2/C/D) prevue au plan n'est pas affichee : la hierarchie
+est lue dans le CSV mais n'est agregee dans aucune dimension. L'ajouter demande une colonne de plus dans
+`drh_effectif` et un re-import.
+
 ### Etendre
 
 - **Nouveau metier mal classe** : ajouter un motif dans `regles` ou `specialites`
@@ -583,7 +600,7 @@ backend/
 frontend/
   src/
     api/          Client API type + auth JWT ; public.ts = client sans jeton de l'espace public
-    pages/        Dashboard, Quality, Usage, Structures, StructureDetail, Comparison, MapView, Geolocalisation, Conformite, Admin, Login
+    pages/        Dashboard, Quality, Usage, Structures, StructureDetail, Comparison, MapView, Geolocalisation, Conformite, Personnel, Admin, Login
     pages/admin/  NormesEditor, DrhImport
     pages/public/ PublicMap, PublicFiche, About
     components/   Layout, PublicLayout, KpiCard, DataTable, ScoreBar, SeverityBadge, ExportCSV, MethodNote, charts/

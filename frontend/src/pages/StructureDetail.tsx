@@ -5,7 +5,7 @@ import { typeColor } from '../api/public';
 import { getToken } from '../api/auth';
 import { typologieLabel, typeSourceLabel } from '../utils/typologie';
 import { api } from '../api/client';
-import type { EventDetail } from '../types';
+import type { DrhEffectif, EventDetail } from '../types';
 import ScoreBar from '../components/ScoreBar';
 import SeverityBadge from '../components/SeverityBadge';
 import MethodNote from '../components/MethodNote';
@@ -39,6 +39,8 @@ export default function StructureDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [openSections, setOpenSections] = useState<Set<string>>(new Set());
+  const [personnel, setPersonnel] = useState<{ total: DrhEffectif | null; categories: DrhEffectif[]; annee: number } | null>(null);
+  const [catalogue, setCatalogue] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!uid) return;
@@ -55,6 +57,17 @@ export default function StructureDetail() {
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, [uid]);
+
+  // Personnel de l'État affecté ici. Absent tant qu'aucun millésime DRH n'est
+  // importé (404) : le bloc est simplement masqué.
+  useEffect(() => {
+    const ou = detail?.event?.orgUnit;
+    if (!ou) return;
+    api.getDrhStructure(ou).then(setPersonnel).catch(() => setPersonnel(null));
+    api.getDrhSummary()
+      .then((s) => setCatalogue(Object.fromEntries(s.catalogue.map((c) => [c.code, c.label]))))
+      .catch(() => {});
+  }, [detail?.event?.orgUnit]);
 
   // Group values by section
   const groupedValues = useMemo(() => {
@@ -205,6 +218,33 @@ export default function StructureDetail() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Personnel de l'État affecté (fichier DRH/CNPS) */}
+      {personnel?.total && personnel.total.n_agents > 0 && (
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex flex-wrap items-baseline gap-2 mb-3">
+            <h3 className="font-semibold text-gray-800">Personnel de l'État affecté</h3>
+            <span className="text-xs text-gray-500">
+              {personnel.total.n_agents} agent{personnel.total.n_agents > 1 ? 's' : ''} payé{personnel.total.n_agents > 1 ? 's' : ''} par l'État ·
+              fichier DRH {personnel.annee}
+              {personnel.total.n_depart_5ans > 0 && ` · ${personnel.total.n_depart_5ans} départ${personnel.total.n_depart_5ans > 1 ? 's' : ''} à la retraite d'ici 5 ans`}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+            {personnel.categories.map((c) => (
+              <div key={c.categorie} className="border border-gray-200 rounded p-2">
+                <div className="text-xs text-gray-600">{catalogue[c.categorie] ?? c.categorie}</div>
+                <div className="text-lg font-semibold text-gray-900">{c.n_agents}</div>
+                {c.n_depart_5ans > 0 && <div className="text-[11px] text-orange-600">{c.n_depart_5ans} départ{c.n_depart_5ans > 1 ? 's' : ''} d'ici 5 ans</div>}
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-gray-500 mt-3">
+            Effectif <strong>payé par l'État</strong>, à ne pas confondre avec le personnel déclaré par la structure
+            dans la section Ressources humaines ci-dessous, qui compte tout le monde, y compris hors fonction publique.
+          </p>
         </div>
       )}
 

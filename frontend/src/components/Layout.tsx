@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, ShieldAlert, BarChart3, Building2, ArrowLeftRight, Map, MapPin, Settings, LogOut, User, Menu, X, Globe, ClipboardCheck } from 'lucide-react';
+import { LayoutDashboard, ShieldAlert, BarChart3, Building2, ArrowLeftRight, Map, MapPin, Settings, LogOut, User, Menu, X, Globe, ClipboardCheck, Users } from 'lucide-react';
 import PrototypeBanner from './PrototypeBanner';
 import type { AuthUser } from '../api/auth';
 
@@ -13,6 +13,7 @@ const navItems = [
   { to: '/carte', icon: Map, label: 'Carte' },
   { to: '/geolocalisation', icon: MapPin, label: 'GPS' },
   { to: '/conformite', icon: ClipboardCheck, label: 'Normes' },
+  { to: '/personnel', icon: Users, label: 'Personnel' },
   { to: '/admin', icon: Settings, label: 'Admin' },
 ];
 

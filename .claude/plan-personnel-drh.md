@@ -201,7 +201,7 @@ README.md                        section « Personnel de l'État (DRH) »
 |---|---|---|
 | **A — Ingestion** ✅ | tables, parseur CSV, rattachement, correspondances, import admin, tests | **livré le 25/09/2026** — import du fichier réel : 10 162 agents, **99,4 % catégorisés** (6 500 en structure sur 388 structures, 2 721 en bureau, 875 en centrale, 66 non rattachés), 240 ms |
 | **B — Agrégats & API** ✅ | rollups, densités, `drh_comparaison`, recalcul au sync, endpoints de lecture, métriques carte | **livré le 25/09/2026** — chiffres conformes à l'analyse : 14,1 % de départs à 5 ans, ATS ×3,68, infirmiers ×4,89, sages-femmes ×3,98, Kérouané 1,86 /10 000 hab. |
-| **C — Front** | page Personnel, onglet admin, carte, détail structure, KPI | parcours : importer → activer → lire la comparaison d'un district |
+| **C — Front** ✅ | page Personnel, onglet admin, carte, détail structure, KPI | **livré le 25/09/2026** — parcours vérifié : import → page `/personnel` → filtre district → comparaison, pyramide, structures ; carte thématique ; bloc sur la fiche structure |
 | **D — Doc** | `docs/drh-format.md`, README | relecture |
 
 ---
@@ -243,6 +243,28 @@ Décisions prises en chemin :
   deux côtés, pour que l'écart ne mesure pas un trou de nomenclature.
 - **Les noms de région de la DRH sont remplacés par ceux d'ISS** au rattachement (« BOKE » → « IRS Boké »),
   sinon chaque région comptait double dans les agrégats.
+
+### Lot C — ce qui a été livré
+
+`pages/Personnel.tsx` (KPI, répartition par catégorie et par affectation, effectifs par zone avec graphe de
+densité, pyramide des âges, comparaison DRH ↔ ISS, structures du district, note de méthode), l'entrée de menu,
+deux métriques sur la carte thématique, le bloc « Personnel de l'État affecté » sur la fiche d'une structure,
+et une ligne « Personnel de l'État » sur la vue d'ensemble. Toutes ces vues se masquent d'elles-mêmes tant
+qu'aucun millésime n'est importé (404 côté API).
+
+Écarts assumés :
+- **L'onglet RH d'Utilisation n'a pas été touché** : la comparaison de la page Personnel dit la même chose en
+  plus complet (par catégorie *et* par district), une colonne « dont fonctionnaires » y aurait fait doublon.
+- **La répartition par catégorie hiérarchique (A1/A2/…) n'est pas affichée** : la hiérarchie est lue dans le CSV
+  mais n'est agrégée dans aucune dimension. L'ajouter demande une colonne dans `drh_effectif` et un re-import.
+
+Trois bugs trouvés en vérifiant dans le navigateur :
+- les couleurs des barres de densité étaient décalées (recharts applique les `<Cell>` dans l'ordre des données,
+  pas dans celui du tableau d'origine — il fallait trier avant de les générer) ;
+- la comparaison d'un district affichait en fait **tous** les districts mélangés : il manquait un filtre par zone
+  dans `GetDrhComparaison` ;
+- une préfecture inconnue d'ISS (« Kassa », 31 agents) fabriquait une région fantôme « CONAKRY » à côté de
+  « DSV Conakry ». Elle reste visible comme district à arbitrer, mais ne crée plus de région.
 
 ## 8. Décisions à prendre avant de coder
 

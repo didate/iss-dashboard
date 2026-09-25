@@ -524,10 +524,15 @@ func (s *Store) GetDrhPyramide(importID int64, dimension, key, categorie string)
 }
 
 // GetDrhComparaison serves the DRH ↔ ISS confrontation, worst gaps first.
-func (s *Store) GetDrhComparaison(importID int64, dimension, categorie string) ([]drh.ComparaisonRow, error) {
+// An empty key spans every zone of the dimension.
+func (s *Store) GetDrhComparaison(importID int64, dimension, key, categorie string) ([]drh.ComparaisonRow, error) {
 	q := `SELECT dimension, key, label, categorie, n_drh, n_iss, ecart, ratio FROM drh_comparaison
 		WHERE import_id = ? AND dimension = ?`
 	args := []any{importID, dimension}
+	if key != "" {
+		q += ` AND key = ?`
+		args = append(args, key)
+	}
 	if categorie == "*" {
 		q += ` AND categorie != ''`
 	} else {

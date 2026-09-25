@@ -324,7 +324,7 @@ func (h *DrhReadHandlers) Comparaison(c *gin.Context) {
 	if !ok {
 		return
 	}
-	rows, err := h.Store.GetDrhComparaison(im.ID, by, c.DefaultQuery("categorie", drh.CategorieToutes))
+	rows, err := h.Store.GetDrhComparaison(im.ID, by, c.Query("key"), c.DefaultQuery("categorie", drh.CategorieToutes))
 	if err != nil {
 		internalError(c, err)
 		return

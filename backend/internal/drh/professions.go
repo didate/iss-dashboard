@@ -38,7 +38,7 @@ var Categories = []Categorie{
 	{"ATS", "ATS", FamilleSoignant, "ISS_RH_ATS"},
 	{"AIDE_SOIN", "Aide-soignant", FamilleSoignant, "ISS_RH_AIDE_SOIN"},
 	{"AUTRE_SANTE", "Autre personnel de santé", FamilleSoignant, ""},
-	{"BIOMED", "Ingénieur / technicien biomédical", FamilleTechnique, "ISS_RH_BIOMED"},
+	{"BIOMED", "Ingénieur biomédical", FamilleTechnique, "ISS_RH_BIOMED"},
 	{"STAT", "Statisticien", FamilleTechnique, "ISS_RH_STAT"},
 	{"INFO", "Informaticien", FamilleTechnique, "ISS_INFORMATICIEN"},
 	{"ADMIN", "Personnel administratif", FamilleSupport, "ISS_RH_ADMIN"},

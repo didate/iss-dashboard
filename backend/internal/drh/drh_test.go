@@ -189,6 +189,16 @@ func TestResolveRegionISS(t *testing.T) {
 	}
 }
 
+// Une préfecture que la hiérarchie ISS ne connaît pas ne doit pas fabriquer
+// une région fantôme à côté des régions réelles.
+func TestResolvePrefectureInconnue(t *testing.T) {
+	r := testResolver(t)
+	got := r.Resolve(AgentRow{Prefecture: "Kassa", Region: "CONAKRY", StructureAffectation: "Bureau"})
+	if got.Kind != AffNonRattache || got.District != "Kassa" || got.Region != "" {
+		t.Fatalf("= %+v, attendu un district visible « Kassa » sans région", got)
+	}
+}
+
 // Un libellé ambigu ne doit surtout pas être rattaché au hasard : deux
 // structures « Koule » du même type ne se départagent pas.
 func TestResolveAmbiguNeRattachePas(t *testing.T) {

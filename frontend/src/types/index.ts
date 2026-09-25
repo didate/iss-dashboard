@@ -433,6 +433,8 @@ export interface MapGeoFeature {
     numerators: Record<string, number>;
     conformite_score: number | null;
     pct_conformes: number | null;
+    drh_ratio_10k: number | null;
+    drh_depart_5ans_pct: number | null;
   };
 }
 
@@ -691,4 +693,70 @@ export interface DrhCorrespondance {
   org_unit_uid: string;
   statut: 'ok' | 'bureau_district' | 'non_rattache' | 'a_trancher';
   district: string;
+}
+
+export interface DrhCategorie {
+  code: string;
+  label: string;
+  famille: 'soignant' | 'technique' | 'support';
+  iss?: string;
+}
+
+export interface DrhEffectif {
+  dimension: string;
+  key: string;
+  label: string;
+  district: string;
+  region: string;
+  categorie: string;
+  n_agents: number;
+  n_femmes: number;
+  n_depart_5ans: number;
+  n_depart_10ans: number;
+  n_age_connu: number;
+  n_structure: number;
+  n_bureau: number;
+  n_centrale: number;
+  n_non_rattache: number;
+  population?: number | null;
+  ratio_10k?: number | null;
+}
+
+export interface DrhPyramide {
+  dimension: string;
+  key: string;
+  categorie: string;
+  tranche: string;
+  n_agents: number;
+  n_femmes: number;
+}
+
+export interface DrhComparaison {
+  dimension: string;
+  key: string;
+  label: string;
+  categorie: string;
+  n_drh: number;
+  n_iss?: number | null;
+  ecart?: number | null;
+  ratio?: number | null;
+}
+
+export interface DrhStructureRow {
+  org_unit_uid: string;
+  name: string;
+  type_code: string;
+  district: string;
+  region: string;
+  n_agents: number;
+  n_femmes: number;
+  n_depart_5ans: number;
+}
+
+export interface DrhSummary {
+  import: DrhImport;
+  national: DrhEffectif | null;
+  categories: DrhEffectif[];
+  catalogue: DrhCategorie[];
+  tranches: string[];
 }

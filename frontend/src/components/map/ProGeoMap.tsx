@@ -80,6 +80,24 @@ const METRICS: Metric[] = [
       'Un « manque » peut aussi être une erreur de saisie (valeur 0 dans ISS) : vérifier dans le détail de la structure avant de conclure.',
     ],
   },
+  // personnel de l'État (millésime DRH actif)
+  {
+    key: 'drh_ratio_10k', label: "Agents de l'État pour 10 000 hab.", unit: '',
+    help: [
+      "Agents payés par l'État (fichier DRH/CNPS) pour 10 000 habitants de l'unité.",
+      "Compte les agents affectés aux structures de la zone, ceux du bureau de district, et ceux dont le libellé d'affectation n'a pas pu être rattaché — ce sont de vrais agents de la préfecture. L'administration centrale n'est comptée qu'au national.",
+      "À ne pas confondre avec le personnel soignant déclaré dans ISS, qui compte tout le monde, y compris hors fonction publique : les deux se comparent dans la page Personnel.",
+      'Lecture : échelle à quantiles (5 classes) sur les unités affichées. Gris = population inconnue ou aucun agent rattaché.',
+    ],
+  },
+  {
+    key: 'drh_depart_5ans_pct', label: "% de départs à la retraite d'ici 5 ans", unit: '%',
+    help: [
+      "Part des agents de l'État de l'unité qui atteignent l'âge de la retraite dans les cinq prochaines années.",
+      "Calcul : agents dont l'âge + 5 ans ≥ âge de départ (60 ans par défaut, paramétrable) ÷ agents dont l'année de naissance est connue × 100. Les agents sans date de naissance sont exclus du dénominateur, sinon le taux serait sous-estimé.",
+      'Lecture : rouge = zone la plus exposée. Un taux élevé sur un petit effectif peut ne représenter que quelques départs : regarder aussi le nombre d\'agents.',
+    ],
+  },
 ];
 
 const POINTS_HELP = [
@@ -116,15 +134,18 @@ function quantileBreaks(values: number[], n: number): number[] {
 
 const RAMP = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'];
 
-function rampColor(v: number | null, breaks: number[]): string {
+// invert : pour un indicateur où « beaucoup » est mauvais (taux de départ),
+// l'échelle se lit à l'envers — le quintile le plus haut doit être rouge.
+function rampColor(v: number | null, breaks: number[], invert = false): string {
   if (v === null || v === undefined) return GREY;
-  for (let i = 0; i < breaks.length; i++) if (v <= breaks[i]) return RAMP[i];
-  return RAMP[RAMP.length - 1];
+  const ramp = invert ? [...RAMP].reverse() : RAMP;
+  for (let i = 0; i < breaks.length; i++) if (v <= breaks[i]) return ramp[i];
+  return ramp[ramp.length - 1];
 }
 
 function formatMetric(v: number | null, key: string): string {
   if (v === null) return '—';
-  if (key === 'pct_gps' || key === 'pct_conformes') return `${v.toFixed(0)}%`;
+  if (key === 'pct_gps' || key === 'pct_conformes' || key === 'drh_depart_5ans_pct') return `${v.toFixed(0)}%`;
   if (key === 'n_structures') return String(Math.round(v));
   if (key === 'avg_score' || key === 'conformite_score') return v.toFixed(0);
   return v.toFixed(2);
@@ -165,6 +186,8 @@ export default function ProGeoMap({ mode }: Props) {
   }, [mode, points]);
 
   const isPct = metric === 'pct_gps' || metric === 'avg_score' || metric === 'conformite_score' || metric === 'pct_conformes';
+  // Le taux de départ se lit à l'envers des autres : un taux élevé est un risque.
+  const invertRamp = metric === 'drh_depart_5ans_pct';
   const breaks = useMemo(() => {
     if (!geo || isPct) return [];
     return quantileBreaks(geo.features.map((f) => metricValue(f.properties, metric) ?? 0), 5);
@@ -176,9 +199,9 @@ export default function ProGeoMap({ mode }: Props) {
       if (metric === 'pct_gps') return v < 50 ? '#ef4444' : v < 80 ? '#eab308' : '#22c55e';
       if (metric === 'avg_score' || metric === 'conformite_score') return scoreColor(v);
       if (metric === 'pct_conformes') return v < 20 ? '#ef4444' : v < 50 ? '#f97316' : v < 80 ? '#eab308' : '#22c55e';
-      return rampColor(v, breaks);
+      return rampColor(v, breaks, invertRamp);
     },
-    [metric, breaks],
+    [metric, breaks, invertRamp],
   );
 
   const style = useCallback(
@@ -206,6 +229,7 @@ export default function ProGeoMap({ mode }: Props) {
         <div>Population : <b>${p.population === null ? '—' : Math.round(p.population).toLocaleString('fr-FR')}</b></div>
         <div>Structures /10 000 hab. : <b>${p.ratio_structures_10k === null ? '—' : p.ratio_structures_10k.toFixed(2)}</b></div>
         ${p.conformite_score != null ? `<div>Conformité aux normes : <b>${p.conformite_score.toFixed(0)}</b> · ${p.pct_conformes?.toFixed(0) ?? '—'}% conformes</div>` : ''}
+        ${p.drh_ratio_10k != null ? `<div>Agents de l'État /10 000 hab. : <b>${p.drh_ratio_10k.toFixed(2)}</b>${p.drh_depart_5ans_pct != null ? ` · ${p.drh_depart_5ans_pct.toFixed(0)}% de départs à 5 ans` : ''}</div>` : ''}
         ${['personnel_soignant', 'medecins', 'sages_femmes', 'infirmiers', 'lits']
           .filter((k) => p.numerators?.[k] !== undefined)
           .map((k) => `<div>${escapeHtml(RATIO_LABELS[k] ?? k)} : <b>${p.numerators[k]}</b>${p.ratios?.[k] != null ? ` (${p.ratios[k]!.toFixed(2)} /10 000)` : ''}</div>`)
@@ -244,11 +268,15 @@ export default function ProGeoMap({ mode }: Props) {
           ? [['#22c55e', '≥ 80'], ['#eab308', '65 – 80'], ['#f97316', '50 – 65'], ['#ef4444', '< 50'], [GREY, 'Pas de données']]
           : metric === 'pct_conformes'
             ? [['#22c55e', '≥ 80 %'], ['#eab308', '50 – 80 %'], ['#f97316', '20 – 50 %'], ['#ef4444', '< 20 %'], [GREY, 'Pas de données']]
-          : [
-              ...breaks.map((b, i) => [RAMP[i], `≤ ${b.toFixed(metric === 'n_structures' ? 0 : 2)}`]),
-              [RAMP[RAMP.length - 1], `> ${(breaks[breaks.length - 1] ?? 0).toFixed(metric === 'n_structures' ? 0 : 2)}`],
-              [GREY, 'Pas de données'],
-            ];
+          : (() => {
+              const ramp = invertRamp ? [...RAMP].reverse() : RAMP;
+              const d = metric === 'n_structures' ? 0 : metric === 'drh_depart_5ans_pct' ? 1 : 2;
+              return [
+                ...breaks.map((b, i) => [ramp[i], `≤ ${b.toFixed(d)}`]),
+                [ramp[ramp.length - 1], `> ${(breaks[breaks.length - 1] ?? 0).toFixed(d)}`],
+                [GREY, 'Pas de données'],
+              ];
+            })();
 
   // Communes de Conakry (niveau 3) ou leurs sous-préfectures (niveau 4, via le district parent)
   const conakry = useMemo(
