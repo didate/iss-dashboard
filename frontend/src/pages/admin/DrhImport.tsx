@@ -79,7 +79,7 @@ export default function DrhImport() {
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <h3 className="font-medium text-gray-900 flex items-center gap-2"><Users size={16} /> Personnel de l'État (DRH/CNPS)</h3>
         <p className="text-sm text-gray-500 mt-1">
-          Effectif <strong>payé par l'État</strong>, à ne pas confondre avec l'effectif présent déclaré par les
+          Effectif <strong>inscrit au fichier DRH/CNPS</strong>, à ne pas confondre avec l'effectif présent déclaré par les
           structures dans ISS. Le fichier attendu est le CSV normalisé décrit dans <code>docs/drh-format.md</code> :
           il ne contient ni matricule, ni nom, ni date de naissance exacte, et seuls des effectifs agrégés sont
           conservés en base. Le <code>.csv.gz</code> est accepté : utile quand le serveur web limite la taille

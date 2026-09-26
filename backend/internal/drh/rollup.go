@@ -201,11 +201,11 @@ type ComparaisonRow struct {
 	Ratio     *float64 `json:"ratio,omitempty"` // ISS / DRH
 
 	// Aligne indique que les deux nomenclatures se recouvrent pour cette
-	// catégorie : au national, l'État n'en paie pas plus que les structures
+	// catégorie : au national, le fichier DRH n'en compte pas plus que les structures
 	// n'en déclarent. Sinon les deux sources ne comptent pas la même chose et
 	// leur rapport n'est pas une part.
 	Aligne bool `json:"aligne"`
-	// PartEtat = 100 × DRH ÷ ISS, la part du personnel déclaré que l'État paie.
+	// PartEtat = 100 × DRH ÷ ISS, la part du personnel déclaré qui figure au fichier DRH.
 	// Renseignée pour les seules catégories alignées : ailleurs le mot « part »
 	// n'a pas de sens, un rapport supérieur à 100 % n'étant pas une proportion.
 	PartEtat *float64 `json:"part_etat,omitempty"`
@@ -240,14 +240,14 @@ func Compare(eff []EffectifRow, iss []ISSRH) []ComparaisonRow {
 	}
 
 	// Périmètre comparable : une catégorie n'est retenue que si, au national,
-	// l'État n'en paie pas plus que les structures n'en déclarent. Le contraire
+	// le fichier DRH n'en compte pas plus que les structures n'en déclarent. Le contraire
 	// signale des intitulés qui ne se recouvrent pas — « Médecin Spécialiste en
 	// Santé Publique » est courant côté DRH, presque jamais coché dans ISS — et
 	// gonflerait le total sans rien mesurer.
 	//
 	// La décision est prise une fois, au national, et s'applique telle quelle à
 	// chaque zone : le périmètre reste identique partout, donc les zones se
-	// comparent entre elles. Un district où l'État paie plus que déclaré reste
+	// comparent entre elles. Un district où le fichier DRH dépasse le déclaré reste
 	// visible dans ce périmètre — c'est une anomalie, pas un artefact.
 	aligne := map[string]bool{}
 	for _, r := range eff {

@@ -19,7 +19,8 @@ const DIM_LABELS: Record<string, string> = {
 };
 
 /** Ratio ISS / DRH : au-dessus de 1 c'est la part hors fonction publique,
- *  en dessous l'État paie plus d'agents que les structures n'en déclarent. */
+ *  en dessous le fichier DRH compte plus d'agents que les structures n'en
+ *  déclarent. */
 const ratioColor = (r: number | null | undefined) =>
   r === null || r === undefined ? '#d1d5db' : r < 1 ? '#ef4444' : r < 1.5 ? '#f97316' : '#22c55e';
 
@@ -72,7 +73,8 @@ export default function Personnel() {
       .then(setComparaison).catch((e: Error) => setError(e.message));
   }, [summary, district, categorie]);
 
-  // Part payée par l'État : indépendante du filtre profession, qui la réduirait
+  // Part du déclaré présente au fichier DRH : indépendante du filtre profession,
+  // qui la réduirait
   // à une seule barre. Deux appels, l'un pour le détail par profession, l'autre
   // pour le total de la zone — tout est pré-calculé côté serveur.
   useEffect(() => {
@@ -202,9 +204,9 @@ export default function Personnel() {
   const partsNonAlignees = parts.filter((r) => !r.aligne && r.n_iss);
   const partColumns = [
     { key: 'categorie', header: 'Profession', render: (r: Record<string, unknown>) => catLabel[String(r.categorie)] ?? String(r.categorie) },
-    { key: 'n_drh', header: "Payés par l'État" },
+    { key: 'n_drh', header: 'Au fichier DRH' },
     { key: 'n_iss', header: 'Déclarés (ISS)' },
-    { key: 'part_etat', header: "% payé par l'État", render: (r: Record<string, unknown>) => (r.part_etat == null ? '—' : `${fmt(r.part_etat as number, 1)} %`) },
+    { key: 'part_etat', header: '% du déclaré (ISS)', render: (r: Record<string, unknown>) => (r.part_etat == null ? '—' : `${fmt(r.part_etat as number, 1)} %`) },
     { key: 'aligne', header: 'Nomenclatures alignées', render: (r: Record<string, unknown>) => (r.aligne ? 'oui' : 'non') },
   ];
   const chartEffectifs = effectifs
@@ -308,13 +310,13 @@ export default function Personnel() {
         </div>
       </div>
 
-      {/* Qui paie le personnel : part de l'État, par profession */}
+      {/* Comparaison DRH ↔ ISS : part du déclaré présente au fichier, par profession */}
       {partZone?.part_etat != null && (
         <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-3">
           <div className="flex flex-wrap items-baseline gap-2">
-            <h3 className="font-semibold text-gray-800">Qui paie le personnel soignant — {zoneLabel}</h3>
+            <h3 className="font-semibold text-gray-800">Fichier DRH et déclarations ISS — {zoneLabel}</h3>
             <span className="text-xs text-gray-400">
-              {fmt(partZone.n_drh)} agents payés par l'État sur {fmt(partZone.n_iss)} déclarés par les structures
+              {fmt(partZone.n_drh)} agents au fichier DRH pour {fmt(partZone.n_iss)} déclarés par les structures
             </span>
             <div className="ml-auto">
               <ExportCSV data={parts as unknown as Record<string, unknown>[]} columns={partColumns} filename={`personnel_part_etat_${district || 'national'}`} />
@@ -325,8 +327,8 @@ export default function Personnel() {
             <div>
               <div className="text-4xl font-bold text-blue-700">{fmt(partZone.part_etat, 1)} %</div>
               <div className="text-xs text-gray-500 max-w-xs mt-1">
-                du personnel soignant déclaré est payé par l'État. Le reste — contractuels, communautaires,
-                personnel des partenaires — ne figure pas sur la masse salariale.
+                du personnel soignant déclaré par les structures figure au fichier DRH/CNPS. Le reste —
+                contractuels, communautaires, personnel des partenaires — relève d'un autre circuit.
               </div>
             </div>
             {partsAlignees.length > 1 && (
@@ -336,7 +338,7 @@ export default function Personnel() {
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                     <XAxis type="number" domain={[0, 100]} fontSize={11} unit="%" />
                     <YAxis type="category" dataKey="name" width={160} fontSize={11} interval={0} />
-                    <Tooltip formatter={(v: number, _n, p) => [`${v.toFixed(1)} % (${fmt(p.payload.drh)} payés / ${fmt(p.payload.iss)} déclarés)`, "Payé par l'État"]} />
+                    <Tooltip formatter={(v: number, _n, p) => [`${v.toFixed(1)} % (${fmt(p.payload.drh)} au fichier / ${fmt(p.payload.iss)} déclarés)`, 'Au fichier DRH']} />
                     <ReferenceLine x={partZone.part_etat} stroke="#111827" strokeDasharray="4 3" />
                     <Bar dataKey="part" radius={[0, 3, 3, 0]}>
                       {partsAlignees.map((d) => <Cell key={d.name} fill={d.part < 25 ? '#ef4444' : d.part < 50 ? '#f97316' : '#22c55e'} />)}
@@ -353,7 +355,7 @@ export default function Personnel() {
                 <AlertTriangle size={14} className="text-amber-600" /> Nomenclatures non alignées — exclues du calcul
               </h4>
               <p className="text-xs text-gray-500 mt-1 mb-2">
-                Pour ces professions, l'État en paie plus que les structures n'en déclarent : les deux intitulés
+                Pour ces professions, le fichier DRH en compte plus que les structures n'en déclarent : les deux intitulés
                 ne désignent pas la même chose, et leur rapport n'est donc pas une part. Elles sortent du
                 périmètre, et l'écart est à traiter avec la DRH et le SNIS comme un problème de référentiel
                 des métiers, pas comme un résultat.
@@ -362,7 +364,7 @@ export default function Personnel() {
                 {partsNonAlignees.map((r) => (
                   <div key={r.categorie} className="border border-amber-200 bg-amber-50/50 rounded p-2">
                     <div className="text-xs text-gray-700 truncate" title={catLabel[r.categorie] ?? r.categorie}>{catLabel[r.categorie] ?? r.categorie}</div>
-                    <div className="text-sm font-semibold text-gray-900">{fmt(r.n_drh)} payés</div>
+                    <div className="text-sm font-semibold text-gray-900">{fmt(r.n_drh)} au fichier</div>
                     <div className="text-[11px] text-gray-500">{fmt(r.n_iss)} déclarés{r.n_iss ? ` · ×${(r.n_drh / r.n_iss).toFixed(1)}` : ''}</div>
                   </div>
                 ))}
@@ -537,17 +539,18 @@ export default function Personnel() {
       {/* Comparaison DRH ↔ ISS */}
       <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <h3 className="font-semibold text-gray-800 mr-2">Payés par l'État / déclarés dans ISS — {zoneLabel}</h3>
+          <h3 className="font-semibold text-gray-800 mr-2">Fichier DRH / déclarations ISS — {zoneLabel}</h3>
           {incoherences.length > 0 && (
             <span className="inline-flex items-center gap-1 text-xs text-red-700 bg-red-50 border border-red-200 rounded px-2 py-0.5">
-              <AlertTriangle size={12} /> {incoherences.length} catégorie{incoherences.length > 1 ? 's' : ''} où l'État paie plus que déclaré
+              <AlertTriangle size={12} /> {incoherences.length} catégorie{incoherences.length > 1 ? 's' : ''} où le fichier DRH dépasse le déclaré
             </span>
           )}
           <div className="ml-auto"><ExportCSV data={comparaison as unknown as Record<string, unknown>[]} columns={comparaisonColumns} filename={`personnel_comparaison_${district || 'national'}`} /></div>
         </div>
         <DataTable columns={comparaisonColumns} data={comparaison as unknown as Record<string, unknown>[]} />
         <p className="text-xs text-gray-500">
-          ISS compte le personnel <strong>présent</strong> déclaré par la structure, la DRH ceux qu'elle <strong>paie</strong>.
+          ISS compte le personnel <strong>présent</strong> déclaré par la structure, le fichier DRH/CNPS les agents de la
+          fonction publique <strong>affectés</strong>.
           Un ratio supérieur à 1 est normal : il mesure la part de personnel hors fonction publique. Un ratio
           <strong> inférieur à 1</strong> est une anomalie — défaut de déclaration ISS, ou agents affectés mais absents.
         </p>
@@ -565,7 +568,7 @@ export default function Personnel() {
             )}
             {sansAgent > 0 && (
               <span className="text-xs text-red-700 bg-red-50 border border-red-200 rounded px-2 py-0.5">
-                {sansAgent} structure{sansAgent > 1 ? 's' : ''} sans aucun agent de l'État
+                {sansAgent} structure{sansAgent > 1 ? 's' : ''} sans aucun agent au fichier DRH
               </span>
             )}
             <div className="ml-auto"><ExportCSV data={structures as unknown as Record<string, unknown>[]} columns={structureColumns} filename={`personnel_structures_${district}`} /></div>
@@ -576,15 +579,16 @@ export default function Personnel() {
 
       <MethodNote title="Comment ces chiffres sont calculés">
         <p>
-          <strong>Source.</strong> Fichier annuel de la DRH/CNPS du Ministère : les agents <strong>payés par l'État</strong>.
-          Il ne couvre ni les contractuels des collectivités, ni les bénévoles, ni le personnel du privé — d'où des
-          effectifs bien inférieurs à ceux déclarés par les structures dans ISS.
+          <strong>Source.</strong> Fichier annuel de la DRH/CNPS du Ministère : les agents de la <strong>fonction
+          publique</strong> et leur affectation. Il ne couvre ni les contractuels des collectivités, ni les bénévoles,
+          ni le personnel du privé — d'où des effectifs inférieurs à ceux déclarés par les structures dans ISS.
         </p>
         <p>
-          <strong>Rattachement.</strong> Le libellé d'affectation écrit par la DRH est rapproché des structures ISS par
-          une table de correspondance validée à la main, puis par nom exact, sigle de bureau, et type + nom propre dans
-          le district de l'agent. Ce qui reste ambigu n'est jamais rattaché au hasard : {fmt(summary.import.n_non_rattache)} agents
-          sur {fmt(summary.import.n_agents)} restent non rattachés ({pct(summary.import.n_agents - summary.import.n_non_rattache, summary.import.n_agents)} catégorisés).
+          <strong>Rattachement.</strong> Le fichier porte lui-même l'identifiant DHIS2 de l'unité où l'agent est affecté,
+          saisi et validé avec la DRH. Le niveau de cette unité décide du reste : structure de soins, bureau de district,
+          inspection régionale ou administration centrale. Aucun rapprochement par le nom, donc aucun rattachement deviné :
+          une ligne sans identifiant reste non rattachée et ressort dans la liste à trancher — {fmt(summary.import.n_non_rattache)} agents
+          sur {fmt(summary.import.n_agents)} ({pct(summary.import.n_agents - summary.import.n_non_rattache, summary.import.n_agents)} rattachés).
         </p>
         <p>
           <strong>Densité.</strong> Agents ÷ population de la zone × 10 000, avec la même population DHIS2 que le reste

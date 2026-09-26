@@ -180,10 +180,10 @@ func TestCompare(t *testing.T) {
 	}
 
 	if med.PartEtat == nil || *med.PartEtat < 33.2 || *med.PartEtat > 33.4 {
-		t.Errorf("part payée par l'État pour les médecins : %v, attendu 2/6 = 33,3 %%", med.PartEtat)
+		t.Errorf("part du déclaré au fichier DRH pour les médecins : %v, attendu 2/6 = 33,3 %%", med.PartEtat)
 	}
 
-	// L'État paie plus d'ATS que les structures n'en déclarent : les deux
+	// Le fichier DRH compte plus d'ATS que les structures n'en déclarent : les deux
 	// nomenclatures ne se recouvrent pas, le rapport n'est donc pas une part et
 	// la catégorie sort du périmètre comparable.
 	ats := get(DimGlobal, KeyNational, "ATS")

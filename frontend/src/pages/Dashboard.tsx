@@ -161,7 +161,7 @@ export default function Dashboard() {
             <span className="font-medium text-gray-700">Personnel de l'État</span>
             <span className="text-2xl font-bold text-gray-900">{drh.national.ratio_10k?.toFixed(2) ?? '—'}</span>
             <span className="text-gray-500">
-              agents payés par l'État pour 10 000 habitants — {drh.national.n_agents.toLocaleString('fr-FR')} agents,
+              agents du fichier DRH pour 10 000 habitants — {drh.national.n_agents.toLocaleString('fr-FR')} agents,
               dont {drh.national.n_structure.toLocaleString('fr-FR')} en structure de soins
               {drh.national.n_age_connu > 0 && `, ${((100 * drh.national.n_depart_5ans) / drh.national.n_age_connu).toFixed(0)} % à la retraite d'ici 5 ans`}
             </span>

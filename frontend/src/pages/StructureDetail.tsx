@@ -227,7 +227,7 @@ export default function StructureDetail() {
           <div className="flex flex-wrap items-baseline gap-2 mb-3">
             <h3 className="font-semibold text-gray-800">Personnel de l'État affecté</h3>
             <span className="text-xs text-gray-500">
-              {personnel.total.n_agents} agent{personnel.total.n_agents > 1 ? 's' : ''} payé{personnel.total.n_agents > 1 ? 's' : ''} par l'État ·
+              {personnel.total.n_agents} agent{personnel.total.n_agents > 1 ? 's' : ''} au fichier DRH/CNPS ·
               fichier DRH {personnel.annee}
               {personnel.total.n_depart_5ans > 0 && ` · ${personnel.total.n_depart_5ans} départ${personnel.total.n_depart_5ans > 1 ? 's' : ''} à la retraite d'ici 5 ans`}
             </span>
@@ -242,7 +242,7 @@ export default function StructureDetail() {
             ))}
           </div>
           <p className="text-xs text-gray-500 mt-3">
-            Effectif <strong>payé par l'État</strong>, à ne pas confondre avec le personnel déclaré par la structure
+            Effectif <strong>du fichier DRH/CNPS</strong>, à ne pas confondre avec le personnel déclaré par la structure
             dans la section Ressources humaines ci-dessous, qui compte tout le monde, y compris hors fonction publique.
           </p>
         </div>

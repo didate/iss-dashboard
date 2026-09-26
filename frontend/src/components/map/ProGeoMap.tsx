@@ -85,7 +85,7 @@ const METRICS: Metric[] = [
   {
     key: 'drh_ratio_10k', label: "Agents de l'État pour 10 000 hab.", unit: '',
     help: [
-      "Agents payés par l'État (fichier DRH/CNPS) pour 10 000 habitants de l'unité.",
+      "Agents inscrits au fichier DRH/CNPS pour 10 000 habitants de l'unité.",
       "Compte les agents affectés aux structures de la zone, ceux du bureau de district, et ceux dont le libellé d'affectation n'a pas pu être rattaché — ce sont de vrais agents de la préfecture. L'administration centrale n'est comptée qu'au national.",
       "À ne pas confondre avec le personnel soignant déclaré dans ISS, qui compte tout le monde, y compris hors fonction publique : les deux se comparent dans la page Personnel.",
       'Lecture : échelle à quantiles (5 classes) sur les unités affichées. Gris = population inconnue ou aucun agent rattaché.',
@@ -100,11 +100,11 @@ const METRICS: Metric[] = [
     ],
   },
   {
-    key: 'drh_part_etat_pct', label: "Part du personnel payée par l'État", unit: '%',
+    key: 'drh_part_etat_pct', label: 'Effectifs déclarés présents au fichier DRH', unit: '%',
     help: [
-      "Part du personnel soignant déclaré par les structures que l'État paie : agents du fichier DRH ÷ effectifs déclarés dans ISS × 100.",
-      "Périmètre : les seules professions dont les deux nomenclatures se recouvrent, c'est-à-dire celles où l'État n'en paie pas plus, au national, que les structures n'en déclarent. Six professions en sont exclues (médecin santé publique, pharmacien, aide-soignant, administratif, autre spécialiste, informaticien) : leurs intitulés ne désignent pas la même chose des deux côtés, et leur rapport n'est pas une part.",
-      "Lecture : rouge = l'État paie une faible part du personnel, le district fonctionne largement grâce à des agents qu'il ne rémunère pas (contractuels, communautaires, partenaires). National 2026 : 27,5 %, de 12,6 % à 51 % selon le district.",
+      "Part du personnel soignant déclaré par les structures qui figure au fichier DRH/CNPS : agents du fichier DRH ÷ effectifs déclarés dans ISS × 100.",
+      "Périmètre : les seules professions dont les deux nomenclatures se recouvrent, c'est-à-dire celles où le fichier DRH n'en compte pas plus, au national, que les structures n'en déclarent. Six professions en sont exclues (médecin santé publique, pharmacien, aide-soignant, administratif, autre spécialiste, informaticien) : leurs intitulés ne désignent pas la même chose des deux côtés, et leur rapport n'est pas une part.",
+      "Lecture : rouge = peu du personnel déclaré figure au fichier DRH ; le district fonctionne largement avec des agents hors fichier (contractuels, communautaires, partenaires). National 2026 : 27,5 %, de 12,6 % à 51 % selon le district.",
       'Échelle à quantiles sur les districts affichés. Métrique disponible au district seulement : la comparaison suppose des effectifs déclarés en face.',
     ],
   },
@@ -240,7 +240,7 @@ export default function ProGeoMap({ mode }: Props) {
         <div>Structures /10 000 hab. : <b>${p.ratio_structures_10k === null ? '—' : p.ratio_structures_10k.toFixed(2)}</b></div>
         ${p.conformite_score != null ? `<div>Conformité aux normes : <b>${p.conformite_score.toFixed(0)}</b> · ${p.pct_conformes?.toFixed(0) ?? '—'}% conformes</div>` : ''}
         ${p.drh_ratio_10k != null ? `<div>Agents de l'État /10 000 hab. : <b>${p.drh_ratio_10k.toFixed(2)}</b>${p.drh_depart_5ans_pct != null ? ` · ${p.drh_depart_5ans_pct.toFixed(0)}% de départs à 5 ans` : ''}</div>` : ''}
-        ${p.drh_part_etat_pct != null ? `<div>Personnel payé par l'État : <b>${p.drh_part_etat_pct.toFixed(0)}%</b> du déclaré</div>` : ''}
+        ${p.drh_part_etat_pct != null ? `<div>Au fichier DRH : <b>${p.drh_part_etat_pct.toFixed(0)}%</b> du déclaré</div>` : ''}
         ${['personnel_soignant', 'medecins', 'sages_femmes', 'infirmiers', 'lits']
           .filter((k) => p.numerators?.[k] !== undefined)
           .map((k) => `<div>${escapeHtml(RATIO_LABELS[k] ?? k)} : <b>${p.numerators[k]}</b>${p.ratios?.[k] != null ? ` (${p.ratios[k]!.toFixed(2)} /10 000)` : ''}</div>`)

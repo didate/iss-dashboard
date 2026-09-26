@@ -530,7 +530,7 @@ type MapGeoProperties struct {
 	// Personnel de l'État (nil sans millésime DRH importé)
 	DrhRatio10k      *float64 `json:"drh_ratio_10k"`
 	DrhDepart5AnsPct *float64 `json:"drh_depart_5ans_pct"`
-	// Part du personnel soignant déclaré que l'État paie (districts seulement,
+	// Part du personnel soignant déclaré qui figure au fichier DRH (districts seulement,
 	// périmètre des professions dont les deux nomenclatures se recouvrent).
 	DrhPartEtatPct *float64 `json:"drh_part_etat_pct"`
 }
@@ -679,7 +679,7 @@ func (s *Store) drhByZone(level int) (map[string]drhZone, error) {
 		return nil, err
 	}
 
-	// La part payée par l'État vient de la comparaison avec ISS, qui n'existe
+	// La part du déclaré présente au fichier DRH vient de la comparaison avec ISS, qui n'existe
 	// qu'au district : elle suppose des effectifs déclarés en face.
 	if dimension == "district" {
 		pRows, err := s.db.Query(`SELECT c.key, c.part_etat FROM drh_comparaison c
