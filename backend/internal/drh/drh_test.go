@@ -158,6 +158,8 @@ func TestResolve(t *testing.T) {
 		{"homonymes de types voisins : non rattaché", AgentRow{Prefecture: "N'Zérékoré", StructureAffectation: "CMC  KOULE"}, AffNonRattache, "n zerekore", SrcInconnu},
 		{"déduction du seul hôpital", AgentRow{Prefecture: "Gaoual", StructureAffectation: "Hôpital Préfectoral"}, AffStructure, "u-hp-gaoual", SrcDeduit},
 		{"sigle de bureau de district", AgentRow{Prefecture: "Forécariah", StructureAffectation: "DPS Forécariah"}, AffBureau, "forecariah", SrcPrefixe},
+		{"bureau écrit en toutes lettres", AgentRow{Prefecture: "Forécariah", StructureAffectation: "Direction Prefectoral de la santé"}, AffBureau, "forecariah", SrcPrefixe},
+		{"inspection régionale", AgentRow{Prefecture: "Kankan", StructureAffectation: "Inspection Régionale de la santé"}, AffBureau, "kankan", SrcPrefixe},
 		{"bureau via la table", AgentRow{Prefecture: "Kérouané", StructureAffectation: "Kérouane"}, AffBureau, "kerouane", SrcTable},
 		{"administration centrale", AgentRow{Prefecture: "Conakry", StructureAffectation: "DRH Ministère"}, AffCentrale, "drh ministere", SrcPrefixe},
 		{"programme national", AgentRow{Prefecture: "Conakry", StructureAffectation: "PNLP"}, AffCentrale, "pnlp", SrcPrefixe},

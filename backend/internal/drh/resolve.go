@@ -95,9 +95,12 @@ func (r Report) PctCategorise() float64 {
 }
 
 var (
-	bureauPrefixe   = regexp.MustCompile(`(?i)^(dps|dcs|drs|irs|dsp)\b`)
-	centralePrefixe = regexp.MustCompile(`(?i)^(igs|bsd|drh|daf|dn[a-z]+|sn[a-z]+|pn[a-z-]+|ins[ep]|anss|cnts|pcg|lncqm|smsi|sge|prmp|fbr|sc[frpm]?|shsst|ipps|sp-|cnhd|lnsp|pev|dsvco|crems|mshp)\b`)
-	districtPrefixe = regexp.MustCompile(`(?i)^(dps|dcs|drs|irs|dsp)\s+`)
+	bureauPrefixe = regexp.MustCompile(`(?i)^(dps|dcs|drs|irs|dsp)\b`)
+	// Les mêmes bureaux écrits en toutes lettres : la DRH alterne entre le
+	// sigle et la forme longue d'une ligne à l'autre.
+	bureauEnToutesLettres = regexp.MustCompile(`^(direction|inspection) (prefectoral|communal|regional)`)
+	centralePrefixe       = regexp.MustCompile(`(?i)^(igs|bsd|drh|daf|dn[a-z]+|sn[a-z]+|pn[a-z-]+|ins[ep]|anss|cnts|pcg|lncqm|smsi|sge|prmp|fbr|sc[frpm]?|shsst|ipps|sp-|cnhd|lnsp|pev|dsvco|crems|mshp)\b`)
+	districtPrefixe       = regexp.MustCompile(`(?i)^(dps|dcs|drs|irs|dsp)\s+`)
 	// Sigles des sous-préfectures et communes : « CU Kassa » désigne la commune
 	// que la DRH écrit simplement « Kassa ».
 	sousPrefPrefixe = regexp.MustCompile(`(?i)^(cu|cr|cm)\s+`)
@@ -364,7 +367,7 @@ func (r *Resolver) resolveLabel(label string, a AgentRow) (Affectation, bool) {
 	if s, ok := r.byName[k]; ok {
 		return r.structureAff(s, SrcExact), true
 	}
-	if bureauPrefixe.MatchString(strings.TrimSpace(label)) {
+	if bureauPrefixe.MatchString(strings.TrimSpace(label)) || bureauEnToutesLettres.MatchString(k) {
 		return r.bureauAff(a, SrcPrefixe), true
 	}
 	if s, ok := r.hopitalDuDistrict(label, a); ok {
