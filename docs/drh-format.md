@@ -92,6 +92,39 @@ Si la DRH renomme une colonne d'une année sur l'autre, ajouter l'en-tête dans 
 `SOURCE` en tête de script (la comparaison est insensible à la casse et aux accents). Une
 colonne obligatoire introuvable fait échouer la conversion avec un message explicite.
 
+## Aligner les noms à la source
+
+La première cause de non-rattachement n'est pas l'absence de structure, c'est l'**orthographe** : la DRH écrit
+« CSR Damakania », « Hopital Regional Kindia », « HRKkan » là où DHIS2 a « CSR Damankanya », « HR Kindia »,
+« HR Kankan ». Sur le millésime 2026, **466 libellés sur 986** diffèrent du nom DHIS2.
+
+Rattraper ces écarts dans l'application a un coût qui revient chaque année. Le corriger **à la source** est
+définitif. D'où la feuille de correction :
+
+```bash
+cd backend
+DRHCHECK_CORRECTIONS="DRH 2026 - noms a corriger.csv" \
+  go run ./cmd/drhcheck /chemin/copie-de-iss.db drh-2026.csv correspondances.csv 2026
+```
+
+Elle liste chaque libellé du fichier avec le nom DHIS2 attendu :
+
+| colonne | contenu |
+|---|---|
+| `libelle_drh` | ce que la DRH a écrit |
+| `prefecture` | la préfecture de l'agent, qui lève les homonymies |
+| `n_agents` | combien d'agents sont concernés |
+| `nom_dhis2_attendu` | le nom exact à reprendre, ou `(bureau de district)`, `(administration centrale)`, ou **`À PRÉCISER`** |
+| `uid_dhis2` | l'identifiant de l'unité d'organisation |
+| `reconnu_par` | comment le rattachement a été obtenu (`table`, `exact`, `approx`, `deduit`, `prefixe`…) |
+
+Les lignes `À PRÉCISER` sont en tête : ce sont celles que personne ne peut résoudre sans connaître le terrain —
+libellés génériques (« CS », « Centre de Santé »), sigles non documentés, structures absentes du recensement.
+
+Une fois la source alignée, la table de correspondance ne garde que les cas réellement ambigus, et les règles
+de code se limitent à ce qui est structurel : bureaux de district, administration centrale, services hébergés
+par l'hôpital du district.
+
 ## Rattachement aux structures ISS
 
 `structure_affectation` est un texte libre saisi par la DRH : il ne correspond pas toujours au

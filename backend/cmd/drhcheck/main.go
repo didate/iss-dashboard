@@ -4,9 +4,11 @@
 package main
 
 import (
+	"encoding/csv"
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"iss-dashboard-backend/internal/drh"
@@ -71,6 +73,15 @@ func main() {
 	}
 	fmt.Println()
 
+	// DRHCHECK_CORRECTIONS=fichier.csv : écrit, pour chaque libellé du fichier
+	// DRH, le nom exact de la structure DHIS2 à laquelle il correspond. C'est la
+	// feuille à renvoyer à la DRH pour aligner sa nomenclature sur celle de
+	// DHIS2 : une fois la source conforme, la table de correspondance n'a plus
+	// à rattraper les écarts d'orthographe.
+	if out := os.Getenv("DRHCHECK_CORRECTIONS"); out != "" {
+		correctionsCSV(st, os.Args[2], out)
+	}
+
 	// DRHCHECK_PREFECTURE=Siguiri : détaille, libellé par libellé, où sont
 	// rattachés les agents d'une préfecture. Sert à comprendre un effectif
 	// surprenant sans avoir à relire les agrégats.
@@ -87,6 +98,82 @@ func main() {
 		}
 		fmt.Printf("    %4d agents  [%-14s] %s\n", u.NAgents, u.Prefecture, u.Libelle)
 	}
+}
+
+// correctionsCSV liste chaque libellé d'affectation du fichier DRH avec le nom
+// DHIS2 correspondant, ou le motif pour lequel rien n'a pu être trouvé.
+func correctionsCSV(st *store.Store, csvPath, out string) {
+	f, err := os.Open(csvPath)
+	check(err)
+	agents, _ := drh.ParseCSV(f)
+	f.Close()
+	structures, err := st.ListDrhStructures()
+	check(err)
+	corr, err := st.ListDrhCorrespondances()
+	check(err)
+	r := drh.NewResolver(structures, corr)
+
+	type cas struct {
+		libelle, prefecture, cible, uid, source string
+		n                                       int
+	}
+	vus := map[string]*cas{}
+	for _, a := range agents {
+		lab := strings.TrimSpace(a.StructureAffectation)
+		if lab == "" {
+			lab = "(vide)"
+		}
+		k := lab + "|" + a.Prefecture
+		c, ok := vus[k]
+		if !ok {
+			aff := r.Resolve(a)
+			c = &cas{libelle: lab, prefecture: a.Prefecture, source: aff.Source}
+			switch aff.Kind {
+			case drh.AffStructure:
+				c.cible, c.uid = aff.Label, aff.Key
+			case drh.AffBureau:
+				c.cible = "(bureau de district)"
+			case drh.AffCentrale:
+				c.cible = "(administration centrale)"
+			default:
+				c.cible = "À PRÉCISER"
+			}
+			vus[k] = c
+		}
+		c.n++
+	}
+
+	var lignes []*cas
+	for _, c := range vus {
+		lignes = append(lignes, c)
+	}
+	sort.Slice(lignes, func(i, j int) bool {
+		if lignes[i].cible == "À PRÉCISER" != (lignes[j].cible == "À PRÉCISER") {
+			return lignes[i].cible == "À PRÉCISER"
+		}
+		return lignes[i].n > lignes[j].n
+	})
+
+	fh, err := os.Create(out)
+	check(err)
+	defer fh.Close()
+	fh.Write([]byte{0xEF, 0xBB, 0xBF})
+	w := csv.NewWriter(fh)
+	w.Comma = ';'
+	w.Write([]string{"libelle_drh", "prefecture", "n_agents", "nom_dhis2_attendu", "uid_dhis2", "reconnu_par"})
+	for _, c := range lignes {
+		w.Write([]string{c.libelle, c.prefecture, strconv.Itoa(c.n), c.cible, c.uid, c.source})
+	}
+	w.Flush()
+	check(w.Error())
+	var aPreciser, agentsAPreciser int
+	for _, c := range lignes {
+		if c.cible == "À PRÉCISER" {
+			aPreciser++
+			agentsAPreciser += c.n
+		}
+	}
+	fmt.Printf("\n%d libellés écrits dans %s — dont %d à préciser (%d agents)\n", len(lignes), out, aPreciser, agentsAPreciser)
 }
 
 // diagnostic rejoue le rattachement d'une préfecture et imprime, pour chaque
