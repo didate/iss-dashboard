@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Users, AlertTriangle, TrendingDown } from 'lucide-react';
 import { api } from '../api/client';
 import { useUrlState } from '../hooks/useUrlState';
-import type { DrhComparaison, DrhEffectif, DrhPyramide, DrhStructureRow, DrhSummary, Filters } from '../types';
+import type { DrhComparaison, DrhEffectif, DrhPyramide, DrhQualite, DrhStructureRow, DrhSummary, Filters } from '../types';
 import { typologieLabel } from '../utils/typologie';
 import KpiCard from '../components/KpiCard';
 import DataTable from '../components/DataTable';
@@ -40,6 +40,7 @@ export default function Personnel() {
   const [parts, setParts] = useState<DrhComparaison[]>([]);
   const [partZone, setPartZone] = useState<DrhComparaison | null>(null);
   const [structures, setStructures] = useState<DrhStructureRow[]>([]);
+  const [qualite, setQualite] = useState<DrhQualite | null>(null);
   const [centrale, setCentrale] = useState<DrhEffectif[]>([]);
   const [entite, setEntite] = useUrlState('entite');
   const [entiteCats, setEntiteCats] = useState<DrhEffectif[]>([]);
@@ -74,9 +75,8 @@ export default function Personnel() {
   }, [summary, district, categorie]);
 
   // Part du déclaré présente au fichier DRH : indépendante du filtre profession,
-  // qui la réduirait
-  // à une seule barre. Deux appels, l'un pour le détail par profession, l'autre
-  // pour le total de la zone — tout est pré-calculé côté serveur.
+  // qui la réduirait à une seule barre. Deux appels, l'un pour le détail par
+  // profession, l'autre pour le total de la zone — tout est pré-calculé côté serveur.
   useEffect(() => {
     if (!summary) return;
     const scope = { by: district ? 'district' : 'global', key: district || 'national' };
@@ -88,6 +88,13 @@ export default function Personnel() {
     if (!summary || !district) { setStructures([]); return; }
     api.getDrhStructuresList({ district }).then(setStructures).catch(() => {});
   }, [summary, district]);
+
+  // Ce que le fichier ne permet pas de dire : le constat est calculé côté
+  // serveur, l'écran ne fait que l'afficher.
+  useEffect(() => {
+    if (!summary) return;
+    api.getDrhQualite().then(setQualite).catch(() => {});
+  }, [summary]);
 
   // Directions, instituts et programmes nationaux : ils ne relèvent d'aucun
   // district, donc le bloc n'a de sens qu'au périmètre national.
@@ -202,9 +209,18 @@ export default function Personnel() {
     .map((r) => ({ name: catLabel[r.categorie] ?? r.categorie, part: r.part_etat as number, drh: r.n_drh, iss: r.n_iss ?? 0 }))
     .sort((a, b) => a.part - b.part);
   const partsNonAlignees = parts.filter((r) => !r.aligne && r.n_iss);
+  const qualiteDistrict = qualite?.districts.find((d) => d.district === district) ?? null;
+  const qualiteColumns = [
+    { key: 'district', header: 'District' },
+    { key: 'region', header: 'Région' },
+    { key: 'n_agents', header: 'Agents', render: (r: Record<string, unknown>) => fmt(r.n_agents as number) },
+    { key: 'n_structure', header: 'En structure', render: (r: Record<string, unknown>) => fmt(r.n_structure as number) },
+    { key: 'n_bureau', header: 'Au bureau de district', render: (r: Record<string, unknown>) => fmt(r.n_bureau as number) },
+    { key: 'pct_bureau', header: 'Part au bureau', render: (r: Record<string, unknown>) => `${fmt(r.pct_bureau as number, 0)} %` },
+  ];
   const partColumns = [
     { key: 'categorie', header: 'Profession', render: (r: Record<string, unknown>) => catLabel[String(r.categorie)] ?? String(r.categorie) },
-    { key: 'n_drh', header: 'Au fichier DRH' },
+    { key: 'n_drh', header: 'Au fichier DRH (en structure)' },
     { key: 'n_iss', header: 'Déclarés (ISS)' },
     { key: 'part_etat', header: '% du déclaré (ISS)', render: (r: Record<string, unknown>) => (r.part_etat == null ? '—' : `${fmt(r.part_etat as number, 1)} %`) },
     { key: 'aligne', header: 'Nomenclatures alignées', render: (r: Record<string, unknown>) => (r.aligne ? 'oui' : 'non') },
@@ -310,18 +326,62 @@ export default function Personnel() {
         </div>
       </div>
 
+      {/* Ce que le fichier ne dit pas : affiché, pas masqué — ces défauts ne se
+          corrigent qu'à la source, et seulement s'ils se voient. */}
+      {!district && qualite && qualite.districts.length > 0 && (
+        <div className="bg-white rounded-lg border border-amber-200 p-4 space-y-3">
+          <div className="flex flex-wrap items-baseline gap-2">
+            <h3 className="font-semibold text-gray-800 flex items-center gap-1.5">
+              <AlertTriangle size={16} className="text-amber-600" /> Ce que le fichier DRH ne dit pas
+            </h3>
+            <span className="text-xs text-gray-400">
+              {fmt(qualite.n_agents_concernes)} agents dans {qualite.districts.length} district
+              {qualite.districts.length > 1 ? 's' : ''} · {fmt(qualite.n_non_rattache)} sans identifiant de structure
+            </span>
+            <div className="ml-auto">
+              <ExportCSV
+                data={qualite.districts as unknown as Record<string, unknown>[]}
+                columns={qualiteColumns}
+                filename="personnel_qualite_fichier_drh"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-gray-600">
+            Dans ces districts, le fichier inscrit la plupart des agents au bureau de district — « DPS »,
+            « DPS Kissidougou » — sans dire dans quelle structure ils travaillent. Or plus d'agents au bureau que
+            dans toutes les structures réunies ne décrit aucune organisation réelle : un DPS n'emploie pas plus de
+            monde que l'ensemble des hôpitaux et centres de santé qu'il supervise. Leurs effectifs restent comptés,
+            mais la comparaison avec ISS y mesure surtout ce défaut de saisie. C'est une correction à faire à la
+            source, avec la DRH.
+          </p>
+          <DataTable columns={qualiteColumns} data={qualite.districts as unknown as Record<string, unknown>[]} />
+        </div>
+      )}
+
       {/* Comparaison DRH ↔ ISS : part du déclaré présente au fichier, par profession */}
       {partZone?.part_etat != null && (
         <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-3">
           <div className="flex flex-wrap items-baseline gap-2">
             <h3 className="font-semibold text-gray-800">Fichier DRH et déclarations ISS — {zoneLabel}</h3>
             <span className="text-xs text-gray-400">
-              {fmt(partZone.n_drh)} agents au fichier DRH pour {fmt(partZone.n_iss)} déclarés par les structures
+              {fmt(partZone.n_drh)} agents du fichier DRH affectés en structure, pour {fmt(partZone.n_iss)} déclarés par les structures
             </span>
             <div className="ml-auto">
               <ExportCSV data={parts as unknown as Record<string, unknown>[]} columns={partColumns} filename={`personnel_part_etat_${district || 'national'}`} />
             </div>
           </div>
+
+          {qualiteDistrict && (
+            <div className="flex items-start gap-2 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded p-2">
+              <AlertTriangle size={14} className="shrink-0 mt-0.5 text-amber-600" />
+              <span>
+                À lire avec prudence : le fichier DRH inscrit {fmt(qualiteDistrict.n_bureau)} des{' '}
+                {fmt(qualiteDistrict.n_agents)} agents de ce district au bureau de district, sans nommer la structure
+                où ils travaillent. Seuls {fmt(qualiteDistrict.n_structure)} y sont situés dans une structure : le taux
+                ci-dessous repose sur eux, et mesure surtout ce défaut de saisie.
+              </span>
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center gap-6">
             <div>
@@ -352,13 +412,14 @@ export default function Personnel() {
           {partsNonAlignees.length > 0 && (
             <div className="border-t border-gray-200 pt-3">
               <h4 className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-                <AlertTriangle size={14} className="text-amber-600" /> Nomenclatures non alignées — exclues du calcul
+                <AlertTriangle size={14} className="text-amber-600" /> Plus d'agents au fichier DRH que déclarés dans ISS — exclues du taux
               </h4>
               <p className="text-xs text-gray-500 mt-1 mb-2">
-                Pour ces professions, le fichier DRH en compte plus que les structures n'en déclarent : les deux intitulés
-                ne désignent pas la même chose, et leur rapport n'est donc pas une part. Elles sortent du
-                périmètre, et l'écart est à traiter avec la DRH et le SNIS comme un problème de référentiel
-                des métiers, pas comme un résultat.
+                À périmètre égal — les agents du fichier DRH affectés en structure de soins, face aux déclarations de
+                ces mêmes structures — il en reste plus d'un côté que de l'autre. Le rapport dépasse 100 %, ce n'est
+                donc pas une part, et la profession sort du taux. C'est cette fois un problème de référentiel des
+                métiers, à traiter avec la DRH et le SNIS : « Médecin Spécialiste en Santé Publique » est courant
+                dans le fichier, la case correspondante n'est presque jamais cochée dans ISS.
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                 {partsNonAlignees.map((r) => (
@@ -550,7 +611,9 @@ export default function Personnel() {
         <DataTable columns={comparaisonColumns} data={comparaison as unknown as Record<string, unknown>[]} />
         <p className="text-xs text-gray-500">
           ISS compte le personnel <strong>présent</strong> déclaré par la structure, le fichier DRH/CNPS les agents de la
-          fonction publique <strong>affectés</strong>.
+          fonction publique <strong>affectés</strong> — et, ici, les seuls affectés en structure de soins : les bureaux de
+          district, les inspections régionales et l'administration centrale sortent du rapprochement, aucune structure
+          ne les ayant jamais déclarés.
           Un ratio supérieur à 1 est normal : il mesure la part de personnel hors fonction publique. Un ratio
           <strong> inférieur à 1</strong> est une anomalie — défaut de déclaration ISS, ou agents affectés mais absents.
         </p>
@@ -589,6 +652,13 @@ export default function Personnel() {
           inspection régionale ou administration centrale. Aucun rapprochement par le nom, donc aucun rattachement deviné :
           une ligne sans identifiant reste non rattachée et ressort dans la liste à trancher — {fmt(summary.import.n_non_rattache)} agents
           sur {fmt(summary.import.n_agents)} ({pct(summary.import.n_agents - summary.import.n_non_rattache, summary.import.n_agents)} rattachés).
+        </p>
+        <p>
+          <strong>Comparaison avec ISS.</strong> Le recensement ISS n'interroge que les structures de soins : la
+          comparaison ne retient donc, côté DRH, que les agents qui y sont affectés. Les bureaux de district, les
+          inspections régionales et l'administration centrale restent comptés dans les effectifs, mais sortent du
+          rapprochement — aucune structure ne les a jamais déclarés, et les y confronter gonflerait la part du
+          fichier sans rien mesurer.
         </p>
         <p>
           <strong>Densité.</strong> Agents ÷ population de la zone × 10 000, avec la même population DHIS2 que le reste

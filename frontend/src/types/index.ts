@@ -735,6 +735,27 @@ export interface DrhPyramide {
   n_femmes: number;
 }
 
+/** Un district dont le fichier DRH ne dit pas dans quelle structure travaillent
+ *  les agents : leur affectation est le bureau de district. Le critère (plus
+ *  d'agents au bureau que dans toutes les structures réunies) est calculé côté
+ *  serveur. */
+export interface DrhQualiteDistrict {
+  district: string;
+  region: string;
+  n_agents: number;
+  n_structure: number;
+  n_bureau: number;
+  pct_bureau: number;
+}
+
+export interface DrhQualite {
+  districts: DrhQualiteDistrict[];
+  n_agents_concernes: number;
+  n_non_rattache: number;
+  n_agents: number;
+  annee: number;
+}
+
 export interface DrhComparaison {
   dimension: string;
   key: string;

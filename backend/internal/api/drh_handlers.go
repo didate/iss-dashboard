@@ -362,6 +362,33 @@ func (h *DrhReadHandlers) Comparaison(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"comparaison": rows, "annee": im.Annee})
 }
 
+// Qualite expose ce que le fichier DRH ne permet pas de dire. L'écran
+// personnel en fait un constat visible plutôt qu'une note de bas de page : ces
+// défauts se corrigent à la source, et ils ne remonteront à la DRH que s'ils
+// sont affichés.
+func (h *DrhReadHandlers) Qualite(c *gin.Context) {
+	im, ok := h.active(c)
+	if !ok {
+		return
+	}
+	districts, err := h.Store.GetDrhQualite(im.ID)
+	if err != nil {
+		internalError(c, err)
+		return
+	}
+	concernes := 0
+	for _, d := range districts {
+		concernes += d.NBureau
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"districts":          districts,
+		"n_agents_concernes": concernes,
+		"n_non_rattache":     im.NNonRattache,
+		"n_agents":           im.NAgents,
+		"annee":              im.Annee,
+	})
+}
+
 func (h *DrhReadHandlers) Structures(c *gin.Context) {
 	im, ok := h.active(c)
 	if !ok {

@@ -157,6 +157,31 @@ func (s *Store) orgUnitsHorsRecensement(recensees map[string]bool) ([]drh.UniteO
 	return out, nil
 }
 
+// GetDrhQualite lists the districts whose file does not say in which facility
+// the agents work. See drh.QualiteDistrict for the criterion.
+func (s *Store) GetDrhQualite(importID int64) ([]drh.QualiteDistrict, error) {
+	rows, err := s.db.Query(`SELECT key, COALESCE(region,''), n_agents, n_structure, n_bureau
+		FROM drh_effectif
+		WHERE import_id = ? AND dimension = ? AND categorie = '' AND n_bureau > n_structure
+		ORDER BY CAST(n_bureau AS REAL) / n_agents DESC, n_agents DESC`, importID, drh.DimDistrict)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []drh.QualiteDistrict{}
+	for rows.Next() {
+		var q drh.QualiteDistrict
+		if err := rows.Scan(&q.District, &q.Region, &q.NAgents, &q.NStructure, &q.NBureau); err != nil {
+			return nil, err
+		}
+		if q.NAgents > 0 {
+			q.PctBureau = 100 * float64(q.NBureau) / float64(q.NAgents)
+		}
+		out = append(out, q)
+	}
+	return out, rows.Err()
+}
+
 // --- Correspondances --------------------------------------------------------
 
 func (s *Store) ListDrhCorrespondances() ([]drh.Correspondance, error) {

@@ -85,6 +85,7 @@ func SetupRouter(cfg *config.Config, st *store.Store, client *dhis2.Client) *gin
 		read.GET("/drh/effectifs", drhR.Effectifs)
 		read.GET("/drh/pyramide", drhR.Pyramide)
 		read.GET("/drh/comparaison", drhR.Comparaison)
+		read.GET("/drh/qualite", drhR.Qualite)
 		read.GET("/drh/structures", drhR.Structures)
 		read.GET("/drh/structure/:uid", drhR.Structure)
 

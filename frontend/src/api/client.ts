@@ -37,6 +37,7 @@ import type {
   DrhEffectif,
   DrhPyramide,
   DrhComparaison,
+  DrhQualite,
   DrhStructureRow,
   NormesMeta,
   ConformiteSummaryRow,
@@ -285,6 +286,7 @@ export const api = {
     request<{ pyramide: DrhPyramide[]; age_retraite: number; annee: number }>(`/api/drh/pyramide${qs(params)}`),
   getDrhComparaison: (params: { by: string; key?: string; categorie?: string }) =>
     request<{ comparaison: DrhComparaison[] }>(`/api/drh/comparaison${qs(params)}`).then((r) => r.comparaison ?? []),
+  getDrhQualite: () => request<DrhQualite>('/api/drh/qualite'),
   getDrhStructuresList: (params: { district?: string; search?: string }) =>
     request<{ structures: DrhStructureRow[] }>(`/api/drh/structures${qs(params)}`).then((r) => r.structures ?? []),
   getDrhStructure: (uid: string) =>
