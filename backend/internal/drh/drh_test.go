@@ -390,6 +390,18 @@ func find(t *testing.T, rows []EffectifRow, dim, key, cat string) EffectifRow {
 	return EffectifRow{}
 }
 
+// Un même libellé peut porter une règle par district : « HRK » désigne
+// l'hôpital régional de Kankan à Kankan, celui de Kindia à Kindia.
+func TestParseCorrespondancesCSVUneRegleParDistrict(t *testing.T) {
+	in := "libelle_drh;structure_iss;uid_dhis2;district;type;statut\n" +
+		"HRK;HR Kankan;uid-kankan;DPS Kankan;HR;OK\n" +
+		"HRK;HR Kindia;uid-kindia;DPS Kindia;HR;OK\n"
+	corr, errs := ParseCorrespondancesCSV(strings.NewReader(in))
+	if len(errs) != 0 || len(corr) != 2 {
+		t.Fatalf("deux règles attendues, une par district : %+v (err %+v)", corr, errs)
+	}
+}
+
 // Une règle écrite après coup corrige la précédente : la table s'édite en
 // ajoutant à la fin, et une correction ne doit pas être ignorée en silence.
 func TestParseCorrespondancesCSVDerniereGagne(t *testing.T) {

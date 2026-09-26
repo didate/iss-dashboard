@@ -50,7 +50,7 @@ func ParseCorrespondancesCSV(r io.Reader) ([]Correspondance, []LineError) {
 
 	var out []Correspondance
 	var errs []LineError
-	seen := map[string]int{} // libellé normalisé → index dans out
+	seen := map[string]int{} // libellé normalisé + district → index dans out
 	for {
 		rec, err := cr.Read()
 		if err == io.EOF {
@@ -86,9 +86,13 @@ func ParseCorrespondancesCSV(r io.Reader) ([]Correspondance, []LineError) {
 			errs = append(errs, LineError{Line: line, Message: `statut "ok" sans uid_dhis2`})
 			continue
 		}
-		// Deux lignes pour le même libellé : la **dernière** gagne. La table
-		// s'édite en ajoutant à la fin — une correction écrite après coup doit
-		// l'emporter sur la règle qu'elle corrige, pas être ignorée en silence.
+		// L'unicité porte sur le couple (libellé, district), pas sur le libellé
+		// seul : « HRK » désigne l'hôpital régional de Kankan à Kankan et celui
+		// de Kindia à Kindia, et les deux règles doivent coexister.
+		//
+		// À clé égale, la **dernière** ligne gagne : la table s'édite en ajoutant
+		// à la fin, donc une correction écrite après coup doit l'emporter sur la
+		// règle qu'elle corrige plutôt que d'être ignorée en silence.
 		c := Correspondance{
 			LibelleNorm: Norm(libelle),
 			LibelleDRH:  libelle,
@@ -96,11 +100,12 @@ func ParseCorrespondancesCSV(r io.Reader) ([]Correspondance, []LineError) {
 			Statut:      statut,
 			District:    get("district"),
 		}
-		if i, deja := seen[c.LibelleNorm]; deja {
+		cle := c.LibelleNorm + "|" + normDistrict(c.District)
+		if i, deja := seen[cle]; deja {
 			out[i] = c
 			continue
 		}
-		seen[c.LibelleNorm] = len(out)
+		seen[cle] = len(out)
 		out = append(out, c)
 	}
 	return out, errs

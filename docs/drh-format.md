@@ -149,8 +149,10 @@ nom ISS. Le rattachement se fait dans cet ordre, à l'import :
    | `type` | informatif |
    | `statut` | `OK`, `bureau de district`, `non rattache`, `a trancher` |
 
-   Deux lignes pour le meme libelle : **la derniere gagne**. La table s'edite en ajoutant a la fin, donc une
-   correction ecrite apres coup l'emporte sur la regle qu'elle corrige.
+   L'unicite porte sur le couple **(libelle, district)**, pas sur le libelle seul : « HRK » designe l'hopital
+   regional de Kankan a Kankan et celui de Kindia a Kindia, et les deux regles coexistent. A cle egale, **la
+   derniere ligne gagne** : la table s'edite en ajoutant a la fin, donc une correction ecrite apres coup
+   l'emporte sur la regle qu'elle corrige.
 2. **Nom normalisé identique** à une structure ISS du même district.
 3. **Type + nom propre** : le type est déduit du libellé (`HR`, `HP`, `CMC`, `CSA`, `CS`, `PS`)
    et sert de discriminant entre structures homonymes du district.

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"iss-dashboard-backend/internal/models"
@@ -72,6 +73,9 @@ func (s *Store) migrate() error {
 		                     ORDER BY e2.event_date DESC, e2.event_uid DESC LIMIT 1)`)
 	// Clean up orphan "running" sync_runs from previous crashes
 	s.db.Exec(`UPDATE sync_run SET status='error', error_text='interrupted by restart' WHERE status='running'`)
+	if err := s.migrerCleCorrespondances(); err != nil {
+		log.Printf("WARN: migration de la cle des correspondances DRH: %v", err)
+	}
 	if err := s.SeedDrhCorrespondances(); err != nil {
 		log.Printf("WARN: seed des correspondances DRH: %v", err)
 	}
@@ -588,5 +592,38 @@ func (s *Store) PersistSyncData(syncRunID int64, data *SyncData) error {
 		}
 	}
 
+	return tx.Commit()
+}
+
+// migrerCleCorrespondances fait passer drh_correspondance d'une cle primaire
+// sur le seul libelle a une cle (libelle, district). Sans cela, deux regles
+// portant le meme libelle dans deux districts differents s'ecrasaient a
+// l'insertion : la seconde effacait la premiere, en silence.
+//
+// SQLite ne sait pas modifier une cle primaire : il faut recreer la table.
+func (s *Store) migrerCleCorrespondances() error {
+	var ddl string
+	err := s.db.QueryRow(`SELECT sql FROM sqlite_master WHERE type='table' AND name='drh_correspondance'`).Scan(&ddl)
+	if err != nil || strings.Contains(ddl, "PRIMARY KEY (libelle_norm, district)") {
+		return nil // table absente (elle sera creee au bon format) ou deja migree
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, q := range []string{
+		`ALTER TABLE drh_correspondance RENAME TO drh_correspondance_ancienne`,
+		`CREATE TABLE drh_correspondance (
+			libelle_norm TEXT NOT NULL, libelle_drh TEXT NOT NULL, org_unit_uid TEXT DEFAULT '',
+			statut TEXT NOT NULL, district TEXT DEFAULT '', PRIMARY KEY (libelle_norm, district))`,
+		`INSERT OR REPLACE INTO drh_correspondance SELECT libelle_norm, libelle_drh, org_unit_uid, statut, district FROM drh_correspondance_ancienne`,
+		`DROP TABLE drh_correspondance_ancienne`,
+	} {
+		if _, err := tx.Exec(q); err != nil {
+			return err
+		}
+	}
+	log.Println("[DRH] cle des correspondances migree vers (libelle, district)")
 	return tx.Commit()
 }

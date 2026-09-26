@@ -359,12 +359,15 @@ CREATE TABLE IF NOT EXISTS drh_import (
 );
 
 -- Correspondances libellé DRH → structure ISS : donnée éditable, pas du code.
+-- La cle porte le district : un meme libelle peut designer une structure
+-- differente selon la zone (« HRK » = HR Kankan a Kankan, HR Kindia a Kindia).
 CREATE TABLE IF NOT EXISTS drh_correspondance (
-    libelle_norm    TEXT PRIMARY KEY,
+    libelle_norm    TEXT NOT NULL,
     libelle_drh     TEXT NOT NULL,
     org_unit_uid    TEXT DEFAULT '',
     statut          TEXT NOT NULL,      -- ok | bureau_district | non_rattache | a_trancher
-    district        TEXT DEFAULT ''
+    district        TEXT DEFAULT '',
+    PRIMARY KEY (libelle_norm, district)
 );
 
 CREATE TABLE IF NOT EXISTS drh_effectif (
