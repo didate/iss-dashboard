@@ -50,7 +50,7 @@ func ParseCorrespondancesCSV(r io.Reader) ([]Correspondance, []LineError) {
 
 	var out []Correspondance
 	var errs []LineError
-	seen := map[string]bool{}
+	seen := map[string]int{} // libellé normalisé → index dans out
 	for {
 		rec, err := cr.Read()
 		if err == io.EOF {
@@ -86,18 +86,22 @@ func ParseCorrespondancesCSV(r io.Reader) ([]Correspondance, []LineError) {
 			errs = append(errs, LineError{Line: line, Message: `statut "ok" sans uid_dhis2`})
 			continue
 		}
-		key := Norm(libelle)
-		if seen[key] {
-			continue // le doublon de casse est normal dans le fichier de travail
-		}
-		seen[key] = true
-		out = append(out, Correspondance{
-			LibelleNorm: key,
+		// Deux lignes pour le même libellé : la **dernière** gagne. La table
+		// s'édite en ajoutant à la fin — une correction écrite après coup doit
+		// l'emporter sur la règle qu'elle corrige, pas être ignorée en silence.
+		c := Correspondance{
+			LibelleNorm: Norm(libelle),
 			LibelleDRH:  libelle,
 			OrgUnitUID:  uid,
 			Statut:      statut,
 			District:    get("district"),
-		})
+		}
+		if i, deja := seen[c.LibelleNorm]; deja {
+			out[i] = c
+			continue
+		}
+		seen[c.LibelleNorm] = len(out)
+		out = append(out, c)
 	}
 	return out, errs
 }

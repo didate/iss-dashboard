@@ -147,7 +147,9 @@ func typeHint(label string) string {
 //
 // Ajouter un service : une ligne ici, et un cas dans TestResolveServiceDuDistrict.
 var servicesDuDistrict = []*regexp.Regexp{
-	regexp.MustCompile(`^ct ?epi\b`), // centre de traitement des épidémies
+	// Centre de traitement des épidémies. Cinq orthographes dans le seul
+	// millésime 2026 : CT-EPi, CTEPI, CT-Epi, CTPI, CETPI.
+	regexp.MustCompile(`^(ct|cet|cte) ?e?pi\b`),
 }
 
 // typesHospitaliers, du plus spécifique au plus général : le service revient à

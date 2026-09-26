@@ -211,6 +211,8 @@ func TestResolveServiceDuDistrict(t *testing.T) {
 	for _, c := range []struct{ libelle, prefecture, want string }{
 		{"CT-EPi", "Siguiri", "hp-siguiri"},
 		{"CTEPI", "SIGUIRI", "hp-siguiri"},
+		{"CTPI", "Siguiri", "hp-siguiri"},
+		{"CETPI", "Pita", "hp-pita"},
 		{"CT-Epi", "Pita", "hp-pita"},
 	} {
 		got := r.Resolve(AgentRow{Prefecture: c.prefecture, StructureAffectation: c.libelle})
@@ -386,6 +388,21 @@ func find(t *testing.T, rows []EffectifRow, dim, key, cat string) EffectifRow {
 	}
 	t.Fatalf("cellule %s/%s/%q absente", dim, key, cat)
 	return EffectifRow{}
+}
+
+// Une règle écrite après coup corrige la précédente : la table s'édite en
+// ajoutant à la fin, et une correction ne doit pas être ignorée en silence.
+func TestParseCorrespondancesCSVDerniereGagne(t *testing.T) {
+	in := "libelle_drh;structure_iss;uid_dhis2;district;type;statut\n" +
+		"CSA Kountia;PS Kountia;uid-ps;;;OK\n" +
+		"CSA Kountia;CSA Kountya;uid-csa;;;OK\n"
+	corr, errs := ParseCorrespondancesCSV(strings.NewReader(in))
+	if len(errs) != 0 || len(corr) != 1 {
+		t.Fatalf("une seule règle attendue : %+v (err %+v)", corr, errs)
+	}
+	if corr[0].OrgUnitUID != "uid-csa" {
+		t.Fatalf("la dernière ligne doit gagner, cible retenue : %s", corr[0].OrgUnitUID)
+	}
 }
 
 // Une ligne commentée permet de proposer deux cibles pour un même libellé et
