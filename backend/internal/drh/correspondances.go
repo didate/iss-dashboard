@@ -28,6 +28,10 @@ var statutAliases = map[string]string{
 func ParseCorrespondancesCSV(r io.Reader) ([]Correspondance, []LineError) {
 	cr := csv.NewReader(r)
 	cr.Comma = ';'
+	// Les lignes « # » sont des commentaires : la table s'édite à la main, et
+	// pouvoir désactiver une règle sans la perdre — ou proposer deux cibles
+	// pour un même libellé en n'en gardant qu'une — évite de raisonner de tête.
+	cr.Comment = '#'
 	cr.FieldsPerRecord = -1
 	cr.TrimLeadingSpace = true
 	cr.LazyQuotes = true

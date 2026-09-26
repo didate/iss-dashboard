@@ -131,8 +131,23 @@ par l'hôpital du district.
 nom ISS. Le rattachement se fait dans cet ordre, à l'import :
 
 1. **Table de correspondance** `data/DRH - correspondances structures.csv` — les cas validés à
-   la main (`libelle_drh;structure_iss;uid_dhis2;district;type;statut`). Elle est éditable
-   depuis l'écran d'administration et fait autorité.
+   la main. Elle est éditable depuis l'écran d'administration (*Remplacer les correspondances*)
+   et fait autorité.
+
+   ```
+   libelle_drh;structure_iss;uid_dhis2;district;type;statut
+   CSR DAMAKANIA;CSR Damankanya;laCYbXGU2pv;DPS Kindia;CS;OK
+   # cette ligne est ignorée : un # en tête désactive une règle sans la perdre
+   ```
+
+   | Colonne | Rôle |
+   |---|---|
+   | `libelle_drh` | le libellé tel que la DRH l'écrit. Casse et accents sont normalisés, une seule ligne suffit pour `CS LEYSARE` et `CS Leysaré` |
+   | `structure_iss` | le nom de la structure, pour la lecture humaine — l'appariement se fait sur l'UID |
+   | `uid_dhis2` | **ce qui compte** : l'identifiant de l'unité d'organisation, recensée ou non |
+   | `district` | **où la règle s'applique**. Renseigné, elle est limitée à ce district (« HOPITAL » désigne HP Fria à Fria et rien ailleurs) ; vide, elle vaut partout |
+   | `type` | informatif |
+   | `statut` | `OK`, `bureau de district`, `non rattache`, `a trancher` |
 2. **Nom normalisé identique** à une structure ISS du même district.
 3. **Type + nom propre** : le type est déduit du libellé (`HR`, `HP`, `CMC`, `CSA`, `CS`, `PS`)
    et sert de discriminant entre structures homonymes du district.

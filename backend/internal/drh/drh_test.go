@@ -388,6 +388,22 @@ func find(t *testing.T, rows []EffectifRow, dim, key, cat string) EffectifRow {
 	return EffectifRow{}
 }
 
+// Une ligne commentée permet de proposer deux cibles pour un même libellé et
+// de n'en activer qu'une, sans perdre l'autre.
+func TestParseCorrespondancesCSVCommentaires(t *testing.T) {
+	in := "libelle_drh;structure_iss;uid_dhis2;district;type;statut\n" +
+		"# ---- à trancher ----\n" +
+		"Boffa Centre;HP Boffa;uid-hp;DPS Boffa;HP;OK\n" +
+		"# Boffa Centre;CSU Boffa;uid-csu;DPS Boffa;CS;OK\n"
+	corr, errs := ParseCorrespondancesCSV(strings.NewReader(in))
+	if len(errs) != 0 {
+		t.Fatalf("les commentaires ne doivent pas produire d'erreur : %+v", errs)
+	}
+	if len(corr) != 1 || corr[0].OrgUnitUID != "uid-hp" {
+		t.Fatalf("une seule règle active attendue : %+v", corr)
+	}
+}
+
 func TestParseCorrespondancesCSV(t *testing.T) {
 	in := "libelle_drh;structure_iss;uid_dhis2;district;type;statut\n" +
 		"HASIGUI;Hopital Amitie Sino-Guinéen;qoNflHBihaD;DCS Ratoma;HN;OK\n" +
