@@ -615,11 +615,15 @@ est lue dans le CSV mais n'est agregee dans aucune dimension. L'ajouter demande 
   `AUTRE` plutot que d'etre perdu.
 - **Nouvelle categorie** : l'ajouter a `drh.Categories` avec sa famille et, si un equivalent existe, le
   `profil_code` ISS correspondant — c'est ce qui rend la comparaison DRH ↔ ISS possible.
-- **Nouveau service heberge par l'hopital du district** : une ligne dans `servicesDuDistrict`
+- **Nouvelle structure designee relativement au district** : une ligne dans `servicesDuDistrict`
   (`resolve.go`) et un cas dans `TestResolveServiceDuDistrict`. Ces libelles ne peuvent pas passer par la table
   de correspondance : le meme libelle existe dans plusieurs districts et doit se resoudre differemment dans
-  chacun. Le rattachement vise l'hopital prefectoral, a defaut regional, a defaut national — et s'abstient
-  quand le district en compte deux du meme type.
+  chacun. Deux formes :
+  - `cible` vide → **l'hopital du district** (prefectoral, a defaut regional, a defaut national), pour un
+    service qu'il heberge : `CT-EPi`, `CTPI`, `CETPI`. S'abstient quand le district compte deux hopitaux du
+    meme type.
+  - `cible` renseignee → la structure du district **dont le nom correspond au motif** : `LTO` → le
+    « Centre LTO de <district> », present dans quatorze districts. S'abstient s'il y en a zero ou plusieurs.
 - **Nouveau sigle d'administration centrale** : `centralePrefixe` dans `resolve.go`. Le sigle doit rester
   majoritairement en majuscules (`estSigle`) : sans ce garde-fou le motif des programmes nationaux happait
   « Pneumologie » et rangeait un service hospitalier parmi les programmes.

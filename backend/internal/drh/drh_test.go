@@ -226,6 +226,20 @@ func TestResolveServiceDuDistrict(t *testing.T) {
 	if got.Kind == AffStructure {
 		t.Errorf("district à deux hôpitaux : rattaché quand même à %s", got.Key)
 	}
+
+	// « LTO » désigne une structure à part entière, pas l'hôpital.
+	lto := NewResolver([]Structure{
+		{UID: "hp-labe", Name: "HP Labé", District: "DPS Labé", TypeCode: "HP"},
+		{UID: "lto-labe", Name: "Centre LTO de Labe", District: "DPS Labé", TypeCode: "PS"},
+	}, nil)
+	if got := lto.Resolve(AgentRow{Prefecture: "Labé", StructureAffectation: "LTO"}); got.Key != "lto-labe" || got.Source != SrcService {
+		t.Errorf("LTO à Labé = %s/%s, attendu lto-labe/%s", got.Key, got.Source, SrcService)
+	}
+	// Sans Centre LTO dans le district, on ne se rabat pas sur l'hôpital.
+	sansLTO := NewResolver([]Structure{{UID: "hp", Name: "HP Boffa", District: "DPS Boffa", TypeCode: "HP"}}, nil)
+	if got := sansLTO.Resolve(AgentRow{Prefecture: "Boffa", StructureAffectation: "LTO"}); got.Kind == AffStructure {
+		t.Errorf("rattachement par défaut à %s alors qu'il n'y a pas de Centre LTO", got.Key)
+	}
 }
 
 // Un même libellé peut désigner une structure différente selon le district :

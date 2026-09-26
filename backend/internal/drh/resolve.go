@@ -146,10 +146,27 @@ func typeHint(label string) string {
 // dans chacun. Les motifs s'appliquent au libellé normalisé.
 //
 // Ajouter un service : une ligne ici, et un cas dans TestResolveServiceDuDistrict.
-var servicesDuDistrict = []*regexp.Regexp{
-	// Centre de traitement des épidémies. Cinq orthographes dans le seul
-	// millésime 2026 : CT-EPi, CTEPI, CT-Epi, CTPI, CETPI.
-	regexp.MustCompile(`^(ct|cet|cte) ?e?pi\b`),
+var servicesDuDistrict = []serviceDuDistrict{
+	{
+		// Centre de traitement des épidémies, hébergé par l'hôpital. Cinq
+		// orthographes dans le seul millésime 2026 : CT-EPi, CTEPI, CT-Epi,
+		// CTPI, CETPI.
+		libelle: regexp.MustCompile(`^(ct|cet|cte) ?e?pi\b`),
+	},
+	{
+		// Centre lèpre-tuberculose-ulcère, qui est lui une structure à part
+		// entière : « Centre LTO de <district> », présent dans quatorze
+		// districts.
+		libelle: regexp.MustCompile(`\blto\b`),
+		cible:   regexp.MustCompile(`^centre lto\b`),
+	},
+}
+
+// serviceDuDistrict rattache un libellé à une structure du district de l'agent,
+// designee par son nom et non par un appariement approximatif.
+type serviceDuDistrict struct {
+	libelle *regexp.Regexp // motif du libellé écrit par la DRH
+	cible   *regexp.Regexp // motif du nom de la structure ; nil = l'hôpital du district
 }
 
 // typesHospitaliers, du plus spécifique au plus général : le service revient à
@@ -452,17 +469,34 @@ func (r *Resolver) resolveLabel(label string, a AgentRow) (Affectation, bool) {
 // se départagent pas : l'agent part à l'arbitrage plutôt qu'au hasard.
 func (r *Resolver) hopitalDuDistrict(label string, a AgentRow) (Structure, bool) {
 	k := Norm(label)
-	var estService bool
-	for _, re := range servicesDuDistrict {
-		if re.MatchString(k) {
-			estService = true
+	var regle *serviceDuDistrict
+	for i := range servicesDuDistrict {
+		if servicesDuDistrict[i].libelle.MatchString(k) {
+			regle = &servicesDuDistrict[i]
 			break
 		}
 	}
-	if !estService {
+	if regle == nil {
 		return Structure{}, false
 	}
 	pool := r.byDistrict[normDistrict(r.districtDe(a.Prefecture))]
+
+	// Structure designee par son nom : « LTO » → le Centre LTO du district.
+	if regle.cible != nil {
+		var hits []Structure
+		for _, s := range pool {
+			if regle.cible.MatchString(Norm(s.Name)) {
+				hits = append(hits, s)
+			}
+		}
+		if len(hits) == 1 {
+			return hits[0], true
+		}
+		return Structure{}, false
+	}
+
+	// Sinon l'hôpital du district : préfectoral, à défaut régional, à défaut
+	// national. Deux hôpitaux du même type ne se départagent pas.
 	for _, typeCode := range typesHospitaliers {
 		var hits []Structure
 		for _, s := range pool {
