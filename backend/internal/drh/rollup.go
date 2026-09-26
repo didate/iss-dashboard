@@ -191,14 +191,17 @@ type ISSRH struct {
 
 // ComparaisonRow confronts the two sources for one place and one category.
 type ComparaisonRow struct {
-	Dimension string   `json:"dimension"` // global | district
-	Key       string   `json:"key"`
-	Label     string   `json:"label"`
-	Categorie string   `json:"categorie"`
-	NDrh      int      `json:"n_drh"`
-	NIss      *float64 `json:"n_iss,omitempty"`
-	Ecart     *float64 `json:"ecart,omitempty"` // ISS − DRH
-	Ratio     *float64 `json:"ratio,omitempty"` // ISS / DRH
+	Dimension string `json:"dimension"` // global | district
+	Key       string `json:"key"`
+	Label     string `json:"label"`
+	Categorie string `json:"categorie"`
+	// NDrh ne compte que les agents affectés en structure de soins : ISS
+	// n'interroge que les structures, et mettre en face de ses déclarations des
+	// agents de bureau comparerait deux périmètres différents.
+	NDrh  int      `json:"n_drh"`
+	NIss  *float64 `json:"n_iss,omitempty"`
+	Ecart *float64 `json:"ecart,omitempty"` // ISS − DRH
+	Ratio *float64 `json:"ratio,omitempty"` // ISS / DRH
 
 	// Aligne indique que les deux nomenclatures se recouvrent pour cette
 	// catégorie : au national, le fichier DRH n'en compte pas plus que les structures
@@ -211,17 +214,20 @@ type ComparaisonRow struct {
 	PartEtat *float64 `json:"part_etat,omitempty"`
 }
 
-// Compare confronts the state payroll with what the facilities declare in ISS.
+// Compare confronts the DRH/CNPS file with what the facilities declare in ISS.
 //
-// The two sources do not measure the same thing: ISS counts everyone present,
-// the DRH only those it pays. A ratio above 1 is therefore normal and measures
-// the share of staff outside the civil service; a ratio below 1 — the state
-// paying more agents than the facilities declare — is an anomaly worth looking
-// at, either a reporting gap or agents posted but absent.
+// Les deux sources ne comptent pas la même population : ISS compte tout le
+// personnel présent déclaré par la structure, le fichier DRH les seuls agents
+// de la fonction publique. Un ratio supérieur à 1 est donc normal et mesure la
+// part de personnel hors fonction publique ; un ratio inférieur à 1 est une
+// anomalie — défaut de déclaration, ou agents affectés mais absents.
 //
-// Only the categories that have an ISS counterpart are compared, and the
-// "all categories" row sums those same categories on both sides, so the two
-// numbers always cover the same scope.
+// Le périmètre, lui, doit être le même des deux côtés. ISS n'interroge que les
+// structures de soins : on ne retient donc du fichier DRH que les agents qui y
+// sont affectés, à l'exclusion des bureaux de district, des inspections
+// régionales et de l'administration centrale, qu'aucune structure n'a jamais
+// déclarés. Seules les catégories ayant un équivalent ISS sont comparées, et la
+// ligne « toutes catégories » somme les mêmes des deux côtés.
 func Compare(eff []EffectifRow, iss []ISSRH) []ComparaisonRow {
 	issByProfil := map[string]map[string]float64{} // district → profil → effectif
 	for _, r := range iss {
@@ -240,10 +246,12 @@ func Compare(eff []EffectifRow, iss []ISSRH) []ComparaisonRow {
 	}
 
 	// Périmètre comparable : une catégorie n'est retenue que si, au national,
-	// le fichier DRH n'en compte pas plus que les structures n'en déclarent. Le contraire
-	// signale des intitulés qui ne se recouvrent pas — « Médecin Spécialiste en
-	// Santé Publique » est courant côté DRH, presque jamais coché dans ISS — et
-	// gonflerait le total sans rien mesurer.
+	// le fichier DRH n'en compte pas plus que les structures n'en déclarent.
+	// Au-delà de 100 % le rapport n'est plus une part et gonflerait le total
+	// sans rien mesurer. Deux causes s'y mêlent : ces métiers sont surtout
+	// affectés en bureau, qu'ISS n'interroge pas, et certains intitulés ne
+	// recouvrent pas la même chose des deux côtés — « Médecin Spécialiste en
+	// Santé Publique » est courant côté DRH, presque jamais coché dans ISS.
 	//
 	// La décision est prise une fois, au national, et s'applique telle quelle à
 	// chaque zone : le périmètre reste identique partout, donc les zones se
@@ -256,7 +264,7 @@ func Compare(eff []EffectifRow, iss []ISSRH) []ComparaisonRow {
 		}
 		if profil, ok := issProfil[r.Categorie]; ok {
 			n := issByProfil["all"][profil]
-			aligne[r.Categorie] = n > 0 && float64(r.NAgents) <= n
+			aligne[r.Categorie] = n > 0 && float64(r.NStructure) <= n
 		}
 	}
 
@@ -291,12 +299,12 @@ func Compare(eff []EffectifRow, iss []ISSRH) []ComparaisonRow {
 			issKey = r.Key
 		}
 		n, hasIss := issByProfil[issKey][profil]
-		add(r.Dimension, r.Key, r.Label, r.Categorie, r.NAgents, n, hasIss)
+		add(r.Dimension, r.Key, r.Label, r.Categorie, r.NStructure, n, hasIss)
 		if hasIss && aligne[r.Categorie] {
 			// La ligne « toutes catégories » n'agrège que ce qu'ISS a renseigné,
 			// sinon le total DRH couvrirait des métiers absents de l'autre côté
 			// et l'écart mesurerait ce trou plutôt que la réalité.
-			add(r.Dimension, r.Key, r.Label, CategorieToutes, r.NAgents, n, true)
+			add(r.Dimension, r.Key, r.Label, CategorieToutes, r.NStructure, n, true)
 		}
 	}
 

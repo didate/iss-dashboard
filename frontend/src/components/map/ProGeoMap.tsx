@@ -102,9 +102,9 @@ const METRICS: Metric[] = [
   {
     key: 'drh_part_etat_pct', label: 'Effectifs déclarés présents au fichier DRH', unit: '%',
     help: [
-      "Part du personnel soignant déclaré par les structures qui figure au fichier DRH/CNPS : agents du fichier DRH ÷ effectifs déclarés dans ISS × 100.",
-      "Périmètre : les seules professions dont les deux nomenclatures se recouvrent, c'est-à-dire celles où le fichier DRH n'en compte pas plus, au national, que les structures n'en déclarent. Six professions en sont exclues (médecin santé publique, pharmacien, aide-soignant, administratif, autre spécialiste, informaticien) : leurs intitulés ne désignent pas la même chose des deux côtés, et leur rapport n'est pas une part.",
-      "Lecture : rouge = peu du personnel déclaré figure au fichier DRH ; le district fonctionne largement avec des agents hors fichier (contractuels, communautaires, partenaires). National 2026 : 27,5 %, de 12,6 % à 51 % selon le district.",
+      "Part du personnel soignant déclaré par les structures qui figure au fichier DRH/CNPS : agents du fichier DRH ÷ effectifs déclarés dans ISS × 100. Des deux côtés, les seules structures de soins : les agents du bureau de district, de l'inspection régionale et de l'administration centrale sortent du calcul, le recensement ISS ne les ayant jamais interrogés.",
+      "Professions retenues : celles où le fichier DRH n'en compte pas plus, au national, que les structures n'en déclarent. Deux en sont exclues — aide-soignant et médecin de santé publique — dont les intitulés ne recouvrent pas la même chose des deux côtés.",
+      "Lecture : rouge = peu du personnel déclaré figure au fichier DRH ; le district fonctionne largement avec des agents hors fichier (contractuels, communautaires, partenaires). National 2026 : 21,5 %.",
       'Échelle à quantiles sur les districts affichés. Métrique disponible au district seulement : la comparaison suppose des effectifs déclarés en face.',
     ],
   },

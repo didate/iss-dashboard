@@ -152,9 +152,41 @@ func TestRollupIdempotent(t *testing.T) {
 	}
 }
 
+// fixtureCompare pose des agents des deux côtés de la frontière de périmètre :
+// en structure de soins, que le recensement ISS interroge, et en bureau de
+// district ou en administration centrale, qu'il n'interroge pas.
+func fixtureCompare(t *testing.T) []EffectifRow {
+	t.Helper()
+	unites := []UniteOrg{
+		{UID: "hr", Name: "HR Kankan", Level: 5, District: "DPS Kankan", Region: "IRS Kankan", TypeCode: "HR",
+			SousPrefecture: "Kankan Centre", SousPrefectureUID: "sp-kankan"},
+		{UID: "dis-kankan", Name: "DPS Kankan", Level: 3, District: "DPS Kankan", Region: "IRS Kankan"},
+		{UID: "gn", Name: "Guinée", Level: 1},
+	}
+	rows := []AgentRow{
+		{UIDDhis2: "hr", Prefecture: "Kankan", Profession: "Médécin Généraliste", AnneeNaissance: 1968},
+		{UIDDhis2: "hr", Prefecture: "Kankan", Profession: "Médécin Généraliste", AnneeNaissance: 1975},
+		{UIDDhis2: "hr", Prefecture: "Kankan", Profession: "Sage-Femme", AnneeNaissance: 1990},
+		{UIDDhis2: "hr", Prefecture: "Kankan", Profession: "ATS", AnneeNaissance: 1985},
+		{UIDDhis2: "hr", Prefecture: "Kankan", Profession: "ATS", AnneeNaissance: 1986},
+		// Hors périmètre : jamais déclarés par une structure.
+		{UIDDhis2: "dis-kankan", Prefecture: "Kankan", Profession: "ATS", AnneeNaissance: 1980},
+		{UIDDhis2: "dis-kankan", Prefecture: "Kankan", Profession: "ATS", AnneeNaissance: 1981},
+		{UIDDhis2: "dis-kankan", Prefecture: "Kankan", Profession: "ATS", AnneeNaissance: 1982},
+		{UIDDhis2: "gn", Prefecture: "Kaloum", Profession: "Médécin Généraliste", AnneeNaissance: 1970},
+	}
+	affs, _ := ResolveAll(rows, NewResolver(unites))
+	eff, pyr := Aggregate(rows, affs, Options{RefYear: 2026, RetirementAge: 60})
+	byUID := map[string]UniteOrg{}
+	for _, u := range unites {
+		byUID[u.UID] = u
+	}
+	rEff, _ := Rollup(eff, pyr, RollupContext{Unites: byUID})
+	return rEff
+}
+
 func TestCompare(t *testing.T) {
-	eff, pyr, ctx := fixtureFine(t)
-	rEff, _ := Rollup(eff, pyr, ctx)
+	rEff := fixtureCompare(t)
 	iss := []ISSRH{
 		{District: "all", ProfilCode: "ISS_RH_MED_GEN", Effectif: 6},
 		{District: "all", ProfilCode: "ISS_RH_SAGEF", Effectif: 4},
@@ -183,9 +215,9 @@ func TestCompare(t *testing.T) {
 		t.Errorf("part du déclaré au fichier DRH pour les médecins : %v, attendu 2/6 = 33,3 %%", med.PartEtat)
 	}
 
-	// Le fichier DRH compte plus d'ATS que les structures n'en déclarent : les deux
-	// nomenclatures ne se recouvrent pas, le rapport n'est donc pas une part et
-	// la catégorie sort du périmètre comparable.
+	// Même à périmètre égal, le fichier DRH compte plus d'ATS en structure que les
+	// structures n'en déclarent : le rapport n'est pas une part, la catégorie sort
+	// du calcul.
 	ats := get(DimGlobal, KeyNational, "ATS")
 	if ats.NDrh != 2 || *ats.Ratio >= 1 {
 		t.Errorf("ATS : %+v — le ratio doit signaler l'incohérence", ats)
@@ -217,5 +249,40 @@ func TestCompare(t *testing.T) {
 		if r.Dimension != DimGlobal && r.Dimension != DimDistrict {
 			t.Fatalf("dimension non comparable : %s", r.Dimension)
 		}
+	}
+}
+
+// ISS n'interroge que les structures de soins. Les agents des bureaux de
+// district et de l'administration centrale n'y ont jamais été déclarés : les
+// mettre en face de ses effectifs comparerait deux périmètres différents et
+// gonflerait mécaniquement la part du fichier DRH.
+func TestCompareIgnoreLesBureaux(t *testing.T) {
+	rEff := fixtureCompare(t)
+	rows := Compare(rEff, []ISSRH{
+		{District: "all", ProfilCode: "ISS_RH_ATS", Effectif: 10},
+		{District: "all", ProfilCode: "ISS_RH_MED_GEN", Effectif: 10},
+	})
+	get := func(cat string) ComparaisonRow {
+		t.Helper()
+		for _, r := range rows {
+			if r.Dimension == DimGlobal && r.Key == KeyNational && r.Categorie == cat {
+				return r
+			}
+		}
+		t.Fatalf("comparaison de %q absente", cat)
+		return ComparaisonRow{}
+	}
+	// 5 ATS au fichier, dont 3 au bureau de district : 2 seulement sont comparables.
+	if ats := get("ATS"); ats.NDrh != 2 {
+		t.Errorf("ATS comparés : %d, attendu 2 — les 3 du bureau de district doivent sortir", ats.NDrh)
+	}
+	// 3 médecins, dont 1 à l'administration centrale.
+	if med := get("MED_GEN"); med.NDrh != 2 {
+		t.Errorf("médecins comparés : %d, attendu 2 — celui de l'administration centrale doit sortir", med.NDrh)
+	}
+	// Le rollup, lui, continue de tous les compter : seul le périmètre de
+	// comparaison est restreint, pas l'effectif du millésime.
+	if tot := findRollup(t, rEff, DimGlobal, KeyNational, CategorieToutes); tot.NAgents != 9 {
+		t.Errorf("effectif national : %d, attendu 9 — la restriction ne vaut que pour la comparaison", tot.NAgents)
 	}
 }
