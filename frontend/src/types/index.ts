@@ -657,6 +657,7 @@ export interface DrhImport {
   n_agents: number;
   n_structure: number;
   n_bureau: number;
+  n_bureau_regional: number;
   n_centrale: number;
   n_non_rattache: number;
   n_structures: number;
@@ -675,6 +676,7 @@ export interface DrhReport {
   n_agents: number;
   n_structure: number;
   n_bureau: number;
+  n_bureau_regional: number;
   n_centrale: number;
   n_non_rattache: number;
   n_structures_couvertes: number;
@@ -717,6 +719,7 @@ export interface DrhEffectif {
   n_age_connu: number;
   n_structure: number;
   n_bureau: number;
+  n_bureau_regional: number;
   n_centrale: number;
   n_non_rattache: number;
   population?: number | null;

@@ -4,11 +4,41 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
+)
+
+// Correspondance is one manually validated DRH label → DHIS2 unit mapping.
+//
+// Elle ne sert plus à l'import : le fichier porte l'identifiant. Elle sert à
+// **produire** ce fichier — c'est la mémoire des arbitrages, réutilisable d'un
+// millésime à l'autre pour pré-remplir la colonne uid_dhis2.
+type Correspondance struct {
+	LibelleNorm string `json:"libelle_norm"`
+	LibelleDRH  string `json:"libelle_drh"`
+	OrgUnitUID  string `json:"org_unit_uid"`
+	Statut      string `json:"statut"` // ok | bureau_district | non_rattache | a_trancher
+	District    string `json:"district"`
+}
+
+// Statuts d'une correspondance.
+const (
+	CorrOK          = "ok"
+	CorrBureau      = "bureau_district"
+	CorrNonRattache = "non_rattache"
+	CorrATrancher   = "a_trancher"
 )
 
 // corrColumns is the CSV header of the correspondence table, as produced by the
 // export and by the manual work done with the MSHP.
+// normDistrict retire le sigle d'un nom de district : la clé d'une règle est
+// (libellé, district), et « DPS Boké » comme « Boké » doivent donner la même.
+func normDistrict(d string) string {
+	return Norm(districtPrefixe.ReplaceAllString(strings.TrimSpace(d), ""))
+}
+
+var districtPrefixe = regexp.MustCompile(`(?i)^(dps|dcs|drs|irs|dsp)\s+`)
+
 var corrColumns = []string{"libelle_drh", "structure_iss", "uid_dhis2", "district", "type", "statut"}
 
 // statutAliases accepte les libellés saisis à la main dans le fichier de

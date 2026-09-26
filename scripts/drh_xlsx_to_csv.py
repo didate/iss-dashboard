@@ -21,7 +21,10 @@ import csv, gzip, re, sys, unicodedata
 from datetime import datetime
 
 COLONNES = ['region','prefecture','sous_prefecture','structure_affectation','structure_rattachement',
-            'profession','profession_oms','hierarchie','statut','sexe','annee_naissance','zone','niveau_structure']
+            'profession','profession_oms','hierarchie','statut','sexe','annee_naissance','zone','niveau_structure',
+            # Identite DHIS2 de l'unite ou travaille l'agent : c'est elle, et elle
+            # seule, qui determine le rattachement a l'import.
+            'uid_dhis2','nom_dhis2','rattachement']
 
 # Matricules de remplissage : ce ne sont pas des identifiants, plusieurs agents
 # distincts les partagent. Ne jamais dedoublonner dessus.
@@ -34,7 +37,13 @@ SOURCE = {
     'profession':'profession', 'profession cnps oms':'profession_oms', 'hierarchie':'hierarchie',
     'statut employe':'statut', 'sexe':'sexe', 'date de naissance':'annee_naissance',
     'zone':'zone', 'niveau structure':'niveau_structure',
+    'uid dhis2':'uid_dhis2', 'nom dhis2':'nom_dhis2', 'rattachement':'rattachement',
 }
+
+def naissance_brute(raw, idx):
+    """Date de naissance complete, plus fine que l'annee conservee en sortie."""
+    return str(raw[idx['annee_naissance']]) if 'annee_naissance' in idx else ''
+
 
 def norm(s):
     s = unicodedata.normalize('NFD', str(s or '').lower())
@@ -70,6 +79,7 @@ def main(src, dst, rapport_doublons=None):
     header, idx = None, {}
     rows_out, ignored = [], 0
     mat_col = None
+    sans_matricule = False
     vus = {}                 # signature complete -> matricule, pour les doublons stricts
     doublons_stricts = 0
     ambigus = {}             # matricule -> nb de lignes, memes matricules mais lignes differentes
@@ -96,6 +106,8 @@ def main(src, dst, rapport_doublons=None):
         rec['zone'] = clean_zone(get('zone'))
         rec['niveau_structure'] = clean_niveau(get('niveau_structure'))
         rec['annee_naissance'] = annee(raw[idx['annee_naissance']] if 'annee_naissance' in idx else '')
+        if not rec['uid_dhis2'] and rec['rattachement'] not in ('', 'À PRÉCISER'):
+            rec['rattachement'] = ''      # un rattachement sans identifiant ne veut rien dire
         if not rec['region'] and not rec['prefecture'] and not rec['profession']:
             ignored += 1
             continue
@@ -107,7 +119,13 @@ def main(src, dst, rapport_doublons=None):
         # etre une erreur de saisie comme deux personnes distinctes : on le
         # conserve et on le signale, l'arbitrage appartient a la DRH.
         mat = str(raw[mat_col]).strip() if mat_col is not None and raw[mat_col] not in (None, '') else ''
-        if norm(mat) not in MATRICULES_FACTICES:
+        # Le dedoublonnage exige le matricule. Sans lui, deux agents partageant
+        # structure, profession et sexe se confondent des que leur date de
+        # naissance manque — 550 fusions abusives sur le millesime 2026, contre
+        # 125 vrais doublons. Mieux vaut ne rien supprimer et le dire.
+        if mat_col is None:
+            sans_matricule = True
+        elif norm(mat) not in MATRICULES_FACTICES:
             # La signature porte sur les donnees, pas sur la ligne brute : le
             # fichier contient une colonne de numerotation qui rendrait chaque
             # ligne unique. Date de naissance complete incluse, plus fine que
@@ -134,6 +152,10 @@ def main(src, dst, rapport_doublons=None):
     print(f"{len(rows_out)} agents écrits dans {dst}")
     print(f"  colonnes trouvées : {len(idx)}/{len(COLONNES)}")
     print(f"  sans année de naissance : {sans_annee}   sans libellé de structure : {sans_struct}   lignes vides ignorées : {ignored}")
+    sans_uid = sum(1 for r in rows_out if not r['uid_dhis2'])
+    print(f"  sans identifiant DHIS2 : {sans_uid} ({100*sans_uid/max(1,len(rows_out)):.1f} %) — ces agents ne seront pas rattachés")
+    if sans_matricule:
+        print("  ATTENTION : pas de colonne matricule, aucun dédoublonnage possible")
     print(f"  doublons stricts supprimés : {doublons_stricts}   matricules en double avec des différences (conservés) : {n_ambigus}")
     if rapport_doublons and n_ambigus:
         with open(rapport_doublons, 'w', newline='', encoding='utf-8-sig') as f:

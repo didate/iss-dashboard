@@ -44,41 +44,38 @@ func RunDrhImport(st *store.Store, r io.Reader, p DrhImportParams) (*DrhImportRe
 		return nil, fmt.Errorf("aucun agent dans le fichier")
 	}
 
-	structures, err := st.ListDrhStructures()
+	unites, err := st.ListDrhUnites()
 	if err != nil {
-		return nil, fmt.Errorf("lecture des structures ISS : %w", err)
+		return nil, fmt.Errorf("lecture des unités d'organisation : %w", err)
 	}
-	if len(structures) == 0 {
-		return nil, fmt.Errorf("aucune structure ISS en base : lancez d'abord une synchronisation DHIS2")
-	}
-	corr, err := st.ListDrhCorrespondances()
-	if err != nil {
-		return nil, fmt.Errorf("lecture des correspondances : %w", err)
+	if len(unites) == 0 {
+		return nil, fmt.Errorf("aucune unité d'organisation en base : lancez d'abord une synchronisation DHIS2")
 	}
 
-	affs, report := drh.ResolveAll(rows, drh.NewResolver(structures, corr))
+	affs, report := drh.ResolveAll(rows, drh.NewResolver(unites))
 	opt := drh.Options{RefYear: p.Annee, RetirementAge: p.AgeRetraite}.Normalize(time.Now().Year())
 	if p.Label == "" {
 		p.Label = fmt.Sprintf("DRH/CNPS %d", opt.RefYear)
 	}
 	eff, pyr := drh.Aggregate(rows, affs, opt)
 
-	log.Printf("[DRH] %s : %d agents, %d rattachés à %d structures, %d bureaux, %d centrale, %d non rattachés (%.1f %% catégorisés)",
-		p.Label, report.NAgents, report.NStructure, report.NStructuresVues, report.NBureau, report.NCentrale,
-		report.NNonRattache, report.PctCategorise())
+	log.Printf("[DRH] %s : %d agents, %d rattachés à %d structures, %d bureaux de district, %d bureaux régionaux, %d centrale, %d non rattachés (%.1f %% catégorisés)",
+		p.Label, report.NAgents, report.NStructure, report.NStructuresVues, report.NBureau, report.NBureauRegional,
+		report.NCentrale, report.NNonRattache, report.PctCategorise())
 
 	im, err := st.SaveDrhImport(store.DrhImport{
-		Label:        p.Label,
-		Annee:        opt.RefYear,
-		AgeRetraite:  opt.RetirementAge,
-		NAgents:      report.NAgents,
-		NStructure:   report.NStructure,
-		NBureau:      report.NBureau,
-		NCentrale:    report.NCentrale,
-		NNonRattache: report.NNonRattache,
-		NStructures:  report.NStructuresVues,
-		ImportedBy:   p.ImportedBy,
-		SourceFile:   p.SourceFile,
+		Label:           p.Label,
+		Annee:           opt.RefYear,
+		AgeRetraite:     opt.RetirementAge,
+		NAgents:         report.NAgents,
+		NStructure:      report.NStructure,
+		NBureau:         report.NBureau,
+		NBureauRegional: report.NBureauRegional,
+		NCentrale:       report.NCentrale,
+		NNonRattache:    report.NNonRattache,
+		NStructures:     report.NStructuresVues,
+		ImportedBy:      p.ImportedBy,
+		SourceFile:      p.SourceFile,
 	}, eff, pyr, report.Inconnus)
 	if err != nil {
 		return nil, fmt.Errorf("enregistrement : %w", err)
@@ -113,13 +110,13 @@ func RecomputeDrh(st *store.Store) error {
 	if err != nil {
 		return fmt.Errorf("lecture des cellules : %w", err)
 	}
-	structures, err := st.ListDrhStructures()
+	unites, err := st.ListDrhUnites()
 	if err != nil {
 		return err
 	}
-	byUID := make(map[string]drh.Structure, len(structures))
-	for _, s := range structures {
-		byUID[s.UID] = s
+	byUID := make(map[string]drh.UniteOrg, len(unites))
+	for _, u := range unites {
+		byUID[u.UID] = u
 	}
 	pop, err := st.GetDrhPopulationIndex()
 	if err != nil {
@@ -130,7 +127,7 @@ func RecomputeDrh(st *store.Store) error {
 		return err
 	}
 
-	eff, pyr := drh.Rollup(fineEff, finePyr, drh.RollupContext{Structures: byUID, Population: pop})
+	eff, pyr := drh.Rollup(fineEff, finePyr, drh.RollupContext{Unites: byUID, Population: pop})
 	comp := drh.Compare(eff, iss)
 	if err := st.ReplaceDrhRollups(im.ID, eff, pyr, comp); err != nil {
 		return err

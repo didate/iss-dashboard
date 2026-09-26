@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"iss-dashboard-backend/internal/drh"
@@ -11,29 +12,30 @@ import (
 
 // DrhImport is one millésime of the civil-service personnel file.
 type DrhImport struct {
-	ID           int64  `json:"id"`
-	Label        string `json:"label"`
-	Annee        int    `json:"annee"`
-	Status       string `json:"status"` // active | archived
-	AgeRetraite  int    `json:"age_retraite"`
-	NAgents      int    `json:"n_agents"`
-	NStructure   int    `json:"n_structure"`
-	NBureau      int    `json:"n_bureau"`
-	NCentrale    int    `json:"n_centrale"`
-	NNonRattache int    `json:"n_non_rattache"`
-	NStructures  int    `json:"n_structures"`
-	ImportedAt   string `json:"imported_at"`
-	ImportedBy   string `json:"imported_by"`
-	SourceFile   string `json:"source_file"`
+	ID              int64  `json:"id"`
+	Label           string `json:"label"`
+	Annee           int    `json:"annee"`
+	Status          string `json:"status"` // active | archived
+	AgeRetraite     int    `json:"age_retraite"`
+	NAgents         int    `json:"n_agents"`
+	NStructure      int    `json:"n_structure"`
+	NBureau         int    `json:"n_bureau"`
+	NBureauRegional int    `json:"n_bureau_regional"`
+	NCentrale       int    `json:"n_centrale"`
+	NNonRattache    int    `json:"n_non_rattache"`
+	NStructures     int    `json:"n_structures"`
+	ImportedAt      string `json:"imported_at"`
+	ImportedBy      string `json:"imported_by"`
+	SourceFile      string `json:"source_file"`
 }
 
-const drhImportCols = `id, label, annee, status, age_retraite, n_agents, n_structure, n_bureau,
+const drhImportCols = `id, label, annee, status, age_retraite, n_agents, n_structure, n_bureau, n_bureau_regional,
 	n_centrale, n_non_rattache, n_structures, imported_at, COALESCE(imported_by,''), COALESCE(source_file,'')`
 
 func scanDrhImport(sc interface{ Scan(...any) error }) (*DrhImport, error) {
 	var im DrhImport
 	err := sc.Scan(&im.ID, &im.Label, &im.Annee, &im.Status, &im.AgeRetraite, &im.NAgents, &im.NStructure,
-		&im.NBureau, &im.NCentrale, &im.NNonRattache, &im.NStructures, &im.ImportedAt, &im.ImportedBy, &im.SourceFile)
+		&im.NBureau, &im.NBureauRegional, &im.NCentrale, &im.NNonRattache, &im.NStructures, &im.ImportedAt, &im.ImportedBy, &im.SourceFile)
 	if err != nil {
 		return nil, err
 	}
@@ -66,42 +68,41 @@ func (s *Store) GetActiveDrhImport() (*DrhImport, error) {
 	return im, err
 }
 
-// ListDrhStructures returns the ISS facilities the resolver matches against.
-func (s *Store) ListDrhStructures() ([]drh.Structure, error) {
+// ListDrhUnites returns every DHIS2 organisation unit the file can point at:
+// the root, the regions, the districts and the facilities. Le niveau décide de
+// la nature du rattachement, donc rien n'est filtré ici.
+func (s *Store) ListDrhUnites() ([]drh.UniteOrg, error) {
 	rows, err := s.db.Query(`SELECT org_unit_uid, org_unit_name, COALESCE(district,''), COALESCE(region,''), COALESCE(type_code,''),
 		COALESCE(sous_prefecture,''), COALESCE(sous_prefecture_uid,'') FROM structure_latest`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []drh.Structure
+	var out []drh.UniteOrg
 	recensees := map[string]bool{}
 	for rows.Next() {
-		var st drh.Structure
-		if err := rows.Scan(&st.UID, &st.Name, &st.District, &st.Region, &st.TypeCode, &st.SousPrefecture, &st.SousPrefectureUID); err != nil {
+		var u drh.UniteOrg
+		if err := rows.Scan(&u.UID, &u.Name, &u.District, &u.Region, &u.TypeCode, &u.SousPrefecture, &u.SousPrefectureUID); err != nil {
 			return nil, err
 		}
-		recensees[st.UID] = true
-		out = append(out, st)
+		u.Level = 5
+		recensees[u.UID] = true
+		out = append(out, u)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-
-	// Les unités d'organisation que le recensement n'a jamais couvertes. Elles
-	// n'entrent pas dans l'appariement automatique, mais une correspondance
-	// validée à la main peut les viser : l'État y affecte du personnel, et
-	// perdre ces agents faute d'un recensement serait absurde.
-	nonRecensees, err := s.orgUnitsHorsRecensement(recensees)
+	autres, err := s.orgUnitsHorsRecensement(recensees)
 	if err != nil {
 		return nil, err
 	}
-	return append(out, nonRecensees...), nil
+	return append(out, autres...), nil
 }
 
-// orgUnitsHorsRecensement remonte la hiérarchie pour donner à chaque unité son
-// district et sa région, que seul le recensement pose d'ordinaire.
-func (s *Store) orgUnitsHorsRecensement(recensees map[string]bool) ([]drh.Structure, error) {
+// orgUnitsHorsRecensement returns every other unit — the root, the regions, the
+// districts, and the facilities the census never covered — with its level and
+// the district and region it hangs under.
+func (s *Store) orgUnitsHorsRecensement(recensees map[string]bool) ([]drh.UniteOrg, error) {
 	rows, err := s.db.Query(`SELECT uid, name, level, COALESCE(parent_uid,'') FROM org_unit`)
 	if err != nil {
 		return nil, err
@@ -124,12 +125,18 @@ func (s *Store) orgUnitsHorsRecensement(recensees map[string]bool) ([]drh.Struct
 		return nil, err
 	}
 
-	var out []drh.Structure
+	var out []drh.UniteOrg
 	for uid, o := range all {
-		if o.level < 5 || recensees[uid] {
+		if recensees[uid] {
 			continue
 		}
-		st := drh.Structure{UID: uid, Name: o.name, HorsRecensement: true}
+		u := drh.UniteOrg{UID: uid, Name: o.name, Level: o.level, HorsRecensement: o.level >= 5}
+		switch o.level {
+		case 2:
+			u.Region = o.name
+		case 3:
+			u.District = o.name
+		}
 		for cur := o.parent; cur != ""; {
 			p, ok := all[cur]
 			if !ok {
@@ -137,15 +144,15 @@ func (s *Store) orgUnitsHorsRecensement(recensees map[string]bool) ([]drh.Struct
 			}
 			switch p.level {
 			case 4:
-				st.SousPrefecture, st.SousPrefectureUID = p.name, cur
+				u.SousPrefecture, u.SousPrefectureUID = p.name, cur
 			case 3:
-				st.District = p.name
+				u.District = p.name
 			case 2:
-				st.Region = p.name
+				u.Region = p.name
 			}
 			cur = p.parent
 		}
-		out = append(out, st)
+		out = append(out, u)
 	}
 	return out, nil
 }
@@ -228,10 +235,10 @@ func (s *Store) SaveDrhImport(im DrhImport, eff []drh.EffectifRow, pyr []drh.Pyr
 		im.ImportedAt = time.Now().UTC().Format(time.RFC3339)
 	}
 	res, err := tx.Exec(`INSERT INTO drh_import (label, annee, status, age_retraite, n_agents, n_structure, n_bureau,
-		n_centrale, n_non_rattache, n_structures, imported_at, imported_by, source_file)
-		VALUES (?,?,'active',?,?,?,?,?,?,?,?,?,?)`,
+		n_bureau_regional, n_centrale, n_non_rattache, n_structures, imported_at, imported_by, source_file)
+		VALUES (?,?,'active',?,?,?,?,?,?,?,?,?,?,?)`,
 		im.Label, im.Annee, im.AgeRetraite, im.NAgents, im.NStructure, im.NBureau,
-		im.NCentrale, im.NNonRattache, im.NStructures, im.ImportedAt, im.ImportedBy, im.SourceFile)
+		im.NBureauRegional, im.NCentrale, im.NNonRattache, im.NStructures, im.ImportedAt, im.ImportedBy, im.SourceFile)
 	if err != nil {
 		return nil, err
 	}
@@ -347,6 +354,16 @@ func (s *Store) GetDrhNonReconnus(importID int64) ([]drh.Inconnu, error) {
 	return out, rows.Err()
 }
 
+// dimensionsFines rend la liste des dimensions du grain fin sous forme de liste
+// SQL, dérivée de drh.FineDimensions : aucune chance qu'elle diverge du code.
+func dimensionsFines() string {
+	quoted := make([]string, len(drh.FineDimensions))
+	for i, d := range drh.FineDimensions {
+		quoted[i] = "'" + d + "'"
+	}
+	return strings.Join(quoted, ",")
+}
+
 // --- Rollups : entrées du recalcul ------------------------------------------
 
 // GetDrhFineCells returns the cells written at import time — the only ones the
@@ -354,7 +371,7 @@ func (s *Store) GetDrhNonReconnus(importID int64) ([]drh.Inconnu, error) {
 func (s *Store) GetDrhFineCells(importID int64) ([]drh.EffectifRow, []drh.PyramideRow, error) {
 	rows, err := s.db.Query(`SELECT dimension, key, label, district, region, categorie,
 		n_agents, n_femmes, n_depart_5ans, n_depart_10ans, n_age_connu
-		FROM drh_effectif WHERE import_id = ? AND dimension IN ('structure','bureau','centrale','non_rattache')`, importID)
+		FROM drh_effectif WHERE import_id = ? AND dimension IN (`+dimensionsFines()+`)`, importID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -373,7 +390,7 @@ func (s *Store) GetDrhFineCells(importID int64) ([]drh.EffectifRow, []drh.Pyrami
 	}
 
 	prows, err := s.db.Query(`SELECT dimension, key, categorie, tranche, n_agents, n_femmes
-		FROM drh_pyramide WHERE import_id = ? AND dimension IN ('structure','bureau','centrale','non_rattache')`, importID)
+		FROM drh_pyramide WHERE import_id = ? AND dimension IN (`+dimensionsFines()+`)`, importID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -450,11 +467,11 @@ func (s *Store) ReplaceDrhRollups(importID int64, eff []drh.EffectifRow, pyr []d
 	defer tx.Rollback()
 
 	if _, err := tx.Exec(`DELETE FROM drh_effectif WHERE import_id = ?
-		AND dimension NOT IN ('structure','bureau','centrale','non_rattache')`, importID); err != nil {
+		AND dimension NOT IN (`+dimensionsFines()+`)`, importID); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(`DELETE FROM drh_pyramide WHERE import_id = ?
-		AND dimension NOT IN ('structure','bureau','centrale','non_rattache')`, importID); err != nil {
+		AND dimension NOT IN (`+dimensionsFines()+`)`, importID); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(`DELETE FROM drh_comparaison WHERE import_id = ?`, importID); err != nil {
@@ -462,15 +479,15 @@ func (s *Store) ReplaceDrhRollups(importID int64, eff []drh.EffectifRow, pyr []d
 	}
 
 	effStmt, err := tx.Prepare(`INSERT OR REPLACE INTO drh_effectif (import_id, dimension, key, label, district, region,
-		categorie, n_agents, n_femmes, n_structure, n_bureau, n_centrale, n_non_rattache,
-		n_depart_5ans, n_depart_10ans, n_age_connu, population, ratio_10k) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+		categorie, n_agents, n_femmes, n_structure, n_bureau, n_bureau_regional, n_centrale, n_non_rattache,
+		n_depart_5ans, n_depart_10ans, n_age_connu, population, ratio_10k) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
 	if err != nil {
 		return err
 	}
 	defer effStmt.Close()
 	for _, r := range eff {
 		if _, err := effStmt.Exec(importID, r.Dimension, r.Key, r.Label, r.District, r.Region, r.Categorie,
-			r.NAgents, r.NFemmes, r.NStructure, r.NBureau, r.NCentrale, r.NNonRattache,
+			r.NAgents, r.NFemmes, r.NStructure, r.NBureau, r.NBureauRegional, r.NCentrale, r.NNonRattache,
 			r.NDepart5Ans, r.NDepart10Ans, r.NAgeConnu, r.Population, r.Ratio10k); err != nil {
 			return fmt.Errorf("rollup %s/%s: %w", r.Dimension, r.Key, err)
 		}
@@ -513,7 +530,7 @@ type DrhEffectifParams struct {
 }
 
 const drhEffectifCols = `dimension, key, label, district, region, categorie, n_agents, n_femmes,
-	n_structure, n_bureau, n_centrale, n_non_rattache, n_depart_5ans, n_depart_10ans, n_age_connu, population, ratio_10k`
+	n_structure, n_bureau, n_bureau_regional, n_centrale, n_non_rattache, n_depart_5ans, n_depart_10ans, n_age_connu, population, ratio_10k`
 
 func scanDrhEffectifs(rows *sql.Rows) ([]drh.EffectifRow, error) {
 	defer rows.Close()
@@ -521,7 +538,7 @@ func scanDrhEffectifs(rows *sql.Rows) ([]drh.EffectifRow, error) {
 	for rows.Next() {
 		var r drh.EffectifRow
 		if err := rows.Scan(&r.Dimension, &r.Key, &r.Label, &r.District, &r.Region, &r.Categorie,
-			&r.NAgents, &r.NFemmes, &r.NStructure, &r.NBureau, &r.NCentrale, &r.NNonRattache,
+			&r.NAgents, &r.NFemmes, &r.NStructure, &r.NBureau, &r.NBureauRegional, &r.NCentrale, &r.NNonRattache,
 			&r.NDepart5Ans, &r.NDepart10Ans, &r.NAgeConnu, &r.Population, &r.Ratio10k); err != nil {
 			return nil, err
 		}

@@ -191,14 +191,14 @@ func (h *DrhHandlers) ExportCorrespondances(c *gin.Context) {
 		internalError(c, err)
 		return
 	}
-	structures, err := h.Store.ListDrhStructures()
+	unites, err := h.Store.ListDrhUnites()
 	if err != nil {
 		internalError(c, err)
 		return
 	}
 	nameOf := map[string]string{}
-	for _, s := range structures {
-		nameOf[s.UID] = s.Name
+	for _, u := range unites {
+		nameOf[u.UID] = u.Name
 	}
 	c.Header("Content-Type", "text/csv; charset=utf-8")
 	c.Header("Content-Disposition", `attachment; filename="drh_correspondances.csv"`)

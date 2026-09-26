@@ -63,18 +63,29 @@ func TestSaveDrhImport(t *testing.T) {
 		VALUES ('e1','u1','HR Kankan','DPS Kankan','Kankan','2026-01-01','HR')`); err != nil {
 		t.Fatal(err)
 	}
-	structures, err := st.ListDrhStructures()
-	if err != nil || len(structures) != 1 || structures[0].TypeCode != "HR" {
-		t.Fatalf("structures = %+v (err %v)", structures, err)
+	if _, err := st.db.Exec(`INSERT INTO org_unit (uid, name, level, parent_uid) VALUES ('d1','DPS Kankan',3,'r1'),('r1','IRS Kankan',2,'')`); err != nil {
+		t.Fatal(err)
+	}
+	unites, err := st.ListDrhUnites()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var hr *drh.UniteOrg
+	for i := range unites {
+		if unites[i].UID == "u1" {
+			hr = &unites[i]
+		}
+	}
+	if hr == nil || hr.TypeCode != "HR" || hr.Level != 5 {
+		t.Fatalf("structure recensée absente ou mal typée : %+v", hr)
 	}
 
 	rows := []drh.AgentRow{
-		{Region: "Kankan", Prefecture: "Kankan", StructureAffectation: "HR Kankan", Profession: "Médécin Généraliste", Sexe: "H", AnneeNaissance: 1968},
-		{Region: "Kankan", Prefecture: "Kankan", StructureAffectation: "HR Kankan", Profession: "Sage-Femme", Sexe: "F", AnneeNaissance: 1992},
-		{Region: "Kankan", Prefecture: "Kankan", StructureAffectation: "DPS Kankan", Profession: "ATS", Sexe: "F", AnneeNaissance: 1980},
+		{Prefecture: "Kankan", UIDDhis2: "u1", Profession: "Médécin Généraliste", Sexe: "H", AnneeNaissance: 1968},
+		{Prefecture: "Kankan", UIDDhis2: "u1", Profession: "Sage-Femme", Sexe: "F", AnneeNaissance: 1992},
+		{Prefecture: "Kankan", UIDDhis2: "d1", Profession: "ATS", Sexe: "F", AnneeNaissance: 1980},
 	}
-	corr, _ := st.ListDrhCorrespondances()
-	affs, rep := drh.ResolveAll(rows, drh.NewResolver(structures, corr))
+	affs, rep := drh.ResolveAll(rows, drh.NewResolver(unites))
 	opt := drh.Options{RefYear: 2026, RetirementAge: 60}
 	eff, pyr := drh.Aggregate(rows, affs, opt)
 
@@ -148,16 +159,13 @@ func TestDrhRollupsRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	structures, _ := st.ListDrhStructures()
-	if len(structures) != 2 || structures[0].SousPrefectureUID == "" {
-		t.Fatalf("structures incomplètes : %+v", structures)
-	}
+	unites, _ := st.ListDrhUnites()
 	rows := []drh.AgentRow{
-		{Region: "KANKAN", Prefecture: "Kankan", StructureAffectation: "HR Kankan", Profession: "Médécin Généraliste", Sexe: "H", AnneeNaissance: 1968},
-		{Region: "KANKAN", Prefecture: "Kankan", StructureAffectation: "HR Kankan", Profession: "Sage-Femme", Sexe: "F"},
-		{Region: "KANKAN", Prefecture: "Kankan", StructureAffectation: "DPS Kankan", Profession: "ATS", Sexe: "F", AnneeNaissance: 1980},
+		{Prefecture: "Kankan", UIDDhis2: "u1", Profession: "Médécin Généraliste", Sexe: "H", AnneeNaissance: 1968},
+		{Prefecture: "Kankan", UIDDhis2: "u1", Profession: "Sage-Femme", Sexe: "F"},
+		{Prefecture: "Kankan", UIDDhis2: "d1", Profession: "ATS", Sexe: "F", AnneeNaissance: 1980},
 	}
-	affs, rep := drh.ResolveAll(rows, drh.NewResolver(structures, nil))
+	affs, rep := drh.ResolveAll(rows, drh.NewResolver(unites))
 	eff, pyr := drh.Aggregate(rows, affs, drh.Options{RefYear: 2026, RetirementAge: 60})
 	im, err := st.SaveDrhImport(DrhImport{Label: "test", Annee: 2026, AgeRetraite: 60, NAgents: rep.NAgents}, eff, pyr, nil)
 	if err != nil {
@@ -180,11 +188,11 @@ func TestDrhRollupsRoundTrip(t *testing.T) {
 		t.Fatalf("effectifs ISS : %+v (err %v)", iss, err)
 	}
 
-	byUID := map[string]drh.Structure{}
-	for _, s := range structures {
-		byUID[s.UID] = s
+	byUID := map[string]drh.UniteOrg{}
+	for _, u := range unites {
+		byUID[u.UID] = u
 	}
-	rEff, rPyr := drh.Rollup(fineEff, finePyr, drh.RollupContext{Structures: byUID, Population: pop})
+	rEff, rPyr := drh.Rollup(fineEff, finePyr, drh.RollupContext{Unites: byUID, Population: pop})
 	comp := drh.Compare(rEff, iss)
 	if err := st.ReplaceDrhRollups(im.ID, rEff, rPyr, comp); err != nil {
 		t.Fatal(err)

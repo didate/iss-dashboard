@@ -7,29 +7,31 @@ import "testing"
 // administration centrale.
 func fixtureFine(t *testing.T) ([]EffectifRow, []PyramideRow, RollupContext) {
 	t.Helper()
-	structures := []Structure{
-		{UID: "hr", Name: "HR Kankan", District: "DPS Kankan", Region: "IRS Kankan", TypeCode: "HR",
+	unites := []UniteOrg{
+		{UID: "hr", Name: "HR Kankan", Level: 5, District: "DPS Kankan", Region: "IRS Kankan", TypeCode: "HR",
 			SousPrefecture: "Kankan Centre", SousPrefectureUID: "sp-kankan"},
-		{UID: "cs", Name: "CSR Kolaboui", District: "DPS Boké", Region: "IRS Boké", TypeCode: "CS",
+		{UID: "cs", Name: "CSR Kolaboui", Level: 5, District: "DPS Boké", Region: "IRS Boké", TypeCode: "CS",
 			SousPrefecture: "Kolaboui", SousPrefectureUID: "sp-kolaboui"},
+		{UID: "dis-kankan", Name: "DPS Kankan", Level: 3, District: "DPS Kankan", Region: "IRS Kankan"},
+		{UID: "reg-boke", Name: "IRS Boké", Level: 2, Region: "IRS Boké"},
+		{UID: "gn", Name: "Guinée", Level: 1},
 	}
-	corr := []Correspondance{{LibelleNorm: Norm("Libellé opaque"), LibelleDRH: "Libellé opaque", Statut: CorrNonRattache}}
 	rows := []AgentRow{
-		{Region: "KANKAN", Prefecture: "Kankan", StructureAffectation: "HR Kankan", Profession: "Médécin Généraliste", Sexe: "H", AnneeNaissance: 1968},
-		{Region: "KANKAN", Prefecture: "Kankan", StructureAffectation: "HR Kankan", Profession: "Sage-Femme", Sexe: "F", AnneeNaissance: 1990},
-		{Region: "KANKAN", Prefecture: "Kankan", StructureAffectation: "DPS Kankan", Profession: "ATS", Sexe: "F", AnneeNaissance: 1985},
-		{Region: "BOKE", Prefecture: "Boké", StructureAffectation: "CSR Kolaboui", Profession: "Médécin Généraliste", Sexe: "F", AnneeNaissance: 1975},
-		{Region: "BOKE", Prefecture: "Boké", StructureAffectation: "Libellé opaque", Profession: "ATS", Sexe: "H", AnneeNaissance: 1995},
-		{Region: "CONAKRY", Prefecture: "Kaloum", StructureAffectation: "DRH Ministère", Profession: "Administrateur Civil", Sexe: "H", AnneeNaissance: 1970},
+		{UIDDhis2: "hr", Prefecture: "Kankan", Profession: "Médécin Généraliste", Sexe: "H", AnneeNaissance: 1968},
+		{UIDDhis2: "hr", Prefecture: "Kankan", Profession: "Sage-Femme", Sexe: "F", AnneeNaissance: 1990},
+		{UIDDhis2: "dis-kankan", Prefecture: "Kankan", Profession: "ATS", Sexe: "F", AnneeNaissance: 1985},
+		{UIDDhis2: "cs", Prefecture: "Boké", Profession: "Médécin Généraliste", Sexe: "F", AnneeNaissance: 1975},
+		{UIDDhis2: "reg-boke", Prefecture: "Boké", Profession: "ATS", Sexe: "H", AnneeNaissance: 1995},
+		{UIDDhis2: "gn", Prefecture: "Kaloum", Profession: "Administrateur Civil", Sexe: "H", AnneeNaissance: 1970},
 	}
-	affs, _ := ResolveAll(rows, NewResolver(structures, corr))
+	affs, _ := ResolveAll(rows, NewResolver(unites))
 	eff, pyr := Aggregate(rows, affs, Options{RefYear: 2026, RetirementAge: 60})
 
-	byUID := map[string]Structure{}
-	for _, s := range structures {
-		byUID[s.UID] = s
+	byUID := map[string]UniteOrg{}
+	for _, u := range unites {
+		byUID[u.UID] = u
 	}
-	ctx := RollupContext{Structures: byUID, Population: map[string]float64{
+	ctx := RollupContext{Unites: byUID, Population: map[string]float64{
 		PopKey(DimGlobal, KeyNational):    13_000_000,
 		PopKey(DimDistrict, "DPS Kankan"): 500_000,
 	}}
@@ -55,7 +57,7 @@ func TestRollup(t *testing.T) {
 	if national.NAgents != 6 {
 		t.Fatalf("national = %d agents, attendu 6", national.NAgents)
 	}
-	if national.NStructure != 3 || national.NBureau != 1 || national.NCentrale != 1 || national.NNonRattache != 1 {
+	if national.NStructure != 3 || national.NBureau != 1 || national.NBureauRegional != 1 || national.NCentrale != 1 {
 		t.Errorf("répartition nationale : %+v", national)
 	}
 
@@ -64,9 +66,14 @@ func TestRollup(t *testing.T) {
 	if kankan.NAgents != 3 || kankan.NStructure != 2 || kankan.NBureau != 1 {
 		t.Errorf("DPS Kankan : %+v", kankan)
 	}
+	// Le cadre régional ne tombe dans aucun district : Boké n'a que sa structure.
 	boke := findRollup(t, rEff, DimDistrict, "DPS Boké", CategorieToutes)
-	if boke.NAgents != 2 || boke.NNonRattache != 1 {
+	if boke.NAgents != 1 || boke.NBureauRegional != 0 {
 		t.Errorf("DPS Boké : %+v", boke)
+	}
+	regBoke := findRollup(t, rEff, DimRegion, "IRS Boké", CategorieToutes)
+	if regBoke.NAgents != 2 || regBoke.NBureauRegional != 1 {
+		t.Errorf("région Boké : %+v — le cadre régional doit y compter", regBoke)
 	}
 
 	// L'administration centrale ne tombe dans aucun district ni région.
@@ -75,8 +82,8 @@ func TestRollup(t *testing.T) {
 			t.Errorf("l'administration centrale ne doit compter qu'au national : %+v", r)
 		}
 	}
-	if national.NAgents != kankan.NAgents+boke.NAgents+1 {
-		t.Errorf("le national doit être la somme des districts plus la centrale")
+	if national.NAgents != kankan.NAgents+boke.NAgents+2 {
+		t.Errorf("le national = districts + centrale + bureau régional")
 	}
 
 	// Sous-préfecture et type : seulement les agents rattachés à une structure.

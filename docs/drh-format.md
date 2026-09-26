@@ -43,6 +43,9 @@ un fichier de travail, à **ne pas committer** (`data/` est dans `.gitignore`).
 | 11 | `annee_naissance` | non | Année sur 4 chiffres (ex. `1981`). Vide si inconnue → l'agent est exclu de la pyramide des âges et des départs à la retraite, mais compté dans les effectifs |
 | 12 | `zone` | non | `urbaine` ou `rurale` |
 | 13 | `niveau_structure` | non | `primaire`, `secondaire` ou `tertiaire` |
+| 14 | `uid_dhis2` | **déterminante** | identifiant de l'unité d'organisation où travaille l'agent. Vide = agent non rattaché |
+| 15 | `nom_dhis2` | non | nom de cette unité, pour la relecture humaine |
+| 16 | `rattachement` | non | `structure de soins`, `bureau de district`, `bureau régional`, `administration centrale`, `À PRÉCISER` — informatif : c'est le **niveau** de l'unité qui décide |
 
 Toute colonne supplémentaire est **rejetée** à l'import : c'est la garantie qu'aucune donnée
 identifiante n'entre par inadvertance. Une colonne obligatoire vide fait rejeter la ligne, qui

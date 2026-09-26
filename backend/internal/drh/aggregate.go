@@ -25,10 +25,11 @@ type EffectifRow struct {
 	NAgeConnu int `json:"n_age_connu"`
 
 	// Répartition par lieu d'affectation, renseignée sur les rollups.
-	NStructure   int `json:"n_structure"`
-	NBureau      int `json:"n_bureau"`
-	NCentrale    int `json:"n_centrale"`
-	NNonRattache int `json:"n_non_rattache"`
+	NStructure      int `json:"n_structure"`
+	NBureau         int `json:"n_bureau"`
+	NBureauRegional int `json:"n_bureau_regional"`
+	NCentrale       int `json:"n_centrale"`
+	NNonRattache    int `json:"n_non_rattache"`
 
 	Population *float64 `json:"population,omitempty"`
 	Ratio10k   *float64 `json:"ratio_10k,omitempty"`

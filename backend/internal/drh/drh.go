@@ -38,6 +38,10 @@ type AgentRow struct {
 	AnneeNaissance        int    // 0 = inconnue
 	Zone                  string // urbaine | rurale | ""
 	NiveauStructure       string // primaire | secondaire | tertiaire | ""
+	// UIDDhis2 est l'identifiant de l'unité d'organisation où travaille
+	// l'agent. C'est la seule chose qui détermine son rattachement.
+	UIDDhis2 string
+	NomDhis2 string // informatif, pour la relecture humaine du fichier
 }
 
 // Libelle returns the label used to attach the agent to a facility: the posting

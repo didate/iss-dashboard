@@ -486,55 +486,48 @@ Pour un essai a blanc, sans toucher la base de production :
 cd backend && go run ./cmd/drhcheck /chemin/copie-de-iss.db drh-2026.csv correspondances.csv 2026
 ```
 
-### Rattachement aux structures ISS
+### Rattachement : l'identifiant, et rien d'autre
 
-`structure_affectation` est un texte libre : il ne correspond pas toujours au nom ISS. `internal/drh/resolve.go`
-essaie, dans cet ordre :
+Le fichier porte la colonne **`uid_dhis2`** : l'identifiant de l'unite d'organisation ou travaille l'agent.
+L'import le lit, et **le niveau de cette unite dans la hierarchie DHIS2** decide de la nature du rattachement :
 
-| Ordre | Regle | Source |
+| Niveau | Unite | Rattachement |
 |---|---|---|
-| 1 | Table de correspondance validee a la main. La colonne `district` dit **ou** la regle s'applique : renseignee, la regle est limitee a ce district (« HOPITAL » a Fria n'est pas celui de Boffa) ; vide, elle vaut partout | `table` |
-| 2 | Nom normalise identique a une structure ISS | `exact` |
-| 3 | Sigle de bureau de district (`DPS`, `DCS`, `IRS`, `DSP`) ou d'administration centrale / institut / programme national | `prefixe` |
-| 3 bis | Service heberge par l'hopital du district (`CT-EPi`…) → l'hopital prefectoral de la prefecture de l'agent | `service_district` |
-| 4 | Type devine + nom propre, dans le district de l'agent | `approx` |
-| 5 | Seul etablissement de ce type dans le district | `deduit` |
-| — | Rien de tout cela → **non rattache**, visible dans le rapport | `inconnu` |
+| 1 | Guinee | administration centrale |
+| 2 | IRS, DSV Conakry | bureau regional |
+| 3 | DPS, DCS | bureau de district |
+| ≥ 5 | structure de soins | structure |
+| — | identifiant absent ou inconnu | **non rattache**, remonte dans le rapport |
 
-Le repli sur la colonne « Structure » n'est accepte que s'il aboutit a une **structure de soins**. Un libelle
-d'affectation non reconnu — souvent un vrai centre de sante — etait sinon range au bureau de district de son
-rattachement administratif : 805 agents dans ce cas sur 2026, dont 83 a Siguiri, qui gonflaient le bureau et
-disparaissaient du rapport, donc de tout arbitrage.
+Il n'y a **aucun appariement** : ni nom approche, ni sigle, ni deduction, ni motif sur le libelle. Un libelle
+que personne n'a tranche reste non rattache, ce qui est le comportement voulu — l'arbitrage se fait a la
+source, dans le fichier, pas dans le code.
 
-La prefecture de l'agent est resolue en district ISS en passant au besoin par la **sous-prefecture** : la DRH
-ecrit parfois une commune (« Kassa ») la ou ISS a un district (DCS Kaloum). Les noms de sous-prefecture presents
-dans deux districts sont ecartes.
+Cela s'est paye : les regles precedentes rattachaient 7 264 agents sur 10 037 par devinette. Elles ont ete
+retirees (400 lignes de `resolve.go`), et c'est desormais le fichier enrichi qui porte l'information. Sur le
+millesime 2026 : **99,6 % des agents categorises**, 44 non rattaches.
 
-Ce qui reste ambigu n'est jamais rattache au hasard. Sur le millesime 2026, apres dedoublonnage (10 037
-agents) : **97,1 % categorises** — 6 994 en structure sur 441 structures, 1 934 en bureau de district, 816 en
-administration centrale et programmes, **293 non rattaches**.
+Un agent non rattache ne porte **aucune zone** : la prefecture et la region ecrites par la DRH ne sont pas
+celles d'ISS, et les reprendre fabriquerait des districts et des regions fantomes. Il compte au national et
+ressort dans le rapport avec son libelle, pour etre tranche.
 
-Une correspondance peut viser une unite d'organisation que le recensement n'a **jamais couverte**, et l'agent y
-est alors rattache normalement : l'unite existe dans DHIS2, elle a un district et une region, et perdre
-l'effectif faute de recensement n'aurait aucun sens. La source `non_recensee` garde la trace du constat, et la
-structure porte un badge « non recensee » dans la liste, sans lien vers une fiche puisqu'il n'y en a pas.
-**160 agents sur 2026**, dans 14 structures que l'Etat dote et qu'ISS ne connait pas.
+### Produire le fichier enrichi
 
-Ces unites n'entrent pas dans l'**appariement automatique** : y verser les 4 000 unites du registre
-multiplierait les candidats et volerait des rattachements aux vraies structures, pour des noms que personne n'a
-verifies. Seule une correspondance validee a la main peut les viser.
+La table de correspondance (`libelle DRH → uid`) ne sert plus a l'import : elle sert a **fabriquer** le
+fichier. C'est la memoire des arbitrages, reutilisable d'un millesime a l'autre pour pre-remplir `uid_dhis2`
+sans repartir de zero. Elle reste editable depuis l'ecran d'administration.
 
-La premiere cause de non-rattachement est l'**orthographe** : la DRH ecrit « CSR Damakania », « CSA KOUNTIAH »,
-« CSR ALLASSOYAH », « CS Leysare » la ou ISS a « CSR Damankanya », « CSA Kountya », « CSR Alassoya »,
-« CSU Ley saare ». L'appariement par nom
-propre ne franchit pas ces ecarts, et c'est voulu : rapprocher des noms proches au jugé rattacherait des agents
-a la mauvaise structure. C'est exactement a cela que sert la table de correspondance, ou une ligne suffit. Ces 795 sont la liste a arbitrer avec la DRH et
-le SNIS ; une partie correspond a des structures **absentes du recensement ISS**, parfois meme de la hierarchie
-DHIS2, ce que seul le croisement des deux sources revele.
+Le classeur de travail porte trois colonnes ajoutees a droite du fichier de la DRH — `nom_dhis2`, `uid_dhis2`,
+`rattachement` — et les lignes restantes y sont marquees `À PRÉCISER`. Les sources d'information, par ordre
+d'utilite constatee sur 2026 :
 
-La table de correspondance est une **donnee editable**, pas du code : elle est embarquee comme graine
-(`backend/internal/drh/seed/correspondances.csv`, chargee une seule fois sur une base neuve), puis remplacable
-par CSV depuis l'ecran d'admin.
+1. le **libelle d'affectation**, quand il correspond a un nom DHIS2 ;
+2. la colonne **Structure** : elle nomme le bureau ou l'entite centrale de rattachement (`SC`, `SCRP`, `IGS`,
+   `DPS Kankan`, `IRS Labe`) et resout a elle seule les services administratifs ;
+3. la **sous-prefecture** : une sous-prefecture rurale n'a en general qu'un seul centre de sante, et la colonne
+   nomme parfois directement la structure (`CSU/Ponkoma`) ;
+4. le **service d'affectation** : a Dalaba, c'est lui qui portait le nom de la structure quand le libelle
+   disait seulement « CS ».
 
 ### Agregats
 

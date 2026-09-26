@@ -58,6 +58,7 @@ func main() {
 	fmt.Printf("\n%s — %d correspondances, %d agents, %d ms\n", im.Label, len(corr), im.NAgents, res.DureeMs)
 	fmt.Printf("  structure de soins      %6d  %5.1f %%  (%d structures couvertes)\n", rep.NStructure, pct(rep.NStructure, rep.NAgents), rep.NStructuresVues)
 	fmt.Printf("  bureau de district      %6d  %5.1f %%\n", rep.NBureau, pct(rep.NBureau, rep.NAgents))
+	fmt.Printf("  bureau régional         %6d  %5.1f %%\n", rep.NBureauRegional, pct(rep.NBureauRegional, rep.NAgents))
 	fmt.Printf("  administration centrale %6d  %5.1f %%\n", rep.NCentrale, pct(rep.NCentrale, rep.NAgents))
 	fmt.Printf("  non rattaché            %6d  %5.1f %%\n", rep.NNonRattache, pct(rep.NNonRattache, rep.NAgents))
 	fmt.Printf("  => catégorisés : %.1f %%\n", rep.PctCategorise())
@@ -107,11 +108,9 @@ func correctionsCSV(st *store.Store, csvPath, out string) {
 	check(err)
 	agents, _ := drh.ParseCSV(f)
 	f.Close()
-	structures, err := st.ListDrhStructures()
+	unites, err := st.ListDrhUnites()
 	check(err)
-	corr, err := st.ListDrhCorrespondances()
-	check(err)
-	r := drh.NewResolver(structures, corr)
+	r := drh.NewResolver(unites)
 
 	type cas struct {
 		libelle, prefecture, cible, uid, source string
@@ -183,11 +182,9 @@ func diagnostic(st *store.Store, csvPath, pref string) {
 	check(err)
 	defer f.Close()
 	agents, _ := drh.ParseCSV(f)
-	structures, err := st.ListDrhStructures()
+	unites, err := st.ListDrhUnites()
 	check(err)
-	corr, err := st.ListDrhCorrespondances()
-	check(err)
-	r := drh.NewResolver(structures, corr)
+	r := drh.NewResolver(unites)
 
 	par := map[string]map[string]int{}
 	for _, a := range agents {

@@ -14,6 +14,9 @@ var Columns = []string{
 	"structure_affectation", "structure_rattachement",
 	"profession", "profession_oms", "hierarchie", "statut",
 	"sexe", "annee_naissance", "zone", "niveau_structure",
+	// Portées par le fichier enrichi : l'unité d'organisation où l'agent
+	// travaille, et son nom pour la relecture.
+	"uid_dhis2", "nom_dhis2", "rattachement",
 }
 
 // requiredColumns : ce sans quoi une ligne ne peut pas être placée. La
@@ -97,6 +100,8 @@ func ParseCSV(r io.Reader) ([]AgentRow, []LineError) {
 			AnneeNaissance:        parseYear(get("annee_naissance")),
 			Zone:                  strings.ToLower(get("zone")),
 			NiveauStructure:       strings.ToLower(get("niveau_structure")),
+			UIDDhis2:              get("uid_dhis2"),
+			NomDhis2:              get("nom_dhis2"),
 		})
 	}
 	return rows, errs

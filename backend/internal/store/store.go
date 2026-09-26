@@ -63,6 +63,8 @@ func (s *Store) migrate() error {
 	s.db.Exec(`ALTER TABLE usage_couverture ADD COLUMN ou_uid TEXT DEFAULT ''`)
 	s.db.Exec(`ALTER TABLE drh_effectif ADD COLUMN n_non_rattache INTEGER DEFAULT 0`)
 	s.db.Exec(`ALTER TABLE drh_effectif ADD COLUMN n_age_connu INTEGER DEFAULT 0`)
+	s.db.Exec(`ALTER TABLE drh_effectif ADD COLUMN n_bureau_regional INTEGER DEFAULT 0`)
+	s.db.Exec(`ALTER TABLE drh_import ADD COLUMN n_bureau_regional INTEGER DEFAULT 0`)
 	s.db.Exec(`ALTER TABLE drh_comparaison ADD COLUMN aligne INTEGER DEFAULT 0`)
 	s.db.Exec(`ALTER TABLE drh_comparaison ADD COLUMN part_etat REAL`)
 	s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_couverture_ou ON usage_couverture(ou_uid)`)

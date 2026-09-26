@@ -131,6 +131,7 @@ export default function Personnel() {
   const parAffectation = n ? [
     { key: 'Structures de soins', n: n.n_structure, color: '#2563eb' },
     { key: 'Bureaux de district', n: n.n_bureau, color: '#0891b2' },
+    { key: 'Bureaux régionaux', n: n.n_bureau_regional, color: '#0d9488' },
     { key: 'Administration centrale', n: n.n_centrale, color: '#7c3aed' },
     { key: 'Non rattachés', n: n.n_non_rattache, color: '#9ca3af' },
   ] : [];
@@ -299,7 +300,8 @@ export default function Personnel() {
             ))}
           </div>
           <p className="text-xs text-gray-500 pt-2 border-t border-gray-100">
-            Un district compte ses structures, son bureau et ses agents non rattachés. L'administration centrale
+            Un district compte ses structures, son bureau et ses agents non rattachés. Les cadres d'une
+            inspection régionale comptent dans leur région mais dans aucun district ; l'administration centrale
             n'est comptée qu'au national. {fmt(summary.import.n_non_rattache)} agents n'ont pas pu être rattachés
             à une structure — la liste est dans l'écran d'import.
           </p>

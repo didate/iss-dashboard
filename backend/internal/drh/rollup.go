@@ -19,13 +19,23 @@ const (
 // exactly what to replace without touching the cells written at import time.
 var RollupDimensions = []string{DimGlobal, DimRegion, DimDistrict, DimSousPrefecture, DimType}
 
-// fineDimensions are the cells written by Aggregate, never recomputed here.
-var fineDimensions = map[string]bool{AffStructure: true, AffBureau: true, AffCentrale: true, AffNonRattache: true}
+// FineDimensions lists the cells written by Aggregate, never recomputed here.
+// Le store filtre dessus : cette liste est la source unique, pour qu'ajouter un
+// genre d'affectation ne laisse pas des cellules invisibles en base.
+var FineDimensions = []string{AffStructure, AffBureau, AffBureauRegional, AffCentrale, AffNonRattache}
+
+var fineDimensions = func() map[string]bool {
+	m := make(map[string]bool, len(FineDimensions))
+	for _, d := range FineDimensions {
+		m[d] = true
+	}
+	return m
+}()
 
 // RollupContext carries what the rollups need beyond the cells themselves.
 type RollupContext struct {
-	// Structures resolves a facility UID to its sous-préfecture and type.
-	Structures map[string]Structure
+	// Unites resolves an org unit UID to its sous-préfecture and type.
+	Unites map[string]UniteOrg
 	// Population is keyed "dimension|key" (only global, region, district and
 	// sous_prefecture carry one). A missing or zero entry leaves the ratio nil.
 	Population map[string]float64
@@ -44,6 +54,9 @@ func PopKey(dimension, key string) string { return dimension + "|" + key }
 //     understate the district;
 //   - the central administration counts nationally only: it is not located in
 //     the district whose address it happens to have;
+//   - a regional office counts in its region but in no district: it carries no
+//     district, and an empty key is skipped, so the rollup excludes it of
+//     itself rather than by a special case;
 //   - sous-préfecture and type only concern agents attached to a facility, the
 //     only ones whose exact location and type are known. District offices are
 //     therefore absent from those two dimensions.
@@ -72,6 +85,8 @@ func Rollup(eff []EffectifRow, pyr []PyramideRow, ctx RollupContext) ([]Effectif
 			row.NStructure += src.NAgents
 		case AffBureau:
 			row.NBureau += src.NAgents
+		case AffBureauRegional:
+			row.NBureauRegional += src.NAgents
 		case AffCentrale:
 			row.NCentrale += src.NAgents
 		case AffNonRattache:
@@ -92,7 +107,7 @@ func Rollup(eff []EffectifRow, pyr []PyramideRow, ctx RollupContext) ([]Effectif
 		if r.Dimension != AffStructure {
 			continue
 		}
-		s, ok := ctx.Structures[r.Key]
+		s, ok := ctx.Unites[r.Key]
 		if !ok {
 			continue
 		}
@@ -124,7 +139,7 @@ func Rollup(eff []EffectifRow, pyr []PyramideRow, ctx RollupContext) ([]Effectif
 		}
 		p := struct{ region, district, typeCode string }{r.Region, r.District, ""}
 		if r.Dimension == AffStructure {
-			if s, ok := ctx.Structures[r.Key]; ok {
+			if s, ok := ctx.Unites[r.Key]; ok {
 				p.typeCode = s.TypeCode
 			}
 		}

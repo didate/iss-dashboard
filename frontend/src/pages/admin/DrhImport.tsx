@@ -4,14 +4,8 @@ import { api } from '../../api/client';
 import type { DrhImport as DrhImportRow, DrhImportResult, DrhInconnu, NormeLineError } from '../../types';
 
 const sourceLabels: Record<string, string> = {
-  table: 'table de correspondance',
-  exact: 'nom identique',
-  approx: 'type + nom propre',
-  deduit: 'seul établissement du type',
-  prefixe: 'sigle de bureau / administration',
-  service_district: "service de l'hôpital du district",
-  non_recensee: 'structure connue de DHIS2, non recensée par ISS',
-  inconnu: 'non reconnu',
+  fichier: "identifiant DHIS2 du fichier",
+  inconnu: 'sans identifiant exploitable',
 };
 
 /** Écran d'import du fichier annuel du personnel de l'État (DRH/CNPS).
@@ -153,6 +147,7 @@ export default function DrhImport() {
               {result.report.n_agents} agents ·{' '}
               {result.report.n_structure} en structure de soins ({result.report.n_structures_couvertes} structures) ·{' '}
               {result.report.n_bureau} en bureau de district ·{' '}
+              {result.report.n_bureau_regional} en bureau régional ·{' '}
               {result.report.n_centrale} en administration centrale ·{' '}
               <strong>{result.report.n_non_rattache} non rattachés</strong>
             </p>
@@ -175,7 +170,8 @@ export default function DrhImport() {
                 <th className="text-left px-4 py-2 font-medium">Millésime</th>
                 <th className="text-right px-4 py-2 font-medium">Agents</th>
                 <th className="text-right px-4 py-2 font-medium">En structure</th>
-                <th className="text-right px-4 py-2 font-medium">Bureau</th>
+                <th className="text-right px-4 py-2 font-medium">Bureau district</th>
+                <th className="text-right px-4 py-2 font-medium">Bureau régional</th>
                 <th className="text-right px-4 py-2 font-medium">Centrale</th>
                 <th className="text-right px-4 py-2 font-medium">Non rattachés</th>
                 <th className="text-left px-4 py-2 font-medium">Importé</th>
@@ -193,6 +189,7 @@ export default function DrhImport() {
                   <td className="px-4 py-2 text-right tabular-nums">{im.n_agents.toLocaleString('fr-FR')}</td>
                   <td className="px-4 py-2 text-right tabular-nums">{im.n_structure.toLocaleString('fr-FR')} <span className="text-gray-400">({pct(im.n_structure, im.n_agents)} %)</span></td>
                   <td className="px-4 py-2 text-right tabular-nums">{im.n_bureau.toLocaleString('fr-FR')}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{(im.n_bureau_regional ?? 0).toLocaleString('fr-FR')}</td>
                   <td className="px-4 py-2 text-right tabular-nums">{im.n_centrale.toLocaleString('fr-FR')}</td>
                   <td className="px-4 py-2 text-right tabular-nums">{im.n_non_rattache.toLocaleString('fr-FR')} <span className="text-gray-400">({pct(im.n_non_rattache, im.n_agents)} %)</span></td>
                   <td className="px-4 py-2 text-gray-500 text-xs">
