@@ -36,6 +36,14 @@ type Structure struct {
 	TypeCode          string
 	SousPrefecture    string
 	SousPrefectureUID string
+	// HorsRecensement marque une unité d'organisation que DHIS2 connaît sans
+	// qu'ISS l'ait jamais visitée. Elle reste une structure valide — l'État y
+	// affecte du personnel — mais n'entre pas dans l'appariement automatique.
+	//
+	// La valeur par défaut est donc « recensée » : une structure construite sans
+	// ce champ se comporte normalement, au lieu de disparaître en silence de
+	// l'appariement.
+	HorsRecensement bool
 }
 
 // Correspondance is one manually validated DRH label → ISS facility mapping.
@@ -244,7 +252,15 @@ func NewResolver(structures []Structure, corr []Correspondance) *Resolver {
 		r.corr[key] = c
 	}
 	for _, s := range structures {
+		// Toute unité connue de DHIS2 peut être la cible d'une correspondance
+		// validée à la main. Seules les structures recensées entrent en revanche
+		// dans l'appariement automatique : y verser les 4 000 unités du registre
+		// multiplierait les candidats et volerait des rattachements aux vraies
+		// structures, pour des noms que personne n'a vérifiés.
 		r.byUID[s.UID] = s
+		if s.HorsRecensement {
+			continue
+		}
 		if k := Norm(s.Name); k != "" {
 			if _, seen := r.byName[k]; !seen {
 				r.byName[k] = s
@@ -348,15 +364,15 @@ func (r *Resolver) resolveLabel(label string, a AgentRow) (Affectation, bool) {
 		switch c.Statut {
 		case CorrOK:
 			if s, ok := r.byUID[c.OrgUnitUID]; ok {
+				// Une structure absente du recensement reste une structure : on
+				// y rattache l'agent, et la source dit que le recensement ISS
+				// ne la couvre pas — ce qui est un constat à remonter, pas une
+				// raison de perdre l'effectif.
+				if s.HorsRecensement {
+					return r.structureAff(s, SrcNonRecensee), true
+				}
 				return r.structureAff(s, SrcTable), true
 			}
-			// La correspondance vise une unité d'organisation que le recensement
-			// ISS n'a jamais couverte : il n'y a rien à quoi rattacher l'agent.
-			// Le dire plutôt que d'ignorer la règle en silence — c'est une
-			// structure que l'État dote et qu'ISS ne connaît pas, et la règle
-			// se mettra à fonctionner le jour où elle sera recensée.
-			return Affectation{Kind: AffNonRattache, Key: r.districtKey(a), Label: label,
-				District: r.districtLabel(a), Region: r.regionLabel(a), Source: SrcNonRecensee}, true
 		case CorrBureau:
 			return r.bureauAff(a, SrcTable), true
 		case CorrNonRattache, CorrATrancher:

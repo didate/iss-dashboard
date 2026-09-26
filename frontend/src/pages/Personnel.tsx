@@ -170,7 +170,16 @@ export default function Personnel() {
 
   const structureColumns = [
     { key: 'name', header: 'Structure', render: (r: Record<string, unknown>) => (
-      <Link to={`/structure/${r.event_uid}`} className="text-blue-600 hover:underline">{String(r.name)}</Link>
+      r.hors_recensement ? (
+        <span className="inline-flex items-center gap-1.5">
+          {String(r.name)}
+          <span className="text-[10px] bg-amber-100 text-amber-800 border border-amber-200 rounded px-1 py-0.5" title="Unité connue de DHIS2 que le recensement ISS n'a jamais couverte : aucune fiche n'existe">
+            non recensée
+          </span>
+        </span>
+      ) : (
+        <Link to={`/structure/${r.event_uid}`} className="text-blue-600 hover:underline">{String(r.name)}</Link>
+      )
     ) },
     { key: 'type_code', header: 'Type', render: (r: Record<string, unknown>) => typologieLabel(String(r.type_code)) },
     { key: 'n_agents', header: 'Agents de l\'État', render: (r: Record<string, unknown>) => (
@@ -213,6 +222,7 @@ export default function Personnel() {
   // barre, ce qui donnerait l'impression que la page est cassée.
   const hasDensite = chartEffectifs.some((r) => r.ratio !== null);
   const sansAgent = structures.filter((s) => s.n_agents === 0).length;
+  const horsRecensement = structures.filter((s) => s.hors_recensement).length;
   const incoherences = comparaison.filter((r) => r.ratio !== null && r.ratio !== undefined && r.ratio < 1);
 
   return (
@@ -546,6 +556,11 @@ export default function Personnel() {
         <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-semibold text-gray-800 mr-2">Structures de {district}</h3>
+            {horsRecensement > 0 && (
+              <span className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">
+                {horsRecensement} structure{horsRecensement > 1 ? 's' : ''} dotée{horsRecensement > 1 ? 's' : ''} mais jamais recensée{horsRecensement > 1 ? 's' : ''}
+              </span>
+            )}
             {sansAgent > 0 && (
               <span className="text-xs text-red-700 bg-red-50 border border-red-200 rounded px-2 py-0.5">
                 {sansAgent} structure{sansAgent > 1 ? 's' : ''} sans aucun agent de l'État

@@ -294,15 +294,23 @@ func TestResolvePrefectureInconnue(t *testing.T) {
 // pourquoi — la structure existe, ISS ne l'a jamais recensée.
 func TestResolveCorrespondanceVersStructureNonRecensee(t *testing.T) {
 	r := NewResolver(
-		[]Structure{{UID: "hp", Name: "HP Boké", District: "DPS Boké", TypeCode: "HP"}},
-		[]Correspondance{{LibelleNorm: Norm("CSR KASSOPO"), LibelleDRH: "CSR KASSOPO", OrgUnitUID: "uid-jamais-recense", Statut: CorrOK}},
+		[]Structure{
+			{UID: "hp", Name: "HP Boké", District: "DPS Boké", TypeCode: "HP"},
+			{UID: "kassapo", Name: "CSR Kassapo", District: "DPS Boké", HorsRecensement: true},
+		},
+		[]Correspondance{{LibelleNorm: Norm("CSR KASSOPO"), LibelleDRH: "CSR KASSOPO", OrgUnitUID: "kassapo", Statut: CorrOK}},
 	)
 	got := r.Resolve(AgentRow{Prefecture: "Boké", StructureAffectation: "CSR KASSOPO"})
-	if got.Kind != AffNonRattache || got.Source != SrcNonRecensee {
-		t.Fatalf("= %s/%s, attendu non_rattache/%s", got.Kind, got.Source, SrcNonRecensee)
+	if got.Kind != AffStructure || got.Key != "kassapo" || got.Source != SrcNonRecensee {
+		t.Fatalf("= %s/%s/%s, attendu structure/kassapo/%s", got.Kind, got.Key, got.Source, SrcNonRecensee)
 	}
-	if got.Label != "CSR KASSOPO" {
-		t.Errorf("le libellé doit rester lisible dans le rapport : %q", got.Label)
+	if got.District != "DPS Boké" {
+		t.Errorf("le district de l'unité doit être repris : %q", got.District)
+	}
+	// Hors recensement, la structure ne doit pas servir à l'appariement
+	// automatique : personne n'a vérifié la correspondance de son nom.
+	if got := r.Resolve(AgentRow{Prefecture: "Boké", StructureAffectation: "CSR Kassapo bis"}); got.Kind == AffStructure {
+		t.Errorf("apparié automatiquement sur une structure hors recensement : %+v", got)
 	}
 }
 

@@ -748,7 +748,9 @@ export interface DrhComparaison {
 }
 
 export interface DrhStructureRow {
+  /** Vide quand la structure n'a jamais été recensée : il n'y a pas de fiche. */
   event_uid: string;
+  hors_recensement: boolean;
   org_unit_uid: string;
   name: string;
   type_code: string;

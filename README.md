@@ -511,14 +511,18 @@ ecrit parfois une commune (« Kassa ») la ou ISS a un district (DCS Kaloum). Le
 dans deux districts sont ecartes.
 
 Ce qui reste ambigu n'est jamais rattache au hasard. Sur le millesime 2026, apres dedoublonnage (10 037
-agents) : **93,5 % categorises** — 6 657 en structure sur 394 structures, 1 915 en bureau de district, 816 en
-administration centrale et programmes, **649 non rattaches**.
+agents) : **97,1 % categorises** — 6 994 en structure sur 441 structures, 1 934 en bureau de district, 816 en
+administration centrale et programmes, **293 non rattaches**.
 
-Une correspondance peut viser une unite d'organisation que le recensement n'a **jamais couverte** : l'agent
-reste non rattache, mais le rapport le dit (`non_recensee`) au lieu d'ignorer la regle en silence, et le
-rattachement se fera de lui-meme le jour ou la structure sera recensee. Trois cas sur 2026, **116 agents** :
-CSR Kassapo (Boke), CSU Siguirikoro (Siguiri), CSU Kagbelen Plateau (Dubreka) — des structures que l'Etat dote
-et qu'ISS ne connait pas. C'est un resultat du croisement, pas un defaut de l'appariement.
+Une correspondance peut viser une unite d'organisation que le recensement n'a **jamais couverte**, et l'agent y
+est alors rattache normalement : l'unite existe dans DHIS2, elle a un district et une region, et perdre
+l'effectif faute de recensement n'aurait aucun sens. La source `non_recensee` garde la trace du constat, et la
+structure porte un badge « non recensee » dans la liste, sans lien vers une fiche puisqu'il n'y en a pas.
+**160 agents sur 2026**, dans 14 structures que l'Etat dote et qu'ISS ne connait pas.
+
+Ces unites n'entrent pas dans l'**appariement automatique** : y verser les 4 000 unites du registre
+multiplierait les candidats et volerait des rattachements aux vraies structures, pour des noms que personne n'a
+verifies. Seule une correspondance validee a la main peut les viser.
 
 La premiere cause de non-rattachement est l'**orthographe** : la DRH ecrit « CSR Damakania », « CSA KOUNTIAH »,
 « CSR ALLASSOYAH », « CS Leysare » la ou ISS a « CSR Damankanya », « CSA Kountya », « CSR Alassoya »,

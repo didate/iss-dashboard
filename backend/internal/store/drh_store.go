@@ -75,14 +75,79 @@ func (s *Store) ListDrhStructures() ([]drh.Structure, error) {
 	}
 	defer rows.Close()
 	var out []drh.Structure
+	recensees := map[string]bool{}
 	for rows.Next() {
 		var st drh.Structure
 		if err := rows.Scan(&st.UID, &st.Name, &st.District, &st.Region, &st.TypeCode, &st.SousPrefecture, &st.SousPrefectureUID); err != nil {
 			return nil, err
 		}
+		recensees[st.UID] = true
 		out = append(out, st)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Les unités d'organisation que le recensement n'a jamais couvertes. Elles
+	// n'entrent pas dans l'appariement automatique, mais une correspondance
+	// validée à la main peut les viser : l'État y affecte du personnel, et
+	// perdre ces agents faute d'un recensement serait absurde.
+	nonRecensees, err := s.orgUnitsHorsRecensement(recensees)
+	if err != nil {
+		return nil, err
+	}
+	return append(out, nonRecensees...), nil
+}
+
+// orgUnitsHorsRecensement remonte la hiérarchie pour donner à chaque unité son
+// district et sa région, que seul le recensement pose d'ordinaire.
+func (s *Store) orgUnitsHorsRecensement(recensees map[string]bool) ([]drh.Structure, error) {
+	rows, err := s.db.Query(`SELECT uid, name, level, COALESCE(parent_uid,'') FROM org_unit`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	type ou struct {
+		name, parent string
+		level        int
+	}
+	all := map[string]ou{}
+	for rows.Next() {
+		var uid string
+		var o ou
+		if err := rows.Scan(&uid, &o.name, &o.level, &o.parent); err != nil {
+			return nil, err
+		}
+		all[uid] = o
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	var out []drh.Structure
+	for uid, o := range all {
+		if o.level < 5 || recensees[uid] {
+			continue
+		}
+		st := drh.Structure{UID: uid, Name: o.name, HorsRecensement: true}
+		for cur := o.parent; cur != ""; {
+			p, ok := all[cur]
+			if !ok {
+				break
+			}
+			switch p.level {
+			case 4:
+				st.SousPrefecture, st.SousPrefectureUID = p.name, cur
+			case 3:
+				st.District = p.name
+			case 2:
+				st.Region = p.name
+			}
+			cur = p.parent
+		}
+		out = append(out, st)
+	}
+	return out, nil
 }
 
 // --- Correspondances --------------------------------------------------------
@@ -559,23 +624,29 @@ func (s *Store) GetDrhComparaison(importID int64, dimension, key, categorie stri
 // DrhStructureRow is one facility with the state agents posted to it.
 type DrhStructureRow struct {
 	// EventUID identifie le recensement : c'est la clé de la fiche détaillée.
-	EventUID    string `json:"event_uid"`
-	OrgUnitUID  string `json:"org_unit_uid"`
-	Name        string `json:"name"`
-	TypeCode    string `json:"type_code"`
-	District    string `json:"district"`
-	Region      string `json:"region"`
-	NAgents     int    `json:"n_agents"`
-	NFemmes     int    `json:"n_femmes"`
-	NDepart5Ans int    `json:"n_depart_5ans"`
+	// Vide pour une structure qu'ISS n'a jamais recensée — il n'y a pas de fiche.
+	EventUID        string `json:"event_uid"`
+	HorsRecensement bool   `json:"hors_recensement"`
+	OrgUnitUID      string `json:"org_unit_uid"`
+	Name            string `json:"name"`
+	TypeCode        string `json:"type_code"`
+	District        string `json:"district"`
+	Region          string `json:"region"`
+	NAgents         int    `json:"n_agents"`
+	NFemmes         int    `json:"n_femmes"`
+	NDepart5Ans     int    `json:"n_depart_5ans"`
 }
 
 // GetDrhStructuresList lists the facilities of a district with their state
 // headcount, including those with none: a facility without a single paid agent
 // is exactly what a planner is looking for.
 func (s *Store) GetDrhStructuresList(importID int64, district, search string) ([]DrhStructureRow, error) {
+	// Deux sources : les structures recensées, et les cellules d'effectif qui
+	// visent une unité d'organisation qu'ISS n'a jamais recensée. Les secondes
+	// n'ont pas de fiche, mais elles ont bien du personnel, et les passer sous
+	// silence reviendrait à cacher le constat.
 	q := `SELECT s.event_uid, s.org_unit_uid, s.org_unit_name, COALESCE(s.type_code,''), COALESCE(s.district,''), COALESCE(s.region,''),
-		COALESCE(e.n_agents,0), COALESCE(e.n_femmes,0), COALESCE(e.n_depart_5ans,0)
+		COALESCE(e.n_agents,0), COALESCE(e.n_femmes,0), COALESCE(e.n_depart_5ans,0), 0 AS hors_recensement
 		FROM structure_latest s
 		LEFT JOIN drh_effectif e ON e.import_id = ? AND e.dimension = 'structure' AND e.categorie = '' AND e.key = s.org_unit_uid
 		WHERE 1 = 1`
@@ -588,7 +659,22 @@ func (s *Store) GetDrhStructuresList(importID int64, district, search string) ([
 		q += ` AND s.org_unit_name LIKE ?`
 		args = append(args, "%"+search+"%")
 	}
-	q += ` ORDER BY COALESCE(e.n_agents,0) DESC, s.org_unit_name LIMIT 2000`
+
+	q += ` UNION ALL SELECT '', e.key, e.label, '', e.district, e.region,
+		e.n_agents, e.n_femmes, e.n_depart_5ans, 1
+		FROM drh_effectif e
+		WHERE e.import_id = ? AND e.dimension = 'structure' AND e.categorie = ''
+		  AND e.key NOT IN (SELECT org_unit_uid FROM structure_latest)`
+	args = append(args, importID)
+	if district != "" {
+		q += ` AND e.district = ?`
+		args = append(args, district)
+	}
+	if search != "" {
+		q += ` AND e.label LIKE ?`
+		args = append(args, "%"+search+"%")
+	}
+	q += ` ORDER BY 7 DESC, 3 LIMIT 2000`
 	rows, err := s.db.Query(q, args...)
 	if err != nil {
 		return nil, err
@@ -598,7 +684,7 @@ func (s *Store) GetDrhStructuresList(importID int64, district, search string) ([
 	for rows.Next() {
 		var r DrhStructureRow
 		if err := rows.Scan(&r.EventUID, &r.OrgUnitUID, &r.Name, &r.TypeCode, &r.District, &r.Region,
-			&r.NAgents, &r.NFemmes, &r.NDepart5Ans); err != nil {
+			&r.NAgents, &r.NFemmes, &r.NDepart5Ans, &r.HorsRecensement); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
