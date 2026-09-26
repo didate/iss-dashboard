@@ -40,7 +40,7 @@ type UniteOrg struct {
 // Affectation is where one agent was posted.
 type Affectation struct {
 	Kind     string // AffStructure | AffBureau | AffBureauRegional | AffCentrale | AffNonRattache
-	Key      string // uid de structure | district | région | "national"
+	Key      string // uid de structure | district | région | entité centrale | "national"
 	Label    string
 	District string
 	Region   string
@@ -110,8 +110,12 @@ func (r *Resolver) Resolve(a AgentRow) Affectation {
 	switch {
 	case u.Level <= 1:
 		// L'unité racine porte les directions, instituts et programmes
-		// nationaux : ils ne relèvent d'aucune zone.
-		return Affectation{Kind: AffCentrale, Key: KeyNational, Label: u.Name, Source: SrcFichier}
+		// nationaux : ils ne relèvent d'aucune zone, et le fichier leur donne
+		// à tous le même identifiant. C'est donc le libellé de la ligne qui
+		// sépare les entités — sans quoi 818 agents formeraient un bloc
+		// « Guinée » indistinct, alors qu'ils se répartissent sur 45 entités.
+		entite := centraleLabel(a, u)
+		return Affectation{Kind: AffCentrale, Key: Norm(entite), Label: entite, Source: SrcFichier}
 	case u.Level == 2:
 		// Les cadres d'une inspection régionale restent au niveau région : les
 		// verser dans un district en gonflerait un au hasard.
@@ -123,6 +127,16 @@ func (r *Resolver) Resolve(a AgentRow) Affectation {
 		return Affectation{Kind: AffStructure, Key: u.UID, Label: u.Name,
 			District: u.District, Region: u.Region, Source: SrcFichier}
 	}
+}
+
+// centraleLabel names the directorate, institute or national programme the
+// agent belongs to. The file's own label carries it; the root unit's name is
+// the last resort, for the few lines that leave both columns empty.
+func centraleLabel(a AgentRow, u UniteOrg) string {
+	if l := a.Libelle(); l != "" {
+		return l
+	}
+	return u.Name
 }
 
 // nonRattache place l'agent nulle part : sans identifiant, sa zone est

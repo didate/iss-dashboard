@@ -142,7 +142,7 @@ func unites() []UniteOrg {
 func TestResolveParNiveau(t *testing.T) {
 	r := NewResolver(unites())
 	for _, c := range []struct{ nom, uid, kind, key string }{
-		{"unité racine", "gn", AffCentrale, KeyNational},
+		{"unité racine", "gn", AffCentrale, Norm("Guinée")},
 		{"région", "reg", AffBureauRegional, "IRS Kankan"},
 		{"district", "dis", AffBureau, "DPS Kankan"},
 		{"hôpital", "hr", AffStructure, "hr"},
@@ -154,6 +154,28 @@ func TestResolveParNiveau(t *testing.T) {
 				t.Errorf("= %s/%s/%s, attendu %s/%s/%s", got.Kind, got.Key, got.Source, c.kind, c.key, SrcFichier)
 			}
 		})
+	}
+}
+
+// L'administration centrale porte un seul identifiant pour toutes ses entités :
+// c'est le libellé de la ligne qui sépare les directions, instituts et
+// programmes. Sans cela, ils formeraient un bloc indistinct.
+func TestResolveCentraleParEntite(t *testing.T) {
+	r := NewResolver(unites())
+	pnlp := r.Resolve(AgentRow{UIDDhis2: "gn", StructureAffectation: "PNLP"})
+	drh := r.Resolve(AgentRow{UIDDhis2: "gn", StructureAffectation: "DRH"})
+	if pnlp.Kind != AffCentrale || drh.Kind != AffCentrale {
+		t.Fatalf("les deux lignes relèvent de l'administration centrale, a %s et %s", pnlp.Kind, drh.Kind)
+	}
+	if pnlp.Key == drh.Key {
+		t.Errorf("deux entités distinctes partagent la clé « %s »", pnlp.Key)
+	}
+	if pnlp.Label != "PNLP" {
+		t.Errorf("libellé = %q, attendu « PNLP »", pnlp.Label)
+	}
+	// Ligne sans libellé : l'unité racine sert de dernier recours.
+	if vide := r.Resolve(AgentRow{UIDDhis2: "gn"}); vide.Label != "Guinée" {
+		t.Errorf("sans libellé, = %q, attendu « Guinée »", vide.Label)
 	}
 }
 
