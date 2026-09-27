@@ -502,7 +502,7 @@ export default function Personnel() {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" fontSize={11} />
                     <YAxis fontSize={11} allowDecimals={false} />
-                    <Tooltip formatter={(v: number, n) => [fmt(v), n === 'femmes' ? 'Femmes' : 'Hommes']} />
+                    <Tooltip formatter={(v: number, n) => [fmt(v), n]} />
                     <Legend wrapperStyle={{ fontSize: 12 }} />
                     <Bar dataKey="femmes" name="Femmes" stackId="s" fill="#db2777" />
                     <Bar dataKey="hommes" name="Hommes" stackId="s" fill="#2563eb" />
@@ -585,7 +585,7 @@ export default function Personnel() {
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="name" fontSize={11} />
             <YAxis fontSize={11} />
-            <Tooltip formatter={(v: number, n) => [fmt(v), n === 'femmes' ? 'Femmes' : 'Hommes']} />
+            <Tooltip formatter={(v: number, n) => [fmt(v), n]} />
             <Legend wrapperStyle={{ fontSize: 12 }} />
             <Bar dataKey="femmes" name="Femmes" stackId="s" fill="#db2777" />
             <Bar dataKey="hommes" name="Hommes" stackId="s" fill="#2563eb" />
