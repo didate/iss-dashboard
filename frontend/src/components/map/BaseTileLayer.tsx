@@ -19,9 +19,17 @@ import { TileLayer } from 'react-leaflet';
  *  assez pour qu'OSM identifie l'application, sans divulguer le chemin ni les
  *  paramètres de la page — un identifiant de structure, par exemple.
  *
- *  `VITE_TILE_URL` et `VITE_TILE_ATTRIBUTION` permettent de basculer vers un
- *  autre fournisseur sans toucher au code, si les tuiles bénévoles d'OSM
- *  s'avéraient trop fragiles pour un service public. Deux fonds sans clé :
+ *  Le fond reste OSM en connaissance de cause. Esri a été essayé, et écarté :
+ *  il ne cartographie pas le bâti des villes de l'intérieur — à Kankan, au zoom
+ *  17, sa tuile ne porte que le nom de la ville et une voie ferrée, là où OSM
+ *  montre les rues et les maisons. Or chercher une structure dans un quartier
+ *  est l'usage principal de la carte publique.
+ *
+ *  Reste que la politique d'OSM déconseille ses serveurs bénévoles pour un
+ *  service en production : la réponse durable est un fournisseur des mêmes
+ *  données avec engagement de service (MapTiler, Stadia), le jour où le
+ *  Ministère disposera d'une clé. `VITE_TILE_URL` et `VITE_TILE_ATTRIBUTION`
+ *  suffisent alors à basculer, sans toucher au code. Sans clé :
  *
  *    Esri   https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}
  *    OSM-FR https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png
